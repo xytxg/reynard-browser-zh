@@ -10,7 +10,7 @@ jobs:
   build:
     name: Build Reynard IPA
     runs-on: macos-15
-    timeout-minutes: 720
+    timeout-minutes: 360
 
     steps:
       - name: Checkout
