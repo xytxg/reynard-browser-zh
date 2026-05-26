@@ -1,0 +1,22 @@
+diff --git a/gfx/layers/ipc/CompositorBridgeParent.cpp b/gfx/layers/ipc/CompositorBridgeParent.cpp
+index 236396830191..10fae0bb3084 100644
+--- a/gfx/layers/ipc/CompositorBridgeParent.cpp
++++ b/gfx/layers/ipc/CompositorBridgeParent.cpp
+@@ -1494,7 +1494,7 @@ CompositorBridgeParent::AllocPCompositorWidgetParent(
+ #endif
+ }
+ 
+-#ifdef XP_MACOSX
++#if defined(XP_MACOSX) || defined(XP_IOS)
+ mozilla::ipc::IPCResult
+ CompositorBridgeParent::RecvPCompositorWidgetConstructor(
+     PCompositorWidgetParent* actor, CompositorWidgetInitData&& aInitData) {
+@@ -1503,6 +1503,8 @@ CompositorBridgeParent::RecvPCompositorWidgetConstructor(
+   // with move semantics, because IPDL can't generate move semantics
+   // in the constructor. The macOS-specific aInitData contains an
+   // Endpoint, so it *must* use move semantics.
++
++  // REYNARD: Let iOS use this compositor init data as well.
+   auto* widget = static_cast<widget::CompositorWidgetParent*>(actor);
+   widget->Init(std::move(aInitData));
+   return IPC_OK();
