@@ -55,3 +55,37 @@ jobs:
             dist/Reynard.ipa
             dist/Reynard-TrollStore.tipa
             dist/Reynard-Jailbroken.ipa
+
+      - name: Collect failure diagnostics
+        if: failure()
+        run: |
+          mkdir -p dist/diagnostics
+          {
+            echo "## Git"
+            git status --short || true
+            echo
+            echo "## Engine release"
+            cat engine/release.txt || true
+            echo
+            echo "## Xcode"
+            xcodebuild -version || true
+            echo
+            echo "## Rust"
+            rustc --version || true
+            cargo --version || true
+            echo
+            echo "## Gecko status"
+            git -C engine/firefox status --short || true
+            git -C engine/firefox log --oneline -1 || true
+            echo
+            echo "## idevice status"
+            git -C support/idevice status --short || true
+            git -C support/idevice log --oneline -1 || true
+          } > dist/diagnostics/build-context.txt
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build-Diagnostics
+          path: dist/diagnostics
