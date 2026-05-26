@@ -29,18 +29,6 @@ jobs:
           brew install ldid
           rustup target add aarch64-apple-ios
 
-      - name: Prepare submodules
-        run: |
-          if ! git submodule status -- engine/firefox >/dev/null 2>&1; then
-            rm -rf engine/firefox
-            git submodule add --depth 1 https://github.com/mozilla-firefox/firefox engine/firefox
-          fi
-
-          if ! git submodule status -- support/idevice >/dev/null 2>&1; then
-            rm -rf support/idevice
-            git submodule add https://github.com/jkcoxson/idevice support/idevice
-          fi
-
       - name: Download Gecko source
         run: ./tools/development/update-gecko.sh
 

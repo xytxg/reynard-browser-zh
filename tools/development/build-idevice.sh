@@ -12,8 +12,9 @@ OUTPUT_LIB="$REPO_ROOT/browser/Reynard/JIT/libidevice_ffi.a"
 TARGET_DIR="$SUBMODULE_PATH/target"
 DEPLOYMENT_TARGET="13.0"
 
-if [ ! -e "$SUBMODULE_PATH/.git" ]; then
-  git -C "$REPO_ROOT" submodule update --init --recursive support/idevice
+if ! git -C "$SUBMODULE_PATH" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  rm -rf "$SUBMODULE_PATH"
+  git clone https://github.com/jkcoxson/idevice "$SUBMODULE_PATH"
 fi
 
 RUST_TARGET="aarch64-apple-ios"
