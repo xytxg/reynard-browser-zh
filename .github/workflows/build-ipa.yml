@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     name: Build Reynard IPA
@@ -20,8 +23,22 @@ jobs:
 
       - name: Select Xcode
         run: |
-          sudo xcode-select -s /Applications/Xcode.app
+          set -euo pipefail
+          XCODE_PATH=""
+          for candidate in /Applications/Xcode_26*.app /Applications/Xcode.app; do
+            if [ -d "$candidate" ]; then
+              XCODE_PATH="$candidate"
+              break
+            fi
+          done
+          if [ -z "$XCODE_PATH" ]; then
+            echo "No Xcode installation found in /Applications"
+            ls -la /Applications | grep Xcode || true
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
           xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
 
       - name: Install tools
         run: |
