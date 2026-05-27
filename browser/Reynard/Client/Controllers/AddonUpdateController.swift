@@ -154,7 +154,7 @@ final class AddonUpdateController {
                     noUpdateCount += 1
                     removePendingApprovalAddonID(addon.id)
                     await MainActor.run {
-                        status(addon.id, "No update available")
+                        status(addon.id, "没有可用更新")
                     }
                 } else {
                     updatedCount += 1
@@ -201,7 +201,7 @@ final class AddonUpdateController {
     private func prunePendingApprovalAddonIDs() {
         let validAddonIDs = Set(AddonRuntime.shared.installedAddons.filter {
             !$0.isBuiltIn && !$0.metaData.isUnsupported
-        }.map(\ .id))
+        }.map(\.id))
         let filteredIDs = Prefs.AddonSettings.pendingApprovalAddonIDs.filter { validAddonIDs.contains($0) }
         if filteredIDs != Prefs.AddonSettings.pendingApprovalAddonIDs {
             Prefs.AddonSettings.pendingApprovalAddonIDs = filteredIDs

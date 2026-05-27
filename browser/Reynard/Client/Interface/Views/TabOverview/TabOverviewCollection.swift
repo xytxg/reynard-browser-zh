@@ -74,7 +74,7 @@ final class TabOverviewCollection {
         
         let subtitleLabel = UILabel()
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        subtitleLabel.text = "Reynard won't remember any of your browsing history or cookies. However, downloads and new bookmarks will be saved."
+        subtitleLabel.text = "Reynard 不会记录你的浏览历史或 Cookie，但下载内容和新书签仍会保存。"
         subtitleLabel.textAlignment = .center
         subtitleLabel.textColor = .secondaryLabel
         subtitleLabel.font = .preferredFont(forTextStyle: .subheadline)

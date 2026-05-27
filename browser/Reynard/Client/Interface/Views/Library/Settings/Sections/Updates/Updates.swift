@@ -133,7 +133,7 @@ extension SettingsRootViewController {
         label.font = UIFont.preferredFont(forTextStyle: .footnote)
         label.adjustsFontForContentSizeCategory = true
         label.textColor = .secondaryLabel
-        label.text = "Make sure TrollStore's URL Scheme is enabled."
+        label.text = "请确保 TrollStore 的 URL Scheme 已启用。"
         
         footerView.contentView.addSubview(label)
         NSLayoutConstraint.activate([
@@ -162,7 +162,7 @@ extension SettingsRootViewController {
               let versions = firstApp["versions"] as? [[String: Any]],
               let latestEntry = versions.first,
               let desc = latestEntry["localizedDescription"] as? String else {
-            return NSAttributedString(string: "No release notes available.",
+            return NSAttributedString(string: "暂无更新说明。",
                                       attributes: [.font: UIFont.preferredFont(forTextStyle: .footnote)])
         }
         
@@ -274,7 +274,7 @@ extension SettingsRootViewController {
               let latestEntry = versions.first,
               let downloadURLStr = latestEntry["downloadURL"] as? String,
               let downloadURL = URL(string: downloadURLStr) else {
-            presentAlert(title: "Update Unavailable", message: "Could not retrieve the download URL.")
+            presentAlert(title: "无法更新", message: "无法获取下载地址。")
             return
         }
         
@@ -293,7 +293,7 @@ extension SettingsRootViewController {
                 from: downloadURL,
                 fileName: "Reynard.ipa",
                 expectedSize: expectedSize,
-                message: "When the download finishes, choose the app that you used to sideload Reynard in the share sheet to install the update."
+                message: "下载完成后，请在分享面板中选择你用于侧载 Reynard 的应用来安装更新。"
             )
         }
     }
@@ -308,7 +308,7 @@ extension SettingsRootViewController {
         }
         
         let alert = UIAlertController(
-            title: "Downloading Update",
+            title: "正在下载更新",
             message: message,
             preferredStyle: .alert
         )

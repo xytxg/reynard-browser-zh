@@ -51,7 +51,7 @@ final class AddonPromptViewController: UITableViewController {
         button.layer.cornerRadius = 25
         button.layer.cornerCurve = .continuous
         button.titleLabel?.font = .preferredFont(forTextStyle: .headline)
-        button.setTitle(prompt.kind == .install ? "添加" : "Allow", for: .normal)
+        button.setTitle(prompt.kind == .install ? "添加" : "允许", for: .normal)
         button.addTarget(self, action: #selector(confirmPrompt), for: .touchUpInside)
         return button
     }()
@@ -255,14 +255,14 @@ final class AddonPromptViewController: UITableViewController {
         
         switch prompt.kind {
         case .install:
-            return "Add \(addonName)?"
+            return "要添加 \(addonName) 吗？"
         case .optional:
             if prompt.permissions.isEmpty && prompt.origins.isEmpty && !prompt.dataCollectionPermissions.isEmpty {
-                return "\(addonName) requests additional data collection."
+                return "\(addonName) 请求额外的数据收集权限。"
             }
-            return "\(addonName) requests additional permissions."
+            return "\(addonName) 请求额外权限。"
         case .update:
-            return "\(addonName) has been updated. You must approve additional permissions before the updated version will install. Dismissing this prompt will maintain your current add-on version."
+            return "\(addonName) 已更新。安装新版本前，你需要批准额外权限。关闭此提示将继续使用当前扩展版本。"
         }
     }
     
@@ -270,7 +270,7 @@ final class AddonPromptViewController: UITableViewController {
         var items: [DisplayItem] = []
         
         if !domainRows.isEmpty {
-            items.append(.domainHeader("Access your data for sites in \(domainRows.count) domains"))
+            items.append(.domainHeader("访问你在 \(domainRows.count) 个域名上的数据"))
             items.append(.showAllSites)
         }
         
@@ -314,9 +314,9 @@ final class AddonPromptViewController: UITableViewController {
     private static func promptTitle(for prompt: AddonPermissionPrompt) -> String {
         switch prompt.kind {
         case .install:
-            return "Add Add-on"
+            return "添加扩展"
         case .optional, .update:
-            return "Update Add-on Permissions"
+            return "更新扩展权限"
         }
     }
     
@@ -328,7 +328,7 @@ private final class AddonPromptSitesViewController: UITableViewController {
     init(sites: [String]) {
         self.sites = sites
         super.init(style: .insetGrouped)
-        title = "Sites"
+        title = "网站"
     }
     
     required init?(coder: NSCoder) {

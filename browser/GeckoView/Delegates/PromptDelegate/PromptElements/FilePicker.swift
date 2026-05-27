@@ -815,9 +815,9 @@ final class FilePicker: NSObject {
         
         let baseName: String
         if typeConforms(typeIdentifier, to: kUTTypeMovie as String) {
-            baseName = "Video"
+            baseName = "视频"
         } else if typeConforms(typeIdentifier, to: kUTTypeImage as String) {
-            baseName = "Photo"
+            baseName = "照片"
         } else {
             baseName = "文件"
         }
@@ -840,7 +840,7 @@ final class FilePicker: NSObject {
     nonisolated private static func stageFolder(from url: URL, in directory: URL) throws -> SelectionResult {
         try prepareDirectory(directory)
         
-        let rootName = sanitizeFileName(url.lastPathComponent.isEmpty ? "Folder" : url.lastPathComponent)
+        let rootName = sanitizeFileName(url.lastPathComponent.isEmpty ? "文件夹" : url.lastPathComponent)
         let destinationURL = directory.appendingPathComponent(rootName, isDirectory: true)
         
         try withSecurityScopedAccess(to: url) {

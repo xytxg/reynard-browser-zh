@@ -36,7 +36,7 @@ enum ImagePreviewMenu {
             }
             
             let saveToPhotosAction = UIAction(
-                title: "Save to Photos",
+                title: "保存到照片",
                 image: UIImage(systemName: "square.and.arrow.down")
             ) { _ in
                 Task {
@@ -50,7 +50,7 @@ enum ImagePreviewMenu {
             }
             
             let copyAction = UIAction(
-                title: "Copy",
+                title: "复制",
                 image: UIImage(systemName: "document.on.document")
             ) { _ in
                 Task {

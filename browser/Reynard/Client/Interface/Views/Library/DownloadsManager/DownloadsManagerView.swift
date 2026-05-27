@@ -381,7 +381,7 @@ final class DownloadsManagerView: UIView, UITableViewDataSource, UITableViewDele
     }
     
     private func updateBackgroundView() {
-        emptyStateView.message = currentSearchTerm.isEmpty ? "你下载的文件会显示在这里" : "No matching downloads"
+        emptyStateView.message = currentSearchTerm.isEmpty ? "你下载的文件会显示在这里" : "没有匹配的下载记录"
         tableView.backgroundView = sections.isEmpty ? emptyStateView : nil
         emptyStateView.updateContentInsets(from: tableView)
     }
@@ -456,10 +456,10 @@ final class DownloadsManagerView: UIView, UITableViewDataSource, UITableViewDele
             resolvedSections.append(Section(title: "昨天", items: yesterdayItems))
         }
         if !previousSevenDayItems.isEmpty {
-            resolvedSections.append(Section(title: "Previous 7 Days", items: previousSevenDayItems))
+            resolvedSections.append(Section(title: "过去 7 天", items: previousSevenDayItems))
         }
         if !previousThirtyDayItems.isEmpty {
-            resolvedSections.append(Section(title: "Previous 30 Days", items: previousThirtyDayItems))
+            resolvedSections.append(Section(title: "过去 30 天", items: previousThirtyDayItems))
         }
         
         let currentYear = calendar.component(.year, from: now)
@@ -579,7 +579,7 @@ final class DownloadsManagerView: UIView, UITableViewDataSource, UITableViewDele
             return configuration
             
         case .completed:
-            let deleteAction = UIContextualAction(style: .destructive, title: "Delete") { _, _, completion in
+            let deleteAction = UIContextualAction(style: .destructive, title: "删除") { _, _, completion in
                 DownloadStore.shared.deleteDownloadedItem(id: item.id)
                 completion(true)
             }
@@ -590,7 +590,7 @@ final class DownloadsManagerView: UIView, UITableViewDataSource, UITableViewDele
                 return configuration
             }
             
-            let shareAction = UIContextualAction(style: .normal, title: "Share") { [weak self] _, _, completion in
+            let shareAction = UIContextualAction(style: .normal, title: "分享") { [weak self] _, _, completion in
                 guard let self else {
                     completion(false)
                     return
@@ -601,7 +601,7 @@ final class DownloadsManagerView: UIView, UITableViewDataSource, UITableViewDele
             }
             shareAction.backgroundColor = .systemGreen
             
-            let openAction = UIContextualAction(style: .normal, title: "Open in\nFiles") { [weak self] _, _, completion in
+            let openAction = UIContextualAction(style: .normal, title: "在“文件”中\n打开") { [weak self] _, _, completion in
                 guard let self else {
                     completion(false)
                     return
@@ -677,7 +677,7 @@ final class DownloadsManagerView: UIView, UITableViewDataSource, UITableViewDele
         
         let alert = UIAlertController(
             title: "取消下载？",
-            message: "Do you want to stop downloading \(item.fileName)?",
+            message: "要停止下载 \(item.fileName) 吗？",
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: "继续下载", style: .cancel) { _ in
@@ -756,4 +756,3 @@ private let monthYearTitleFormatter: DateFormatter = {
     formatter.setLocalizedDateFormatFromTemplate("MMMM yyyy")
     return formatter
 }()
-

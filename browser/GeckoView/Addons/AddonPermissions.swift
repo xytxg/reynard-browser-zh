@@ -46,7 +46,7 @@ public enum AddonPermissionSupport {
     
     private static let permissionDescriptions = [
         "<all_urls>": "访问你在所有网站上的数据",
-        "bookmarks": "Read and modify bookmarks",
+        "bookmarks": "读取和修改书签",
         "browserSettings": "读取和修改浏览器设置",
         "browsingData": "清除最近的浏览历史、Cookie 和相关数据",
         "clipboardRead": "读取剪贴板数据",
@@ -54,7 +54,7 @@ public enum AddonPermissionSupport {
         "declarativeNetRequest": "阻止任意页面上的内容",
         "declarativeNetRequestFeedback": "读取你的浏览历史",
         "devtools": "扩展开发者工具以访问打开标签页中的数据",
-        "downloads": "Download files and read and modify the browser's download history",
+        "downloads": "下载文件，并读取和修改浏览器的下载历史",
         "downloads.open": "打开已下载到设备的文件",
         "find": "读取所有打开标签页的文本",
         "geolocation": "访问你的位置",
@@ -75,33 +75,33 @@ public enum AddonPermissionSupport {
     ]
     
     private static let dataCollectionShortDescriptions = [
-        "authenticationInfo": "authentication information",
-        "bookmarksInfo": "bookmarks",
-        "browsingActivity": "browsing activity",
-        "financialAndPaymentInfo": "financial and payment information",
-        "healthInfo": "health information",
-        "locationInfo": "location",
-        "personalCommunications": "personal communications",
-        "personallyIdentifyingInfo": "personally identifying information",
-        "searchTerms": "search terms",
-        "technicalAndInteraction": "technical and interaction data",
-        "websiteActivity": "website activity",
-        "websiteContent": "website content",
+        "authenticationInfo": "认证信息",
+        "bookmarksInfo": "书签",
+        "browsingActivity": "浏览活动",
+        "financialAndPaymentInfo": "财务和付款信息",
+        "healthInfo": "健康信息",
+        "locationInfo": "位置",
+        "personalCommunications": "个人通信内容",
+        "personallyIdentifyingInfo": "个人身份信息",
+        "searchTerms": "搜索词",
+        "technicalAndInteraction": "技术和交互数据",
+        "websiteActivity": "网站活动",
+        "websiteContent": "网站内容",
     ]
     
     private static let dataCollectionLongDescriptions = [
-        "authenticationInfo": "Share authentication information with extension developer",
-        "bookmarksInfo": "Share bookmarks information with extension developer",
-        "browsingActivity": "Share browsing activity with extension developer",
-        "financialAndPaymentInfo": "Share financial and payment information with extension developer",
-        "healthInfo": "Share health information with extension developer",
-        "locationInfo": "Share location information with extension developer",
-        "personalCommunications": "Share personal communications with extension developer",
-        "personallyIdentifyingInfo": "Share personally identifying information with extension developer",
-        "searchTerms": "Share search terms with extension developer",
-        "technicalAndInteraction": "Share technical and interaction data with extension developer",
-        "websiteActivity": "Share website activity with extension developer",
-        "websiteContent": "Share website content with extension developer",
+        "authenticationInfo": "与扩展开发者共享认证信息",
+        "bookmarksInfo": "与扩展开发者共享书签信息",
+        "browsingActivity": "与扩展开发者共享浏览活动",
+        "financialAndPaymentInfo": "与扩展开发者共享财务和付款信息",
+        "healthInfo": "与扩展开发者共享健康信息",
+        "locationInfo": "与扩展开发者共享位置信息",
+        "personalCommunications": "与扩展开发者共享个人通信内容",
+        "personallyIdentifyingInfo": "与扩展开发者共享个人身份信息",
+        "searchTerms": "与扩展开发者共享搜索词",
+        "technicalAndInteraction": "与扩展开发者共享技术和交互数据",
+        "websiteActivity": "与扩展开发者共享网站活动",
+        "websiteContent": "与扩展开发者共享网站内容",
     ]
     
     public static func localizePermissions(_ permissions: [String], forUpdate: Bool = false) -> [String] {
@@ -219,7 +219,7 @@ public enum AddonPermissionSupport {
             return nil
         }
         
-        return "The developer says this extension collects: \(formatLocalizedDataCollectionPermissions(localizedPermissions))"
+        return "开发者表示此扩展会收集：\(formatLocalizedDataCollectionPermissions(localizedPermissions))"
     }
     
     public static func optionalDataCollectionDescription(for permissions: [String]) -> String? {
@@ -228,7 +228,7 @@ public enum AddonPermissionSupport {
             return nil
         }
         
-        return "The developer says the extension wants to collect: \(formatLocalizedDataCollectionPermissions(localizedPermissions))"
+        return "开发者表示此扩展想要收集：\(formatLocalizedDataCollectionPermissions(localizedPermissions))"
     }
     
     public static func updateDataCollectionDescription(for permissions: [String]) -> String? {
@@ -237,7 +237,7 @@ public enum AddonPermissionSupport {
             return nil
         }
         
-        return "New required data collection: The developer says the extension will collect \(formatLocalizedDataCollectionPermissions(localizedPermissions))."
+        return "新的必需数据收集：开发者表示此扩展会收集 \(formatLocalizedDataCollectionPermissions(localizedPermissions))。"
     }
     
     public static func updatePermissionDescription(for permissions: [String]) -> String? {
@@ -246,7 +246,7 @@ public enum AddonPermissionSupport {
             return nil
         }
         
-        return "New required permissions: \(localizedPermissions.joined(separator: " "))"
+        return "新的必需权限：\(localizedPermissions.joined(separator: " "))"
     }
     
     public static func permissionsListContainsAllUrls(_ permissions: [String]) -> Bool {

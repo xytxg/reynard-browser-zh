@@ -86,7 +86,7 @@ final class CompatibilityPreferencesViewController: SettingsTableViewController 
             : "为了最大化兼容性，浏览器将使用 Android 版 Firefox 的 User Agent 浏览网页。因此，网站可能会将你的设备识别为 Android 设备。"
         }
         
-        return "If you encounter issues such as sign-in failures, human verification challenges, or other incorrect site behavior, adding the site's URL to this user agent override list may help resolve the problem."
+        return "如果遇到登录失败、人机验证异常或其他网站显示/行为问题，可以把网站地址加入此 User Agent 覆盖列表来尝试解决。"
     }
     
     private func refreshControls() {
@@ -189,13 +189,13 @@ final class UserAgentOverridesPreferencesViewController: UITableViewController {
             return nil
         }
         
-        return "Navigations to these websites will use the browser's compatibility user agent. Depending on your Request Desktop Website setting, these websites may identify your device as either an Android device or a desktop Linux device."
+        return "访问这些网站时会使用浏览器的兼容性 User Agent。根据“请求桌面版网站”设置不同，这些网站可能会将你的设备识别为 Android 设备或桌面 Linux 设备。"
     }
     
     private func showAddDomainAlert() {
         let alert = UIAlertController(title: "添加网站", message: nil, preferredStyle: .alert)
         alert.addTextField { field in
-            field.placeholder = "e.g. youtube.com"
+            field.placeholder = "例如 youtube.com"
             field.autocorrectionType = .no
             field.autocapitalizationType = .none
             field.keyboardType = .URL

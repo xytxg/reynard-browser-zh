@@ -91,7 +91,7 @@ final class ClearDownloadsViewController: UITableViewController {
     }
     
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        "Clearing downloads history does not delete files in your Downloads folder."
+        "清除下载记录不会删除“下载”文件夹中的文件。"
     }
     
     override func tableView(

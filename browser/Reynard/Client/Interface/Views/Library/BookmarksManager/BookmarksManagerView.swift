@@ -120,7 +120,7 @@ private final class BookmarksFolderViewController: UIViewController, UITableView
     }()
     private let emptyStateLabel: UILabel = {
         let label = UILabel()
-        label.text = "No matching bookmarks"
+        label.text = "没有匹配的书签"
         label.font = .systemFont(ofSize: 16, weight: .medium)
         label.textColor = .secondaryLabel
         label.textAlignment = .center
@@ -377,7 +377,7 @@ private final class BookmarksFolderViewController: UIViewController, UITableView
             return nil
         }
         
-        let deleteAction = UIContextualAction(style: .destructive, title: "Delete") { [weak self] _, _, completion in
+        let deleteAction = UIContextualAction(style: .destructive, title: "删除") { [weak self] _, _, completion in
             guard let self else {
                 completion(false)
                 return
@@ -390,7 +390,7 @@ private final class BookmarksFolderViewController: UIViewController, UITableView
             return UISwipeActionsConfiguration(actions: [deleteAction])
         }
         
-        let editAction = UIContextualAction(style: .normal, title: "Edit") { [weak self] _, _, completion in
+        let editAction = UIContextualAction(style: .normal, title: "编辑") { [weak self] _, _, completion in
             guard let self else {
                 completion(false)
                 return
@@ -515,7 +515,7 @@ private final class BookmarksFolderViewController: UIViewController, UITableView
         UIMenu(title: "", children: [
             makeSortMenu(),
             UIAction(
-                title: "Show Folders on Top",
+                title: "文件夹置顶",
                 image: UIImage(named: "text.below.folder"),
                 state: Prefs.BookmarkSettings.placeFoldersOnTop ? .on : .off
             ) { [weak self] _ in
@@ -537,13 +537,13 @@ private final class BookmarksFolderViewController: UIViewController, UITableView
     private func makeSortMenu() -> UIMenu {
         let selectedOrder = Prefs.BookmarkSettings.sortOrders
         let sortOptions: [(title: String, order: BookmarkSortOrder)] = [
-            ("None", .none),
-            ("Date Added", .date_added),
-            ("Name", .name),
-            ("Address", .address),
+            ("无", .none),
+            ("添加日期", .date_added),
+            ("名称", .name),
+            ("地址", .address),
         ]
         let menu = UIMenu(
-            title: "Sort By",
+            title: "排序方式",
             image: UIImage(systemName: "arrow.up.arrow.down"),
             identifier: nil,
             options: [],
@@ -616,7 +616,7 @@ private final class BookmarksFolderViewController: UIViewController, UITableView
             return false
         })
         return [
-            ("Folders", folders),
+            ("文件夹", folders),
             ("书签", bookmarks),
         ].filter { !$0.items.isEmpty }
     }

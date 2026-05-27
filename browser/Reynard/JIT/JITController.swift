@@ -202,9 +202,9 @@ final class JITController {
         let description = error.localizedDescription.isEmpty ? "未知错误。" : error.localizedDescription
         let messageText: String
         if usePtraceJIT() {
-            messageText = "It's extremely rare that you encounter this issue! Make sure that your TrollStore installation or jailbroken environment is properly configured.\n\nYou may use the browser without JIT temporarily until the next launch by activating JIT-Less Mode."
+            messageText = "这个问题很少见。请确认你的 TrollStore 安装或越狱环境已正确配置。\n\n你可以启用无 JIT 模式，在下次启动前临时不使用 JIT 继续浏览。"
         } else {
-            messageText = "Please check that your pairing file is valid, your loopback VPN is on, and you're connected to a stable Wi-Fi network.\n\nYou may use the browser without JIT temporarily until the next launch by activating JIT-Less Mode."
+            messageText = "请确认配对文件有效、回环 VPN 已开启，并且当前连接到稳定的 Wi-Fi 网络。\n\n你可以启用无 JIT 模式，在下次启动前临时不使用 JIT 继续浏览。"
         }
         
         let viewController = JITFailureViewController(

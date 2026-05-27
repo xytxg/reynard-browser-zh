@@ -208,7 +208,7 @@ final class AddonController: NSObject, AddonEmbedderDelegate {
         Task { @MainActor [weak self] in
             self?.presentPopupAfterMenuDismissal(
                 url: popupURL,
-                title: action.title ?? addon.metaData.name ?? "Extension"
+                title: action.title ?? addon.metaData.name ?? "扩展"
             )
         }
     }

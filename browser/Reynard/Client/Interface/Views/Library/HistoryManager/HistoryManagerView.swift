@@ -482,7 +482,7 @@ private final class HistoryManagerViewController: UIViewController, UITableViewD
     
     private func updateBackgroundView() {
         let hasHistory = !sections.isEmpty
-        emptyStateView.message = currentSearchTerm.isEmpty ? "你的浏览历史会显示在这里" : "No matching history"
+        emptyStateView.message = currentSearchTerm.isEmpty ? "你的浏览历史会显示在这里" : "没有匹配的历史记录"
         tableView.backgroundView = hasHistory ? nil : emptyStateView
         emptyStateView.updateContentInsets(from: tableView)
     }
@@ -689,7 +689,7 @@ private final class HistoryManagerViewController: UIViewController, UITableViewD
         _ tableView: UITableView,
         trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
     ) -> UISwipeActionsConfiguration? {
-        let deleteAction = UIContextualAction(style: .destructive, title: "Delete") { [weak self] _, _, completion in
+        let deleteAction = UIContextualAction(style: .destructive, title: "删除") { [weak self] _, _, completion in
             guard let self, let item = self.item(at: indexPath) else {
                 completion(false)
                 return
@@ -740,4 +740,3 @@ private final class HistoryManagerViewController: UIViewController, UITableViewD
         return true
     }
 }
-
