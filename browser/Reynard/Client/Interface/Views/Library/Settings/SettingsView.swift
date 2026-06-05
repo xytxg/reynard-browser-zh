@@ -144,7 +144,7 @@ final class SettingsRootViewController: SettingsTableViewController {
                 let info = Bundle.main.infoDictionary
                 let version = info?["CFBundleShortVersionString"] as? String ?? "未知"
                 let build = info?["CFBundleVersion"] as? String ?? "未知"
-                cell.textLabel?.text = "Reynard Browser"
+                cell.textLabel?.text = "狐影浏览器"
                 cell.detailTextLabel?.text = "\(version) (\(build))"
                 cell.detailTextLabel?.textColor = .secondaryLabel
                 cell.selectionStyle = .none

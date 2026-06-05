@@ -26,7 +26,7 @@ extension SettingsRootViewController {
         let cell = UITableViewCell(style: .default, reuseIdentifier: nil)
         cell.selectionStyle = .none
         
-        var appName = "Reynard Browser"
+        var appName = "狐影浏览器"
         var latestVersionStr = AppUpdates.shared.latestVersion
         var sizeStr = ""
         

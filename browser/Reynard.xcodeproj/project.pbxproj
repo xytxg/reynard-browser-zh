@@ -498,12 +498,12 @@
 				DEVELOPMENT_TEAM = NAR5D6HWAD;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Reynard/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Reynard;
+				INFOPLIST_KEY_CFBundleDisplayName = "狐影浏览器";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Reynard uses your camera to take photos and video.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Some websites may use the microphone.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "This lets you save photos.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "狐影浏览器需要使用相机来拍摄照片和视频。";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "部分网站可能需要使用麦克风。";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "允许保存照片到你的照片图库。";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -564,12 +564,12 @@
 				DEVELOPMENT_TEAM = NAR5D6HWAD;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Reynard/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Reynard;
+				INFOPLIST_KEY_CFBundleDisplayName = "狐影浏览器";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Reynard uses your camera to take photos and video.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Some websites may use the microphone.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "This lets you save photos.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "狐影浏览器需要使用相机来拍摄照片和视频。";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "部分网站可能需要使用麦克风。";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "允许保存照片到你的照片图库。";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -963,7 +963,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = Extensions/OpenIn/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Open in Reynard";
+				INFOPLIST_KEY_CFBundleDisplayName = "在狐影浏览器中打开";
 				IPHONEOS_DEPLOYMENT_TARGET = "$(IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1000,7 +1000,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = Extensions/OpenIn/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Open in Reynard";
+				INFOPLIST_KEY_CFBundleDisplayName = "在狐影浏览器中打开";
 				IPHONEOS_DEPLOYMENT_TARGET = "$(IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
