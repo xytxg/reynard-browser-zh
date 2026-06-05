@@ -24,18 +24,50 @@ jobs:
       - name: Select Xcode
         run: |
           set -euo pipefail
+          MIN_IPHONEOS_SDK="26.4"
+
+          version_ge() {
+            awk -v a="$1" -v b="$2" '
+              BEGIN {
+                n = split(a, av, ".")
+                m = split(b, bv, ".")
+                max = n > m ? n : m
+                for (i = 1; i <= max; i++) {
+                  ai = av[i] + 0
+                  bi = bv[i] + 0
+                  if (ai > bi) exit 0
+                  if (ai < bi) exit 1
+                }
+                exit 0
+              }
+            '
+          }
+
           XCODE_PATH=""
-          for candidate in /Applications/Xcode_26*.app /Applications/Xcode.app; do
-            if [ -d "$candidate" ]; then
+          while IFS= read -r candidate; do
+            developer_dir="$candidate/Contents/Developer"
+            sdk_version="$(DEVELOPER_DIR="$developer_dir" xcrun --sdk iphoneos --show-sdk-version 2>/dev/null || true)"
+            echo "$candidate -> iPhoneOS SDK ${sdk_version:-unavailable}"
+            if [ -n "$sdk_version" ] && version_ge "$sdk_version" "$MIN_IPHONEOS_SDK"; then
               XCODE_PATH="$candidate"
               break
             fi
-          done
+          done < <(find /Applications -maxdepth 1 -type d -name 'Xcode*.app' | sort -r)
+
+          if [ -z "$XCODE_PATH" ] && [ -d /Applications/Xcode.app ]; then
+            sdk_version="$(DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer" xcrun --sdk iphoneos --show-sdk-version 2>/dev/null || true)"
+            echo "/Applications/Xcode.app -> iPhoneOS SDK ${sdk_version:-unavailable}"
+            if [ -n "$sdk_version" ] && version_ge "$sdk_version" "$MIN_IPHONEOS_SDK"; then
+              XCODE_PATH="/Applications/Xcode.app"
+            fi
+          fi
+
           if [ -z "$XCODE_PATH" ]; then
-            echo "No Xcode installation found in /Applications"
+            echo "No Xcode installation with iPhoneOS SDK >= $MIN_IPHONEOS_SDK found in /Applications"
             ls -la /Applications | grep Xcode || true
             exit 1
           fi
+
           sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
