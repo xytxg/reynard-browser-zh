@@ -149,8 +149,8 @@ public class GeckoSession {
     }
     
     public func open(windowId: String? = nil) {
-        if isOpen() {
-            fatalError("cannot open a GeckoSession twice")
+        guard !isOpen() else {
+            return
         }
         
         id = windowId ?? UUID().uuidString.replacingOccurrences(of: "-", with: "")
@@ -193,10 +193,9 @@ public class GeckoSession {
             ],
             isPrivateMode
         )
-        guard let engineView = window?.view() else {
-            fatalError("GeckoView window has no view")
+        if let engineView = window?.view() {
+            autofillHandler.attach(to: engineView)
         }
-        autofillHandler.attach(to: engineView)
     }
     
     public func isOpen() -> Bool { window != nil }

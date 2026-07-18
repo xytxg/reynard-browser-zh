@@ -33,9 +33,9 @@ final class PictureInPictureHandler: GeckoSessionHandlerCommon {
         guard let candidates = session?.window?.pictureInPictureCandidates() else {
             return []
         }
-        return (0..<candidates.count).map {
+        return (0..<candidates.count).compactMap {
             guard let candidate = candidates.candidate(at: $0) else {
-                preconditionFailure("missing picture in picture candidate")
+                return nil
             }
             return PictureInPictureCandidate(
                 displayLayer: candidate.displayLayer,

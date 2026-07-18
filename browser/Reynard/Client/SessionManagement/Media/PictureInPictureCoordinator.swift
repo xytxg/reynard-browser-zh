@@ -138,6 +138,11 @@ final class PictureInPictureCoordinator: NSObject, PictureInPictureCoordinating 
         sessionManager.applicationStateObserver = self
         sessionManager.pictureInPictureHandler = self
     }
+    deinit {
+        pollingTimer?.invalidate()
+        observedSession?.pictureInPictureDelegate = nil
+        state.presentation?.controller.delegate = nil
+    }
     
     func selectedSessionDidChange() {
         awaitsLayerAfterForeground = false

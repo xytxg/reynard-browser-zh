@@ -57,4 +57,39 @@ const downloadStore = read("browser/Reynard/Client/Stores/DownloadStore.swift");
 requireText(downloadStore, "DownloadCleanupPolicy.partition", "date-based download cleanup does not use the tested policy");
 rejectText(downloadStore, "self.persistedDownloads.removeAll()", "download cleanup still contains the original unconditional clear");
 
+const autofillHandler = read("browser/GeckoView/Session/GeckoAutofillHandler.swift");
+rejectText(
+  autofillHandler,
+  'fatalError("Unimplemented")',
+  "optional autofill bridge selectors still crash when unavailable"
+);
+
+const geckoSession = read("browser/GeckoView/Session/GeckoSession.swift");
+rejectText(
+  geckoSession,
+  'fatalError("GeckoView window has no view")',
+  "missing Gecko view still crashes the browser"
+);
+
+const pictureInPictureDelegate = read("browser/GeckoView/Delegates/PictureInPictureDelegate.swift");
+rejectText(
+  pictureInPictureDelegate,
+  "preconditionFailure",
+  "an unavailable picture-in-picture candidate still crashes the browser"
+);
+
+const pictureInPictureCoordinator = read(
+  "browser/Reynard/Client/SessionManagement/Media/PictureInPictureCoordinator.swift"
+);
+requireText(
+  pictureInPictureCoordinator,
+  "@available(iOS 15.0, *)",
+  "picture-in-picture coordinator is not guarded for iOS 13 and 14"
+);
+requireText(
+  pictureInPictureCoordinator,
+  "deinit",
+  "picture-in-picture coordinator does not clean up its timer and delegates"
+);
+
 console.log("Project safety validation passed");
