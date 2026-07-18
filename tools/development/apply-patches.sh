@@ -21,8 +21,8 @@ if [[ -z "$RELEASE_TAG" ]]; then
 	exit 1
 fi
 
-if ! git -C "$SUBMODULE_PATH" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-	echo "Missing Firefox source at $SUBMODULE_PATH. Run tools/development/update-gecko.sh first."
+if ! git submodule status -- "$SUBMODULE_PATH" >/dev/null 2>&1; then
+	echo "Missing submodule $SUBMODULE_PATH. Add it first, then run tools/development/update-gecko.sh."
 	exit 1
 fi
 
@@ -67,6 +67,10 @@ for patch_file in $patch_files; do
 
 	if ! git -C "$SUBMODULE_PATH" apply --3way --whitespace=nowarn "$patch_file"; then
 		echo "Failed to apply $rel_path."
+		if [[ "${CI:-}" == "true" ]]; then
+			echo "CI cannot resolve an interactive patch conflict."
+			exit 1
+		fi
 		echo "Resolve conflicts in $SUBMODULE_PATH, then press Enter to continue or type q to stop."
 		read -r response
 		if [[ "$response" == "q" || "$response" == "Q" ]]; then

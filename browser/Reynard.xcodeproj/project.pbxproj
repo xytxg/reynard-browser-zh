@@ -80,13 +80,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		010FB2CB2F909FE300271A50 /* Exceptions for "Reynard" folder in "GeckoView" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				TrollStore/Utils/TSUtils.m,
-			);
-			target = 01GECKO0012F2F289C001F0002 /* GeckoView */;
-		};
 		0111ED022F4A19FD00490C82 /* Exceptions for "Helper" folder in "GeckoView" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -107,10 +100,17 @@
 		018C67B02F2F289E001F0BBB /* Exceptions for "Reynard" folder in "Reynard" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				JIT/Unsandboxed/ptrace_jit.c,
 				Resources/Info.plist,
-				TrollStore/JIT/ptrace_jit.c,
 			);
 			target = 018C679D2F2F289C001F0BBB /* Reynard */;
+		};
+		01D723872FE2DDA300E9D86C /* Exceptions for "Reynard" folder in "GeckoView" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Shared/Utils.m,
+			);
+			target = 01GECKO0012F2F289C001F0002 /* GeckoView */;
 		};
 		01GECKO0072F2F289C001F0001 /* Exceptions for "GeckoView" folder in "GeckoView" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -142,7 +142,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				018C67B02F2F289E001F0BBB /* Exceptions for "Reynard" folder in "Reynard" target */,
-				010FB2CB2F909FE300271A50 /* Exceptions for "Reynard" folder in "GeckoView" target */,
+				01D723872FE2DDA300E9D86C /* Exceptions for "Reynard" folder in "GeckoView" target */,
 			);
 			path = Reynard;
 			sourceTree = "<group>";
@@ -343,7 +343,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2620;
-				LastUpgradeCheck = 2620;
+				LastUpgradeCheck = 2660;
 				TargetAttributes = {
 					018C679D2F2F289C001F0BBB = {
 						CreatedOnToolsVersion = 26.2;
@@ -364,6 +364,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				"zh-Hans",
 				Base,
 			);
 			mainGroup = 018C67952F2F289C001F0BBB;
@@ -498,12 +499,13 @@
 				DEVELOPMENT_TEAM = NAR5D6HWAD;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Reynard/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "狐影浏览器";
+				INFOPLIST_KEY_CFBundleDisplayName = Reynard;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "狐影浏览器需要使用相机来拍摄照片和视频。";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "部分网站可能需要使用麦克风。";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "允许保存照片到你的照片图库。";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access lets websites in this browser scan QR codes, capture photos, and start video calls.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location access lets websites in this browser provide location-based content such as maps, directions, and nearby places.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone access lets websites in this browser capture your voice for calls and audio recordings.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Photo library access lets this browser save images and other media you download from websites to Photos.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -518,6 +520,7 @@
 					"$(inherited)",
 					"$(SRCROOT)/Reynard/JIT",
 					"$(PROJECT_DIR)/Reynard/JIT",
+					"$(PROJECT_DIR)/Reynard/JIT/RPPairing",
 				);
 				MARKETING_VERSION = "$(CURRENT_VERSION)";
 				OTHER_LDFLAGS = (
@@ -564,12 +567,13 @@
 				DEVELOPMENT_TEAM = NAR5D6HWAD;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Reynard/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "狐影浏览器";
+				INFOPLIST_KEY_CFBundleDisplayName = Reynard;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "狐影浏览器需要使用相机来拍摄照片和视频。";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "部分网站可能需要使用麦克风。";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "允许保存照片到你的照片图库。";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access lets websites in this browser scan QR codes, capture photos, and start video calls.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location access lets websites in this browser provide location-based content such as maps, directions, and nearby places.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone access lets websites in this browser capture your voice for calls and audio recordings.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Photo library access lets this browser save images and other media you download from websites to Photos.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -584,6 +588,7 @@
 					"$(inherited)",
 					"$(SRCROOT)/Reynard/JIT",
 					"$(PROJECT_DIR)/Reynard/JIT",
+					"$(PROJECT_DIR)/Reynard/JIT/RPPairing",
 				);
 				MARKETING_VERSION = "$(CURRENT_VERSION)";
 				OTHER_LDFLAGS = (
@@ -670,13 +675,15 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = "$(IPHONEOS_DEPLOYMENT_TARGET)";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
@@ -728,12 +735,14 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = "$(IPHONEOS_DEPLOYMENT_TARGET)";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -963,7 +972,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = Extensions/OpenIn/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "在狐影浏览器中打开";
+				INFOPLIST_KEY_CFBundleDisplayName = "Open in Reynard";
 				IPHONEOS_DEPLOYMENT_TARGET = "$(IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1000,7 +1009,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = Extensions/OpenIn/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "在狐影浏览器中打开";
+				INFOPLIST_KEY_CFBundleDisplayName = "Open in Reynard";
 				IPHONEOS_DEPLOYMENT_TARGET = "$(IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

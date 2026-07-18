@@ -7,14 +7,13 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 SUBMODULE_PATH="$REPO_ROOT/support/idevice"
 FFI_DIR="$SUBMODULE_PATH/ffi"
-OUTPUT_LIB="$REPO_ROOT/browser/Reynard/JIT/libidevice_ffi.a"
+OUTPUT_LIB="$REPO_ROOT/browser/Reynard/JIT/RPPairing/libidevice_ffi.a"
 
 TARGET_DIR="$SUBMODULE_PATH/target"
-DEPLOYMENT_TARGET="15.0"
+DEPLOYMENT_TARGET="13.0"
 
-if ! git -C "$SUBMODULE_PATH" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  rm -rf "$SUBMODULE_PATH"
-  git clone https://github.com/jkcoxson/idevice "$SUBMODULE_PATH"
+if [ ! -e "$SUBMODULE_PATH/.git" ]; then
+  git -C "$REPO_ROOT" submodule update --init --recursive support/idevice
 fi
 
 RUST_TARGET="aarch64-apple-ios"

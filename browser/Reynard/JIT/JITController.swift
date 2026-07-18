@@ -12,8 +12,8 @@ import UIKit
 final class JITController {
     static let shared = JITController()
     
-    private let attachQueue = DispatchQueue(label: "com.minh-ton.jit-attach-queue", qos: .userInitiated)
-    private let watchdogQueue = DispatchQueue(label: "com.minh-ton.jit-watchdog-queue", qos: .userInitiated)
+    private let attachQueue = DispatchQueue(label: "com.minh-ton.Reynard.JITController.AttachQueue", qos: .userInitiated)
+    private let watchdogQueue = DispatchQueue(label: "com.minh-ton.Reynard.JITController.WatchdogQueue", qos: .userInitiated)
     private var attachedPIDs: Set<Int32> = []
     private var preflightWatchdogs: [Int32: DispatchWorkItem] = [:]
     private var hasHandledFailure = false
@@ -39,17 +39,15 @@ final class JITController {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleChildProcessNotification(_:)),
-            name: NSNotification.Name("GeckoRuntimeChildProcessDidStart"),
+            name: .geckoRuntimeChildProcessDidStart,
             object: nil
         )
-        
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleJITDisconnectNotification(_:)),
-            name: Notification.Name("me-minh-ton.jit.endpoint-monitor-failed"),
+            name: .jitEndpointMonitorDidFail,
             object: nil
         )
-        
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleApplicationDidBecomeActive),
@@ -74,20 +72,61 @@ final class JITController {
         return "\(path)/\(file)"
     }
     
-    // Also from StikDebug
-    private func hasTXM26() -> Bool {
-        guard #available(iOS 26, *) else {
-            return false
+    // Adapted from StikDebug
+    private func hasTXMSupport() -> Bool {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        let hardware = withUnsafePointer(to: &systemInfo.machine) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 1) {
+                String(cString: $0)
+            }
         }
         
-        if let boot = filePath(atPath: "/System/Volumes/Preboot", withLength: 36),
-           let file = filePath(atPath: "\(boot)/boot", withLength: 96) {
-            return access("\(file)/usr/standalone/firmware/FUD/Ap,TrustedExecutionMonitor.img4", F_OK) == 0
+        if #available(iOS 27.0, *) {
+            return hardware != "iPad8,11" && hardware != "iPad8,12"
         }
         
-        return (filePath(atPath: "/private/preboot", withLength: 96).map {
-            access("\($0)/usr/standalone/firmware/FUD/Ap,TrustedExecutionMonitor.img4", F_OK) == 0
-        }) ?? false
+        if #available(iOS 26.0, *) {
+            let pattern = hardware.hasPrefix("iPad")
+            ? #"iPad(\d+),(\d+)"#
+            : #"iPhone(\d+),(\d+)"#
+            let threshold: Double = hardware.hasPrefix("iPad") ? 14.5 : 14.2
+            
+            guard let regex = try? NSRegularExpression(pattern: pattern),
+                  let match = regex.firstMatch(
+                    in: hardware,
+                    range: NSRange(hardware.startIndex..., in: hardware)
+                  ),
+                  let majorRange = Range(match.range(at: 1), in: hardware),
+                  let minorRange = Range(match.range(at: 2), in: hardware),
+                  let major = Double(hardware[majorRange]),
+                  let minor = Double(hardware[minorRange])
+            else {
+                return false
+            }
+            
+            let divisor = pow(10.0, Double(String(Int(minor)).count))
+            let ver = major + (minor / divisor)
+            return ver >= threshold
+        }
+        
+        return false
+    }
+    
+    private func newDeviceOSVersion() -> DeviceOSVersion {
+        let operatingSystemVersion = ProcessInfo.processInfo.operatingSystemVersion
+        return DeviceOSVersion(
+            majorVersion: Int32(operatingSystemVersion.majorVersion),
+            minorVersion: Int32(operatingSystemVersion.minorVersion),
+            patchVersion: Int32(operatingSystemVersion.patchVersion)
+        )
+    }
+    
+    private func newJITRuntimeInfo() -> JITRuntimeInfo {
+        return JITRuntimeInfo(
+            hasTXMSupport: hasTXMSupport() ? 1 : 0,
+            deviceOSVersion: newDeviceOSVersion()
+        )
     }
     
     func childProcessDidStart(pid: Int32, processType: String) {
@@ -96,17 +135,17 @@ final class JITController {
         }
         
         guard !isJITLessModeActive, !hasHandledFailure else {
-            ReportJITStatusForChild(pid, false, hasTXM26())
+            ReportJITStatusForChild(pid, false, newJITRuntimeInfo())
             return
         }
         
         guard usePtraceJIT() || Prefs.JITSettings.isJITEnabled else {
-            ReportJITStatusForChild(pid, false, hasTXM26())
+            ReportJITStatusForChild(pid, false, newJITRuntimeInfo())
             return
         }
         
         guard shouldAttach(to: processType) else {
-            ReportJITStatusForChild(pid, false, hasTXM26())
+            ReportJITStatusForChild(pid, false, newJITRuntimeInfo())
             return
         }
         
@@ -122,13 +161,13 @@ final class JITController {
     
     private func attachToProcess(pid: Int32) {
         do {
-            try JITEnabler.shared.enableJIT(forPID: pid, hasTXM26: hasTXM26())
+            try JITEnabler.shared.enableJIT(forPID: pid, hasTXMSupport: hasTXMSupport())
             cancelPreflightWatchdog(for: pid)
-            ReportJITStatusForChild(pid, true, hasTXM26())
+            ReportJITStatusForChild(pid, true, newJITRuntimeInfo())
         } catch {
             let nsError = error as NSError
             cancelPreflightWatchdog(for: pid)
-            ReportJITStatusForChild(pid, false, hasTXM26())
+            ReportJITStatusForChild(pid, false, newJITRuntimeInfo())
             handleJITFailure(error: nsError)
         }
     }
@@ -144,7 +183,7 @@ final class JITController {
                 return
             }
             
-            ReportJITStatusForChild(pid, false, hasTXM26())
+            ReportJITStatusForChild(pid, false, newJITRuntimeInfo())
             self.handleJITFailure(error: NSError(domain: "Reynard.JIT", code: Int(ETIMEDOUT), userInfo: nil))
         }
         
@@ -192,28 +231,28 @@ final class JITController {
             return
         }
         
-        guard let presenter = Self.topViewControllerForPresentation() else {
+        guard let presenter = UIApplication.shared.topViewController() else {
             DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(150)) {
                 self.presentEnablementFailureScreen(error: error, showsErrorDetails: showsErrorDetails, retryCount: retryCount + 1)
             }
             return
         }
         
-        let description = error.localizedDescription.isEmpty ? "未知错误。" : error.localizedDescription
+        let description = error.localizedDescription.isEmpty ? NSLocalizedString("Unknown error.", comment: "") : error.localizedDescription
         let messageText: String
         if usePtraceJIT() {
-            messageText = "这个问题很少见。请确认你的 TrollStore 安装或越狱环境已正确配置。\n\n你可以启用无 JIT 模式，在下次启动前临时不使用 JIT 继续浏览。"
+            messageText = NSLocalizedString("It's extremely rare that you encounter this issue! Make sure that your TrollStore installation or jailbroken environment is properly configured.\n\nYou may use the browser without JIT temporarily until the next launch by activating JIT-Less Mode.", comment: "Paragraph break intentional")
         } else {
-            messageText = "请确认配对文件有效、回环 VPN 已开启，并且当前连接到稳定的 Wi-Fi 网络。\n\n你可以启用无 JIT 模式，在下次启动前临时不使用 JIT 继续浏览。"
+            messageText = NSLocalizedString("Please check that your pairing file is valid, your loopback VPN is on, and you're connected to a stable Wi-Fi network.\n\nYou may use the browser without JIT temporarily until the next launch by activating JIT-Less Mode.", comment: "Paragraph break intentional")
         }
         
         let viewController = JITFailureViewController(
             errorCode: error.code,
             errorDescription: description,
             showsErrorDetails: showsErrorDetails,
-            titleText: "启用 JIT 失败",
+            titleText: NSLocalizedString("Failed to enable JIT", comment: ""),
             messageText: messageText,
-            actionButtonTitle: "启用无 JIT 模式",
+            actionButtonTitle: NSLocalizedString("Activate JIT-Less Mode", comment: ""),
             onPrimaryAction: { [weak self] in
                 self?.activateJITLessMode()
             }
@@ -235,7 +274,7 @@ final class JITController {
             return
         }
         
-        guard let presenter = Self.topViewControllerForPresentation() else {
+        guard let presenter = UIApplication.shared.topViewController() else {
             DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(150)) {
                 self.presentMissingDDIFailureScreen(retryCount: retryCount + 1)
             }
@@ -244,11 +283,11 @@ final class JITController {
         
         let viewController = JITFailureViewController(
             errorCode: Int(ENOENT),
-            errorDescription: "缺少必需的 DDI 文件。",
+            errorDescription: NSLocalizedString("Required DDI files are missing.", comment: ""),
             showsErrorDetails: false,
-            titleText: "启用 JIT 失败",
-            messageText: "The required Developer Disk Image files for enabling JIT were not found.\n\nJIT has been disabled. Quit the app using the button below, then re-enable JIT from the browser settings.",
-            actionButtonTitle: "退出 Reynard",
+            titleText: NSLocalizedString("Failed to enable JIT", comment: ""),
+            messageText: NSLocalizedString("The required Developer Disk Image files for enabling JIT were not found.\n\nJIT has been disabled. Quit the app using the button below, then re-enable JIT from the browser settings.", comment: "Paragraph break intentional"),
+            actionButtonTitle: NSLocalizedString("Quit Reynard", comment: ""),
             onPrimaryAction: {
                 self.disableJITAndQuit()
             }
@@ -283,35 +322,8 @@ final class JITController {
         }
         
         DispatchQueue.main.async {
-            NotificationCenter.default.post(name: NSNotification.Name(rawValue: "me.minh-ton.reynard.jitless-mode-activated"), object: nil)
+            NotificationCenter.default.post(name: .jitlessModeDidActivate, object: nil)
         }
-    }
-    
-    private static func topViewControllerForPresentation() -> UIViewController? {
-        let foregroundScenes = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .filter { $0.activationState == .foregroundActive }
-        
-        guard let scene = foregroundScenes.first else {
-            return nil
-        }
-        
-        let root = scene.windows.first(where: \.isKeyWindow)?.rootViewController
-        ?? scene.windows.first(where: { !$0.isHidden })?.rootViewController
-        
-        guard let root else {
-            return nil
-        }
-        
-        return topPresentedViewController(from: root)
-    }
-    
-    private static func topPresentedViewController(from root: UIViewController) -> UIViewController {
-        var current = root
-        while let presented = current.presentedViewController {
-            current = presented
-        }
-        return current
     }
     
     private static func canPresentFailureUI() -> Bool {
@@ -348,7 +360,7 @@ final class JITController {
         }
         
         if let pid = (notification.userInfo?["pid"] as? NSNumber)?.int32Value, pid > 0 {
-            ReportJITStatusForChild(pid, false, hasTXM26())
+            ReportJITStatusForChild(pid, false, newJITRuntimeInfo())
         }
         
         DispatchQueue.main.async {

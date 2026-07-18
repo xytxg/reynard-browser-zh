@@ -2,330 +2,82 @@
 //  BrowserViewController+ContextMenu.swift
 //  Reynard
 //
-//  Created by Minh Ton on 16/5/26.
+//  Created by Minh Ton on 16/6/26.
 //
 
 import GeckoView
-import ObjectiveC
 import UIKit
 
-final class ContextMenuContext {
-    enum Target {
-        case link(URL)
-        case image(URL)
+extension BrowserViewController: ContextMenuCoordinatorHost {
+    var contextMenuPresenter: UIViewController {
+        return self
     }
     
-    let target: Target
-    let point: CGPoint
-    
-    init(target: Target, point: CGPoint) {
-        self.target = target
-        self.point = point
-    }
-}
-
-private enum ContextMenuAssociatedKeys {
-    static var pendingContextMenuContext = 0
-    static var contextMenuInteraction = 0
-    static var contextMenuViewController = 0
-    static var isCommittingContextMenu = 0
-    static var isPresentingContextMenu = 0
-    static var haptic = 0
-}
-
-extension BrowserViewController: UIContextMenuInteractionDelegate {
-    var pendingContextMenuContext: ContextMenuContext? {
-        get {
-            objc_getAssociatedObject(self, &ContextMenuAssociatedKeys.pendingContextMenuContext) as? ContextMenuContext
-        }
-        set {
-            objc_setAssociatedObject(self, &ContextMenuAssociatedKeys.pendingContextMenuContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        }
+    var contextMenuSourceView: ContentView {
+        return contentView
     }
     
-    var contextMenuInteraction: UIContextMenuInteraction? {
-        get {
-            objc_getAssociatedObject(self, &ContextMenuAssociatedKeys.contextMenuInteraction) as? UIContextMenuInteraction
-        }
-        set {
-            objc_setAssociatedObject(self, &ContextMenuAssociatedKeys.contextMenuInteraction, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        }
+    var contextMenuTabActions: ContextMenuTabActions {
+        return ContextMenuTabActions(tabManager: tabManager)
     }
     
-    private var contextMenuViewController: LinkPreviewViewController? {
-        get {
-            objc_getAssociatedObject(self, &ContextMenuAssociatedKeys.contextMenuViewController) as? LinkPreviewViewController
-        }
-        set {
-            objc_setAssociatedObject(self, &ContextMenuAssociatedKeys.contextMenuViewController, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        }
+    var contextMenuSelectedTabIsPrivate: Bool {
+        return tabManager.selectedTab?.isPrivate ?? false
     }
     
-    private var isCommittingContextMenu: Bool {
-        get {
-            (objc_getAssociatedObject(self, &ContextMenuAssociatedKeys.isCommittingContextMenu) as? NSNumber)?.boolValue ?? false
-        }
-        set {
-            objc_setAssociatedObject(
-                self,
-                &ContextMenuAssociatedKeys.isCommittingContextMenu,
-                NSNumber(value: newValue),
-                .OBJC_ASSOCIATION_RETAIN_NONATOMIC
-            )
-        }
+    var contextMenuSelectedSession: GeckoSession? {
+        return tabManager.selectedTab?.session
     }
     
-    private var isPresentingContextMenu: Bool {
-        get {
-            (objc_getAssociatedObject(self, &ContextMenuAssociatedKeys.isPresentingContextMenu) as? NSNumber)?.boolValue ?? false
-        }
-        set {
-            objc_setAssociatedObject(
-                self,
-                &ContextMenuAssociatedKeys.isPresentingContextMenu,
-                NSNumber(value: newValue),
-                .OBJC_ASSOCIATION_RETAIN_NONATOMIC
-            )
-        }
-    }
-    
-    private var presentHaptic: UIImpactFeedbackGenerator {
-        if let existing = objc_getAssociatedObject(self, &ContextMenuAssociatedKeys.haptic) as? UIImpactFeedbackGenerator {
-            return existing
-        }
-        let generator = UIImpactFeedbackGenerator(style: .rigid)
-        objc_setAssociatedObject(self, &ContextMenuAssociatedKeys.haptic, generator, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        return generator
-    }
-    
-    func configureContextMenu() {
-        guard contextMenuInteraction == nil else {
-            return
-        }
-        
-        let interaction = UIContextMenuInteraction(delegate: self)
-        browserUI.geckoView.addInteraction(interaction)
-        contextMenuInteraction = interaction
-    }
-    
-    func presentContextMenu(at point: CGPoint, target: ContextMenuContext.Target) {
-        let context = ContextMenuContext(target: target, point: point)
-        presentContextMenu(context)
-    }
-    
-    private func presentContextMenu(_ context: ContextMenuContext) {
-        guard let interaction = contextMenuInteraction else {
-            return
-        }
-        
-        presentHaptic.prepare()
-        closeContextMenu()
-        pendingContextMenuContext = context
-        isCommittingContextMenu = false
-        isPresentingContextMenu = true
-        
-        let selector = NSSelectorFromString("_presentMenuAtLocation:")
-        guard interaction.responds(to: selector) else {
-            isPresentingContextMenu = false
-            pendingContextMenuContext = nil
-            return
-        }
-        
-        presentHaptic.impactOccurred()
-        _ = interaction.perform(selector, with: NSValue(cgPoint: context.point))
-    }
-    
-    func contextMenuInteraction(
-        _ interaction: UIContextMenuInteraction,
-        configurationForMenuAtLocation location: CGPoint
-    ) -> UIContextMenuConfiguration? {
-        guard interaction === contextMenuInteraction,
-              isPresentingContextMenu,
-              let context = pendingContextMenuContext else {
-            return nil
-        }
-        isPresentingContextMenu = false
-        
-        if let imageConfiguration = ImagePreviewMenu.configuration(
-            for: context,
-            presentingController: self,
-            sourceView: browserUI.geckoView
-        ) {
-            return imageConfiguration
-        }
-        
-        return LinkPreviewMenu.configuration(
-            for: context,
-            isPrivate: tabManager.selectedTab?.isPrivate ?? false,
-            onPreviewCreated: { [weak self] preview in
-                self?.contextMenuViewController = preview
-            },
-            openInNewTab: { [weak self] in
-                self?.openPreviewInNewTab()
-            },
-            openInNewPrivateTab: { [weak self] in
-                self?.openPreviewInNewPrivateTab()
-            },
-            shareLink: { [weak self] url in
-                self?.presentShareSheet(url: url.absoluteString)
-            }
-        )
-    }
-    
-    func contextMenuInteraction(
-        _ interaction: UIContextMenuInteraction,
-        willPerformPreviewActionForMenuWith configuration: UIContextMenuConfiguration,
-        animator: UIContextMenuInteractionCommitAnimating
-    ) {
-        animator.preferredCommitStyle = .pop
-        guard interaction === contextMenuInteraction else {
-            return
-        }
-        
-        guard let preview = animator.previewViewController as? LinkPreviewViewController,
-              let session = preview.releaseSessionForCommit() else {
-            return
-        }
-        
-        isCommittingContextMenu = true
-        tabManager.replaceSession(with: session, url: preview.pageURL, title: preview.pageTitle)
-        contextMenuViewController = nil
-        
-        animator.addCompletion { [weak self] in
-            guard let self else {
-                return
-            }
-            self.isCommittingContextMenu = false
-            self.pendingContextMenuContext = nil
-        }
-    }
-    
-    func contextMenuInteraction(
-        _ interaction: UIContextMenuInteraction,
-        previewForHighlightingMenuWithConfiguration configuration: UIContextMenuConfiguration
-    ) -> UITargetedPreview? {
-        guard interaction === contextMenuInteraction else {
-            return nil
-        }
-        
-        return makeTargetedPreview()
-    }
-    
-    func contextMenuInteraction(
-        _ interaction: UIContextMenuInteraction,
-        previewForDismissingMenuWithConfiguration configuration: UIContextMenuConfiguration
-    ) -> UITargetedPreview? {
-        guard interaction === contextMenuInteraction else {
-            return nil
-        }
-        
-        return makeTargetedPreview()
-    }
-    
-    func contextMenuInteraction(
-        _ interaction: UIContextMenuInteraction,
-        willEndFor configuration: UIContextMenuConfiguration,
-        animator: UIContextMenuInteractionAnimating?
-    ) {
-        guard interaction === contextMenuInteraction else {
-            return
-        }
-        
-        guard let animator else {
-            if !isCommittingContextMenu {
-                closeContextMenu()
-                restoreBrowserTabInteraction()
-            } else {
-                isCommittingContextMenu = false
-            }
-            pendingContextMenuContext = nil
-            return
-        }
-        
-        animator.addCompletion { [weak self] in
-            guard let self else {
-                return
-            }
-            if !self.isCommittingContextMenu {
-                self.closeContextMenu()
-                self.restoreBrowserTabInteraction()
-            } else {
-                self.isCommittingContextMenu = false
-            }
-            self.pendingContextMenuContext = nil
-        }
-    }
-    
-    private func openPreviewInNewTab() {
-        guard let preview = contextMenuViewController,
-              let session = preview.releaseSessionForCommit() else {
-            return
-        }
-        
-        isCommittingContextMenu = true
+    func captureSourceTabThumbnail(completion: @escaping () -> Void) {
         let selectedIndex = tabManager.selectedTabIndex
-        let activeTabs = tabManager.selectedTabMode == .private ? tabManager.privateTabs : tabManager.regularTabs
-        let insertionIndex = selectedIndex >= 0 ? selectedIndex + 1 : activeTabs.count
-        tabManager.addTab(
-            using: session,
-            url: preview.pageURL,
-            title: preview.pageTitle,
-            selecting: true,
-            at: insertionIndex,
-            isPrivate: tabManager.selectedTab?.isPrivate ?? false
-        )
-        contextMenuViewController = nil
+        let selectedMode = tabManager.selectedTabMode
+        captureThumbnail(forTabAt: selectedIndex, mode: selectedMode) { _ in
+            completion()
+        }
     }
     
-    private func openPreviewInNewPrivateTab() {
-        guard let preview = contextMenuViewController else {
+    func contextMenuOpenLink(_ url: URL, disposition: TabOpenDisposition) {
+        let mode: TabMode
+        let target: TabInsertionTarget
+        
+        switch disposition {
+        case .currentTab:
+            tabManager.browse(to: url.absoluteString)
+            return
+        case .newTab:
+            mode = tabManager.selectedTabMode
+            target = .afterSelected
+        case .newPrivateTab:
+            mode = .private
+            target = tabManager.selectedTabMode == .private ? .afterSelected : .end
+        }
+        
+        let tabIndex = tabManager.createTab(selecting: false, target: target, mode: mode)
+        let tabs = mode == .private ? tabManager.privateTabs : tabManager.regularTabs
+        guard let tab = tabs[safe: tabIndex] else {
             return
         }
         
-        let previewURL = preview.pageURL
-        isCommittingContextMenu = true
-        closeContextMenu()
-        
-        let insertionIndex = tabManager.selectedTabMode == .private ? tabManager.selectedTabIndex + 1 : tabManager.privateTabs.count
-        let tabIndex = createTab(selecting: true, at: insertionIndex, isPrivate: true)
-        guard tabManager.privateTabs.indices.contains(tabIndex) else {
-            return
-        }
-        
-        tabManager.browse(to: previewURL, in: tabManager.privateTabs[tabIndex])
-        refreshAddressBar()
-    }
-    
-    private func makeTargetedPreview() -> UITargetedPreview {
-        let sourcePoint = pendingContextMenuContext?.point ?? CGPoint(
-            x: browserUI.geckoView.bounds.midX,
-            y: browserUI.geckoView.bounds.midY
-        )
-        let target = UIPreviewTarget(container: browserUI.geckoView, center: sourcePoint)
-        let parameters = UIPreviewParameters()
-        parameters.backgroundColor = .clear
-        parameters.visiblePath = UIBezierPath(rect: CGRect(x: 0, y: 0, width: 1, height: 1))
-        
-        let view = UIView(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
-        view.backgroundColor = .clear
-        return UITargetedPreview(view: view, parameters: parameters, target: target)
-    }
-    
-    private func closeContextMenu() {
-        contextMenuViewController?.closeSessionIfNeeded()
-        contextMenuViewController = nil
-    }
-    
-    private func restoreBrowserTabInteraction() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self,
-                  let session = self.tabManager.selectedTab?.session else {
+        tabManager.browse(to: url.absoluteString, in: tab)
+        captureThumbnail(forTabAt: tabManager.selectedTabIndex, mode: tabManager.selectedTabMode) { [weak self] _ in
+            guard let self else {
                 return
             }
             
-            self.browserUI.geckoView.session = session
-            session.setActive(true)
-            session.setFocused(true)
+            self.tabBar.setPendingExpansion(at: tabIndex)
+            self.browserChrome.animateAutomaticNewTabTransition(to: tab) { [weak self] in
+                self?.tabManager.selectTab(at: tabIndex, mode: mode)
+            }
         }
+    }
+    
+    func contextMenuShareLink(_ url: URL) {
+        presentShareSheet(url: url.absoluteString)
+    }
+    
+    func contextMenuRestoreInteraction(for session: GeckoSession) {
+        contentView.restoreInteraction(for: session)
+        sessionManager.activate(session)
     }
 }
