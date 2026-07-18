@@ -25,7 +25,7 @@ For the best experience, I'd recommend sideloading Reynard via [TrollStore](http
 
 You should use [AltStore](https://altstore.io/) or [SideStore](https://sidestore.io/) to sideload the `Reynard.ipa` build when TrollStore is not available, especially on newer iOS versions. Please note that you must select the **Keep App Extensions** option during installation, as Reynard relies on its extensions to function and will not work without them. 
 
-You can also [click here](https://stikstore.app/altdirect/?url=https://github.com/minh-ton/reynard-browser/releases/download/0.0.1-a1/source.json&exclude=livecontainer,stikstore,trollapps,feather) to add the AltSource for Reynard to AltStore or SideStore.
+Download the latest unsigned Chinese build from this repository's Releases page, then let AltStore or SideStore sign it while preserving App Extensions. The legacy upstream AltSource is not used for these Chinese maintenance builds.
 
 > [!IMPORTANT]
 > - **LiveContainer is not supported** due to its own limitations.

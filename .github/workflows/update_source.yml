@@ -1,8 +1,6 @@
-name: Update Source
+name: Refresh upstream AltStore metadata (manual)
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
 
 jobs:
