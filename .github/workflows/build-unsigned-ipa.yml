@@ -346,6 +346,12 @@ jobs:
             release_title="Reynard Browser 中文版 $VERSION"
             release_kind="版本标签构建"
             prerelease="false"
+          elif [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]] &&
+               git log -1 --pretty=%B | grep -Fq '[formal release]'; then
+            release_tag="v${VERSION}-zh.1"
+            release_title="Reynard Browser 中文版 $VERSION"
+            release_kind="正式版本构建"
+            prerelease="false"
           else
             release_tag="build-$GITHUB_RUN_NUMBER"
             release_title="Reynard Browser 中文版 $VERSION · Build $GITHUB_RUN_NUMBER"
