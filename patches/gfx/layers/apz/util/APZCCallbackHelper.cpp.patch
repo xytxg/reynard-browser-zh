@@ -1,8 +1,8 @@
 diff --git a/gfx/layers/apz/util/APZCCallbackHelper.cpp b/gfx/layers/apz/util/APZCCallbackHelper.cpp
-index 25ab0a1241dd..7abba9f85634 100644
+index 7898e438e346..9e666da8dd89 100644
 --- a/gfx/layers/apz/util/APZCCallbackHelper.cpp
 +++ b/gfx/layers/apz/util/APZCCallbackHelper.cpp
-@@ -31,6 +31,8 @@
+@@ -32,6 +32,8 @@
  #include "mozilla/dom/Document.h"
  #include "nsIInterfaceRequestorUtils.h"
  #include "nsLayoutUtils.h"
@@ -11,11 +11,11 @@ index 25ab0a1241dd..7abba9f85634 100644
  #include "nsMenuPopupFrame.h"
  #include "nsPrintfCString.h"
  #include "nsPIDOMWindow.h"
-@@ -184,6 +186,21 @@ static DisplayPortMargins ScrollFrame(nsIContent* aContent,
+@@ -185,6 +187,21 @@ static DisplayPortMargins ScrollFrame(nsIContent* aContent,
    CSSPoint actualScrollOffset = ScrollFrameTo(sf, aRequest, scrollUpdated);
    CSSPoint scrollDelta = apzScrollOffset - actualScrollOffset;
  
-+  // REYNARD: If the scroll position was updated and an editable element is
++  // If the scroll position was updated and an editable element is
 +  // focused, notify the widget of position change so that the parent process
 +  // updates the cached editor/caret/selection rects for UIKit's selection
 +  // display.

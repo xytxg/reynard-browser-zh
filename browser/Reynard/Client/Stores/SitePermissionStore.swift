@@ -45,8 +45,6 @@ enum SitePermission: String, CaseIterable {
             self = .localDeviceAccess
         case .localNetworkAccess:
             self = .localNetworkAccess
-        case .deviceSensors:
-            return nil
         case .autoplay:
             self = .autoplay
         case .webxr:
@@ -131,8 +129,16 @@ final class SitePermissionStore {
     init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
         
-        guard let applicationSupportDirectoryURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            fatalError("Application Support directory is unavailable")
+        let applicationSupportDirectoryURL: URL
+        if let directoryURL = fileManager.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first {
+            applicationSupportDirectoryURL = directoryURL
+        } else {
+            NSLog("SitePermissionStore: Application Support directory is unavailable; using temporary storage")
+            applicationSupportDirectoryURL = fileManager.temporaryDirectory
+                .appendingPathComponent("ReynardRecovery", isDirectory: true)
         }
         
         let directoryURL = applicationSupportDirectoryURL

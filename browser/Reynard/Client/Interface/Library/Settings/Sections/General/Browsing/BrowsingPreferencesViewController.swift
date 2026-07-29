@@ -9,38 +9,31 @@ import UIKit
 
 final class BrowsingPreferencesViewController: SettingsTableViewController {
     private enum Section: CaseIterable {
-        case links
-        case media
-        case desktopWebsite
+        case previews
+        case content
         
         var text: SettingsSectionText {
             switch self {
-            case .links:
-                return SettingsSectionText(headerTitle: NSLocalizedString("Links", comment: ""))
-            case .media:
-                return SettingsSectionText(headerTitle: NSLocalizedString("Media", comment: ""))
-            case .desktopWebsite:
-                return SettingsSectionText(headerTitle: NSLocalizedString("Request Desktop Website On", comment: ""))
+            case .previews:
+                return SettingsSectionText(headerTitle: NSLocalizedString("Previews", comment: "Browsing settings section title"))
+            case .content:
+                return SettingsSectionText(headerTitle: NSLocalizedString("Content", comment: "Browsing settings section title"))
             }
         }
     }
     
-    private enum LinksRow: CaseIterable {
+    private enum PreviewsRow: CaseIterable {
         case showLinkPreviews
-    }
-    
-    private enum MediaRow: CaseIterable {
-        case autoplay
         case showImagePreviews
     }
     
-    private enum DesktopWebsiteRow: CaseIterable {
+    private enum ContentRow: CaseIterable {
         case allWebsites
+        case pageZoom
     }
     
     private let showLinkPreviewsSwitch = UISwitch()
     private let showImagePreviewsSwitch = UISwitch()
-    private let requestDesktopWebsiteSwitch = UISwitch()
     
     init() {
         super.init(style: .insetGrouped)
@@ -73,12 +66,10 @@ final class BrowsingPreferencesViewController: SettingsTableViewController {
         }
         
         switch Section.allCases[section] {
-        case .links:
-            return LinksRow.allCases.count
-        case .media:
-            return MediaRow.allCases.count
-        case .desktopWebsite:
-            return DesktopWebsiteRow.allCases.count
+        case .previews:
+            return PreviewsRow.allCases.count
+        case .content:
+            return ContentRow.allCases.count
         }
     }
     
@@ -95,29 +86,17 @@ final class BrowsingPreferencesViewController: SettingsTableViewController {
         }
         
         switch Section.allCases[indexPath.section] {
-        case .links:
-            guard LinksRow.allCases.indices.contains(indexPath.row) else {
+        case .previews:
+            guard PreviewsRow.allCases.indices.contains(indexPath.row) else {
                 return UITableViewCell()
             }
-            let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
-            cell.selectionStyle = .none
-            cell.textLabel?.text = NSLocalizedString("Show Link Previews", comment: "")
-            cell.detailTextLabel?.textColor = .secondaryLabel
-            cell.accessoryView = showLinkPreviewsSwitch
-            return cell
-        case .media:
-            guard MediaRow.allCases.indices.contains(indexPath.row) else {
-                return UITableViewCell()
-            }
-            switch MediaRow.allCases[indexPath.row] {
-            case .autoplay:
-                let cell = UITableViewCell(style: .value1, reuseIdentifier: nil)
-                cell.textLabel?.text = NSLocalizedString("Autoplay", comment: "")
-                cell.detailTextLabel?.text = SiteSettingsUtils.actionTitle(
-                    for: SiteSettingsUtils.defaultAction(for: .autoplay),
-                    permission: .autoplay
-                )
-                cell.accessoryType = .disclosureIndicator
+            switch PreviewsRow.allCases[indexPath.row] {
+            case .showLinkPreviews:
+                let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
+                cell.selectionStyle = .none
+                cell.textLabel?.text = NSLocalizedString("Show Link Previews", comment: "")
+                cell.detailTextLabel?.textColor = .secondaryLabel
+                cell.accessoryView = showLinkPreviewsSwitch
                 return cell
             case .showImagePreviews:
                 let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
@@ -127,14 +106,18 @@ final class BrowsingPreferencesViewController: SettingsTableViewController {
                 cell.accessoryView = showImagePreviewsSwitch
                 return cell
             }
-        case .desktopWebsite:
-            guard DesktopWebsiteRow.allCases.indices.contains(indexPath.row) else {
+        case .content:
+            guard ContentRow.allCases.indices.contains(indexPath.row) else {
                 return UITableViewCell()
             }
             let cell = UITableViewCell(style: .default, reuseIdentifier: nil)
-            cell.selectionStyle = .none
-            cell.textLabel?.text = NSLocalizedString("All Websites", comment: "")
-            cell.accessoryView = requestDesktopWebsiteSwitch
+            switch ContentRow.allCases[indexPath.row] {
+            case .allWebsites:
+                cell.textLabel?.text = NSLocalizedString("Request Desktop Website", comment: "")
+            case .pageZoom:
+                cell.textLabel?.text = NSLocalizedString("Page Zoom", comment: "")
+            }
+            cell.accessoryType = .disclosureIndicator
             return cell
         }
     }
@@ -146,36 +129,29 @@ final class BrowsingPreferencesViewController: SettingsTableViewController {
         }
         
         switch Section.allCases[indexPath.section] {
-        case .links:
+        case .previews:
             return
-        case .media:
-            guard MediaRow.allCases.indices.contains(indexPath.row) else {
+        case .content:
+            guard ContentRow.allCases.indices.contains(indexPath.row) else {
                 return
             }
-            switch MediaRow.allCases[indexPath.row] {
-            case .autoplay:
-                navigationController?.pushViewController(
-                    SitePermissionDetailsViewController(permission: .autoplay, title: NSLocalizedString("Autoplay", comment: "")),
-                    animated: true
-                )
-            case .showImagePreviews:
-                return
+            switch ContentRow.allCases[indexPath.row] {
+            case .allWebsites:
+                navigationController?.pushViewController(RequestDesktopWebsitePreferencesViewController(), animated: true)
+            case .pageZoom:
+                navigationController?.pushViewController(PageZoomPreferencesViewController(), animated: true)
             }
-        case .desktopWebsite:
-            return
         }
     }
     
     private func configureSwitch() {
         showLinkPreviewsSwitch.addTarget(self, action: #selector(showLinkPreviewsSwitchDidChange(_:)), for: .valueChanged)
         showImagePreviewsSwitch.addTarget(self, action: #selector(showImagePreviewsSwitchDidChange(_:)), for: .valueChanged)
-        requestDesktopWebsiteSwitch.addTarget(self, action: #selector(requestDesktopWebsiteSwitchDidChange(_:)), for: .valueChanged)
     }
     
     private func refreshDisplayedState() {
         showLinkPreviewsSwitch.isOn = Prefs.BrowsingSettings.showLinkPreviews
         showImagePreviewsSwitch.isOn = Prefs.BrowsingSettings.showImagePreviews
-        requestDesktopWebsiteSwitch.isOn = Prefs.BrowsingSettings.requestDesktopWebsite
     }
     
     @objc private func showLinkPreviewsSwitchDidChange(_ sender: UISwitch) {
@@ -184,9 +160,5 @@ final class BrowsingPreferencesViewController: SettingsTableViewController {
     
     @objc private func showImagePreviewsSwitchDidChange(_ sender: UISwitch) {
         Prefs.BrowsingSettings.showImagePreviews = sender.isOn
-    }
-    
-    @objc private func requestDesktopWebsiteSwitchDidChange(_ sender: UISwitch) {
-        Prefs.BrowsingSettings.requestDesktopWebsite = sender.isOn
     }
 }

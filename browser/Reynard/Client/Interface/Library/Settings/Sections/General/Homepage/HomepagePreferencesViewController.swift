@@ -9,30 +9,29 @@ import UIKit
 
 final class HomepagePreferencesViewController: SettingsTableViewController {
     private enum Section: CaseIterable {
-        case sessionRestore
         case openingScreen
         case includeOnHomepage
+        case homepageBanners
         
         var text: SettingsSectionText {
             switch self {
-            case .sessionRestore:
-                return SettingsSectionText(
-                    headerTitle: NSLocalizedString("Session", comment: "Browser session settings"),
-                    footerTitle: NSLocalizedString("Private tabs are never saved. Turning this off removes saved regular tabs and navigation state.", comment: "Session restore explanation")
-                )
             case .openingScreen:
                 return SettingsSectionText(headerTitle: NSLocalizedString("On Startup", comment: ""))
             case .includeOnHomepage:
                 return SettingsSectionText(headerTitle: NSLocalizedString("Homepage Sections", comment: ""))
+            case .homepageBanners:
+                return SettingsSectionText(headerTitle: NSLocalizedString("Homepage Banners", comment: ""))
             }
         }
     }
-
-    private lazy var sessionRestoreSwitch: UISwitch = {
-        let control = UISwitch()
-        control.addTarget(self, action: #selector(sessionRestoreSwitchChanged(_:)), for: .valueChanged)
-        return control
-    }()
+    
+    private enum HomepageBannerRow: CaseIterable {
+        case recommendations
+        case newUpdates
+    }
+    
+    private let recommendationsSwitch = UISwitch()
+    private let newUpdatesSwitch = UISwitch()
     
     init() {
         super.init(style: .insetGrouped)
@@ -43,9 +42,15 @@ final class HomepagePreferencesViewController: SettingsTableViewController {
         fatalError("init(coder:) has not been implemented")
     }
     
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        configureSwitches()
+        refreshDisplayedState()
+    }
+    
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        sessionRestoreSwitch.isOn = Prefs.HomepageSettings.restoresPreviousSession
+        refreshDisplayedState()
         tableView.reloadData()
     }
     
@@ -59,12 +64,12 @@ final class HomepagePreferencesViewController: SettingsTableViewController {
         }
         
         switch Section.allCases[section] {
-        case .sessionRestore:
-            return 1
         case .openingScreen:
             return HomepageOpeningScreen.allCases.count
         case .includeOnHomepage:
             return HomepageSectionPreferencesViewController.OverviewRow.allCases.count
+        case .homepageBanners:
+            return HomepageBannerRow.allCases.count
         }
     }
     
@@ -82,12 +87,6 @@ final class HomepagePreferencesViewController: SettingsTableViewController {
         }
         
         switch Section.allCases[indexPath.section] {
-        case .sessionRestore:
-            let cell = UITableViewCell(style: .default, reuseIdentifier: nil)
-            cell.selectionStyle = .none
-            cell.textLabel?.text = NSLocalizedString("Restore Previous Session", comment: "Session restore setting")
-            cell.accessoryView = sessionRestoreSwitch
-            return cell
         case .openingScreen:
             guard HomepageOpeningScreen.allCases.indices.contains(indexPath.row) else {
                 return UITableViewCell()
@@ -109,6 +108,22 @@ final class HomepagePreferencesViewController: SettingsTableViewController {
             cell.detailTextLabel?.text = row.isEnabled ? NSLocalizedString("On", comment: "Enabled state") : NSLocalizedString("Off", comment: "Disabled state")
             cell.accessoryType = .disclosureIndicator
             return cell
+        case .homepageBanners:
+            guard HomepageBannerRow.allCases.indices.contains(indexPath.row) else {
+                return UITableViewCell()
+            }
+            
+            let cell = UITableViewCell(style: .default, reuseIdentifier: nil)
+            cell.selectionStyle = .none
+            switch HomepageBannerRow.allCases[indexPath.row] {
+            case .recommendations:
+                cell.textLabel?.text = NSLocalizedString("Recommendations", comment: "")
+                cell.accessoryView = recommendationsSwitch
+            case .newUpdates:
+                cell.textLabel?.text = NSLocalizedString("New Updates", comment: "")
+                cell.accessoryView = newUpdatesSwitch
+            }
+            return cell
         }
     }
     
@@ -119,8 +134,6 @@ final class HomepagePreferencesViewController: SettingsTableViewController {
         }
         
         switch Section.allCases[indexPath.section] {
-        case .sessionRestore:
-            return
         case .openingScreen:
             guard HomepageOpeningScreen.allCases.indices.contains(indexPath.row) else {
                 return
@@ -137,13 +150,26 @@ final class HomepagePreferencesViewController: SettingsTableViewController {
                 preference: HomepageSectionPreferencesViewController.OverviewRow.allCases[indexPath.row].preference
             )
             navigationController?.pushViewController(viewController, animated: true)
+        case .homepageBanners:
+            return
         }
     }
-
-    @objc private func sessionRestoreSwitchChanged(_ sender: UISwitch) {
-        Prefs.HomepageSettings.restoresPreviousSession = sender.isOn
-        if !sender.isOn {
-            TabManagementStore.shared.clearPersistedSession()
-        }
+    
+    private func configureSwitches() {
+        recommendationsSwitch.addTarget(self, action: #selector(recommendationsSwitchDidChange(_:)), for: .valueChanged)
+        newUpdatesSwitch.addTarget(self, action: #selector(newUpdatesSwitchDidChange(_:)), for: .valueChanged)
+    }
+    
+    private func refreshDisplayedState() {
+        recommendationsSwitch.isOn = Prefs.HomepageSettings.showsRecommendations
+        newUpdatesSwitch.isOn = Prefs.HomepageSettings.showsNewUpdates
+    }
+    
+    @objc private func recommendationsSwitchDidChange(_ sender: UISwitch) {
+        Prefs.HomepageSettings.showsRecommendations = sender.isOn
+    }
+    
+    @objc private func newUpdatesSwitchDidChange(_ sender: UISwitch) {
+        Prefs.HomepageSettings.showsNewUpdates = sender.isOn
     }
 }

@@ -22,9 +22,11 @@ final class SessionManager {
     private let sessionSettings: SessionSettingsManager
     private let history: NavigationHistory
     private let permissionStore: SitePermissionStore
+    let trackingProtection: TrackingProtectionManager
     
     private var sessionsRequestedActive: [ObjectIdentifier: GeckoSession] = [:]
     private var isApplicationForeground = true
+    private(set) var isApplicationActive = true
     private weak var pictureInPictureSession: GeckoSession?
     private var pendingCleanup: (
         session: GeckoSession,
@@ -40,11 +42,13 @@ final class SessionManager {
     init(
         sessionSettings: SessionSettingsManager = SessionSettingsManager(),
         history: NavigationHistory = NavigationHistory(),
-        permissionStore: SitePermissionStore = .shared
+        permissionStore: SitePermissionStore = .shared,
+        trackingProtection: TrackingProtectionManager = TrackingProtectionManager()
     ) {
         self.sessionSettings = sessionSettings
         self.history = history
         self.permissionStore = permissionStore
+        self.trackingProtection = trackingProtection
     }
     
     // MARK: - Session Creation
@@ -73,6 +77,7 @@ final class SessionManager {
     
     func bindDelegates(to session: GeckoSession, delegates: SessionDelegates) {
         session.contentDelegate = delegates.content
+        session.contentBlockingDelegate = trackingProtection
         session.navigationDelegate = delegates.navigation
         session.historyDelegate = delegates.history
         session.permissionDelegate = delegates.permission
@@ -140,7 +145,13 @@ final class SessionManager {
     }
     
     func applicationWillResignActive() {
+        isApplicationActive = false
         applicationStateObserver?.sessionManagerWillResignActive(self)
+    }
+    
+    func applicationDidBecomeActive() {
+        isApplicationActive = true
+        applicationStateObserver?.sessionManagerDidChangeApplicationState(self)
     }
     
     func close(_ session: GeckoSession) {
@@ -216,6 +227,7 @@ final class SessionManager {
     
     private func closeImmediately(_ session: GeckoSession) {
         deactivate(session)
+        trackingProtection.removeSession(session)
         permissionStore.removePrivateActions(for: session)
         session.close()
     }

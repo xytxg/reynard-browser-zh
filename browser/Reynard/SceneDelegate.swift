@@ -32,11 +32,22 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     
     func sceneDidDisconnect(_ scene: UIScene) {}
     
-    func sceneDidBecomeActive(_ scene: UIScene) {}
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        guard let browserViewController = window?.rootViewController as? BrowserViewController else {
+            return
+        }
+        
+        browserViewController.sessionManager.applicationDidBecomeActive()
+        browserViewController.tabManager.applicationDidBecomeActive()
+    }
     
     func sceneWillResignActive(_ scene: UIScene) {
-        (window?.rootViewController as? BrowserViewController)?
-            .sessionManager.applicationWillResignActive()
+        guard let browserViewController = window?.rootViewController as? BrowserViewController else {
+            return
+        }
+        
+        browserViewController.tabManager.applicationWillResignActive()
+        browserViewController.sessionManager.applicationWillResignActive()
     }
     
     func sceneWillEnterForeground(_ scene: UIScene) {
@@ -45,11 +56,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
     
     func sceneDidEnterBackground(_ scene: UIScene) {
-        guard let browserViewController = window?.rootViewController as? BrowserViewController else {
-            return
-        }
-        browserViewController.tabManager.persistForBackground()
-        browserViewController.sessionManager.setApplicationForeground(false)
+        (window?.rootViewController as? BrowserViewController)?
+            .sessionManager.setApplicationForeground(false)
     }
     
     private func handleIncomingURLContexts(_ urlContexts: Set<UIOpenURLContext>) {

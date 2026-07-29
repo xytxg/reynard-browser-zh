@@ -8,6 +8,20 @@
 import UIKit
 
 public class GeckoView: UIView {
+    public weak var inputResultDelegate: GeckoViewInputResultDelegate? {
+        didSet {
+            session?.window?.setInputResultDelegate(inputResultDelegate)
+        }
+    }
+    
+    public var session: GeckoSession? {
+        didSet {
+            oldValue?.window?.setInputResultDelegate(nil)
+            embedSessionView()
+            session?.window?.setInputResultDelegate(inputResultDelegate)
+        }
+    }
+    
     public override init(frame: CGRect) {
         super.init(frame: frame)
     }
@@ -16,10 +30,8 @@ public class GeckoView: UIView {
         super.init(coder: coder)
     }
     
-    public var session: GeckoSession? {
-        didSet {
-            embedSessionView()
-        }
+    deinit {
+        session?.window?.setInputResultDelegate(nil)
     }
     
     private func embedSessionView() {
@@ -40,7 +52,8 @@ public class GeckoView: UIView {
         }
         
         if engineView.superview != nil {
-            fatalError("attempt to assign GeckoSession to multiple GeckoView instances")
+            NSLog("GeckoView: ignored assignment of a session already attached to another view")
+            return
         }
         
         engineView.translatesAutoresizingMaskIntoConstraints = false
