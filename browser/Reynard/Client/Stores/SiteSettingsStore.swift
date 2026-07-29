@@ -127,7 +127,7 @@ final class SiteSettingsStore {
         }
         
         return stateQueue.sync {
-            if value == Prefs.AppearanceSettings.defaultPageZoomLevel {
+            if value == Prefs.BrowsingSettings.defaultPageZoomLevel {
                 return clearSettingLocked(.pageZoom, for: host)
             }
             
@@ -135,8 +135,8 @@ final class SiteSettingsStore {
         }
     }
     
-    func setWebsiteMode(_ mode: SiteWebsiteMode, for url: URL) -> Bool {
-        guard let host = URLUtils.normalizedHost(url.host) else {
+    func setWebsiteMode(_ mode: SiteWebsiteMode, for host: String) -> Bool {
+        guard let host = URLUtils.normalizedHost(host) else {
             return false
         }
         
@@ -166,7 +166,7 @@ final class SiteSettingsStore {
         }
         
         return stateQueue.sync {
-            if value == Prefs.AppearanceSettings.defaultPageZoomLevel {
+            if value == Prefs.BrowsingSettings.defaultPageZoomLevel {
                 return clearSettingLocked(.pageZoom, for: host)
             }
             
@@ -184,8 +184,8 @@ final class SiteSettingsStore {
         }
     }
     
-    func clearWebsiteMode(for url: URL) -> Bool {
-        guard let host = URLUtils.normalizedHost(url.host) else {
+    func clearWebsiteMode(for host: String) -> Bool {
+        guard let host = URLUtils.normalizedHost(host) else {
             return false
         }
         

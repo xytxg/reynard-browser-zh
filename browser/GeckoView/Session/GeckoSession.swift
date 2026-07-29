@@ -57,6 +57,12 @@ public class GeckoSession {
         }
     }
     
+    lazy var contentBlockingHandler = newContentBlockingHandler(self)
+    public var contentBlockingDelegate: ContentBlockingDelegate? {
+        get { contentBlockingHandler.delegate(as: ContentBlockingDelegate.self) }
+        set { contentBlockingHandler.setDelegate(newValue) }
+    }
+    
     lazy var navigationHandler = newNavigationHandler(self)
     public var navigationDelegate: NavigationDelegate? {
         get { navigationHandler.delegate(as: NavigationDelegate.self) }
@@ -108,14 +114,15 @@ public class GeckoSession {
         get { pictureInPictureHandler.delegate }
         set { pictureInPictureHandler.delegate = newValue }
     }
-    public var pictureInPictureCandidates: [PictureInPictureCandidate] {
-        return pictureInPictureHandler.candidates
+    public var pictureInPictureDisplayLayer: AVSampleBufferDisplayLayer? {
+        return pictureInPictureHandler.displayLayer
     }
     
     // MARK: - Session Handlers
     
     lazy var sessionHandlers: [GeckoSessionHandlerCommon] = [
         contentHandler,
+        contentBlockingHandler,
         processHangHandler,
         navigationHandler,
         historyHandler,
@@ -149,8 +156,8 @@ public class GeckoSession {
     }
     
     public func open(windowId: String? = nil) {
-        guard !isOpen() else {
-            return
+        if isOpen() {
+            fatalError("cannot open a GeckoSession twice")
         }
         
         id = windowId ?? UUID().uuidString.replacingOccurrences(of: "-", with: "")
@@ -193,9 +200,10 @@ public class GeckoSession {
             ],
             isPrivateMode
         )
-        if let engineView = window?.view() {
-            autofillHandler.attach(to: engineView)
+        guard let engineView = window?.view() else {
+            fatalError("GeckoView window has no view")
         }
+        autofillHandler.attach(to: engineView)
     }
     
     public func isOpen() -> Bool { window != nil }
@@ -206,6 +214,7 @@ public class GeckoSession {
     
     public func close() {
         contentDelegate = nil
+        contentBlockingDelegate = nil
         navigationDelegate = nil
         historyDelegate = nil
         permissionDelegate = nil
@@ -266,6 +275,18 @@ public class GeckoSession {
             type: "GeckoView:GoForward",
             message: [
                 "userInteraction": userInteraction
+            ])
+    }
+    
+    public func scrollTo(_ position: CGPoint, animated: Bool = true) {
+        dispatcher.dispatch(
+            type: "GeckoView:ScrollTo",
+            message: [
+                "widthValue": position.x,
+                "widthType": 0,
+                "heightValue": position.y,
+                "heightType": 0,
+                "behavior": animated ? 0 : 1,
             ])
     }
     

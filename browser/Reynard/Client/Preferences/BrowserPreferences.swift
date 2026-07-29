@@ -50,6 +50,9 @@ final class BrowserPreferences {
             // JIT
             key("JITSettings", "isJITEnabled"): false,
             
+            // Experimental
+            key("ExperimentalSettings", "isVideoPictureInPictureEnabled"): false,
+            
             // Compatibility
             key("CompatibilitySettings", "androidUserAgentDomains"): [],
             key("CompatibilitySettings", "useAndroidUserAgent"): true,
@@ -58,6 +61,7 @@ final class BrowserPreferences {
             key("BrowsingSettings", "requestDesktopWebsite"): UIDevice.current.userInterfaceIdiom == .pad,
             key("BrowsingSettings", "showLinkPreviews"): true,
             key("BrowsingSettings", "showImagePreviews"): true,
+            key("BrowsingSettings", "defaultPageZoomLevel"): PageZoomLevels.defaultLevel,
             
             // New Tab
             key("NewTabSettings", "newTabDisplayOption"): NewTabDisplayOption.homepage.rawValue,
@@ -65,7 +69,6 @@ final class BrowserPreferences {
             
             // Homepage
             key("HomepageSettings", "openingScreen"): HomepageOpeningScreen.homepage.rawValue,
-            key("HomepageSettings", "restoresPreviousSession"): true,
             key("HomepageSettings", "showsFavorites"): true,
             key("HomepageSettings", "showsFavoritesInPrivateBrowsing"): false,
             key("HomepageSettings", "favoriteRowCount"): 2,
@@ -74,6 +77,8 @@ final class BrowserPreferences {
             key("HomepageSettings", "frequentlyVisitedSiteCount"): 8,
             key("HomepageSettings", "showsRecentlyClosedTabs"): true,
             key("HomepageSettings", "recentlyClosedTabLimit"): 10,
+            key("HomepageSettings", "showsRecommendations"): true,
+            key("HomepageSettings", "showsNewUpdates"): true,
             key("HomepageSettings", "donationRecommendationMultiplier"): 1,
             
             // Appearance
@@ -81,7 +86,6 @@ final class BrowserPreferences {
             key("AppearanceSettings", "addressBarPosition"): BrowserChromePosition.bottom.rawValue,
             key("AppearanceSettings", "showsFullWebsiteAddress"): false,
             key("AppearanceSettings", "showsLandscapeTabBar"): true,
-            key("AppearanceSettings", "defaultPageZoomLevel"): PageZoomLevels.defaultLevel,
             
             // Languages
             key("LanguageSettings", "websiteLanguages"): (try? JSONEncoder().encode(WebsiteLanguageCatalog.defaultLanguageCodes())) ?? Data(),
@@ -111,6 +115,24 @@ final class BrowserPreferences {
             key("ClearBrowsingData", "clearsDownloadedFiles"): false,
             key("ClearBrowsingData", "clearsSitePermissions"): true,
             key("ClearBrowsingData", "clearsOpenedTabs"): true,
+            
+            // HTTPS-Only Mode
+            key("HTTPSOnlyMode", "enabled"): false,
+            key("HTTPSOnlyMode", "scope"): HTTPSOnlyModeScope.allTabs.rawValue,
+            
+            // Tracking Protection
+            key("TrackingProtection", "enhancedTrackingProtectionLevel"): TrackingProtectionLevel.standard.rawValue,
+            key("TrackingProtection", "strictBaselineAllowListEnabled"): true,
+            key("TrackingProtection", "strictConvenienceAllowListEnabled"): false,
+            key("TrackingProtection", "customBaselineAllowListEnabled"): true,
+            key("TrackingProtection", "customConvenienceAllowListEnabled"): false,
+            key("TrackingProtection", "customCookiePolicy"): CustomCookiePolicy.isolateCrossSite.rawValue,
+            key("TrackingProtection", "customTrackingContentScope"): CustomBlockingScope.all.rawValue,
+            key("TrackingProtection", "customBlocksCryptominers"): true,
+            key("TrackingProtection", "customBlocksKnownFingerprinters"): true,
+            key("TrackingProtection", "customBlocksRedirectTrackers"): true,
+            key("TrackingProtection", "customSuspectedFingerprinterScope"): CustomBlockingScope.privateOnly.rawValue,
+            key("TrackingProtection", "globalPrivacyControlEnabled"): false,
         ])
     }
     
@@ -259,6 +281,19 @@ final class BrowserPreferences {
                 prefs.set(newValue, forSetting: "BrowsingSettings", key: "showImagePreviews")
             }
         }
+        
+        static var defaultPageZoomLevel: Int {
+            get {
+                let level = prefs.integer(forSetting: "BrowsingSettings", key: "defaultPageZoomLevel")
+                return PageZoomLevels.all.contains(level) ? level : PageZoomLevels.defaultLevel
+            }
+            set {
+                guard PageZoomLevels.all.contains(newValue) else {
+                    return
+                }
+                prefs.set(newValue, forSetting: "BrowsingSettings", key: "defaultPageZoomLevel")
+            }
+        }
     }
     
     // MARK: - Clear Browsing Data
@@ -318,6 +353,112 @@ final class BrowserPreferences {
         }
     }
     
+    // MARK: - HTTPS-Only Mode
+    struct HTTPSOnlyModePreferences {
+        static var enabled: Bool {
+            get {
+                return prefs.bool(forSetting: "HTTPSOnlyMode", key: "enabled")
+            }
+            set {
+                prefs.set(newValue, forSetting: "HTTPSOnlyMode", key: "enabled")
+            }
+        }
+        
+        static var scope: HTTPSOnlyModeScope {
+            get {
+                let rawValue = prefs.string(forSetting: "HTTPSOnlyMode", key: "scope") ?? HTTPSOnlyModeScope.allTabs.rawValue
+                return HTTPSOnlyModeScope(rawValue: rawValue) ?? .allTabs
+            }
+            set {
+                prefs.set(newValue.rawValue, forSetting: "HTTPSOnlyMode", key: "scope")
+            }
+        }
+    }
+    
+    // MARK: - Tracking Protection
+    struct TrackingProtectionPreferences {
+        static var level: TrackingProtectionLevel {
+            get {
+                let rawValue = prefs.string(forSetting: "TrackingProtection", key: "enhancedTrackingProtectionLevel") ?? TrackingProtectionLevel.standard.rawValue
+                return TrackingProtectionLevel(rawValue: rawValue) ?? .standard
+            }
+            set {
+                prefs.set(newValue.rawValue, forSetting: "TrackingProtection", key: "enhancedTrackingProtectionLevel")
+            }
+        }
+        
+        static var strictBaselineAllowListEnabled: Bool {
+            get {
+                return prefs.bool(forSetting: "TrackingProtection", key: "strictBaselineAllowListEnabled")
+            }
+            set {
+                prefs.set(newValue, forSetting: "TrackingProtection", key: "strictBaselineAllowListEnabled")
+            }
+        }
+        
+        static var strictConvenienceAllowListEnabled: Bool {
+            get {
+                return prefs.bool(forSetting: "TrackingProtection", key: "strictConvenienceAllowListEnabled")
+            }
+            set {
+                prefs.set(newValue, forSetting: "TrackingProtection", key: "strictConvenienceAllowListEnabled")
+            }
+        }
+        
+        static var customBaselineAllowListEnabled: Bool {
+            get { return prefs.bool(forSetting: "TrackingProtection", key: "customBaselineAllowListEnabled") }
+            set { prefs.set(newValue, forSetting: "TrackingProtection", key: "customBaselineAllowListEnabled") }
+        }
+        
+        static var customConvenienceAllowListEnabled: Bool {
+            get { return prefs.bool(forSetting: "TrackingProtection", key: "customConvenienceAllowListEnabled") }
+            set { prefs.set(newValue, forSetting: "TrackingProtection", key: "customConvenienceAllowListEnabled") }
+        }
+        
+        static var customCookiePolicy: CustomCookiePolicy {
+            get {
+                return CustomCookiePolicy(rawValue: prefs.integer(forSetting: "TrackingProtection", key: "customCookiePolicy")) ?? .isolateCrossSite
+            }
+            set { prefs.set(newValue.rawValue, forSetting: "TrackingProtection", key: "customCookiePolicy") }
+        }
+        
+        static var customTrackingContentScope: CustomBlockingScope {
+            get {
+                let rawValue = prefs.string(forSetting: "TrackingProtection", key: "customTrackingContentScope") ?? CustomBlockingScope.all.rawValue
+                return CustomBlockingScope(rawValue: rawValue) ?? .all
+            }
+            set { prefs.set(newValue.rawValue, forSetting: "TrackingProtection", key: "customTrackingContentScope") }
+        }
+        
+        static var customBlocksCryptominers: Bool {
+            get { return prefs.bool(forSetting: "TrackingProtection", key: "customBlocksCryptominers") }
+            set { prefs.set(newValue, forSetting: "TrackingProtection", key: "customBlocksCryptominers") }
+        }
+        
+        static var customBlocksKnownFingerprinters: Bool {
+            get { return prefs.bool(forSetting: "TrackingProtection", key: "customBlocksKnownFingerprinters") }
+            set { prefs.set(newValue, forSetting: "TrackingProtection", key: "customBlocksKnownFingerprinters") }
+        }
+        
+        static var customBlocksRedirectTrackers: Bool {
+            get { return prefs.bool(forSetting: "TrackingProtection", key: "customBlocksRedirectTrackers") }
+            set { prefs.set(newValue, forSetting: "TrackingProtection", key: "customBlocksRedirectTrackers") }
+        }
+        
+        static var customSuspectedFingerprinterScope: CustomBlockingScope {
+            get {
+                let rawValue = prefs.string(forSetting: "TrackingProtection", key: "customSuspectedFingerprinterScope") ?? CustomBlockingScope.privateOnly.rawValue
+                return CustomBlockingScope(rawValue: rawValue) ?? .privateOnly
+            }
+            set { prefs.set(newValue.rawValue, forSetting: "TrackingProtection", key: "customSuspectedFingerprinterScope") }
+        }
+        
+        static var globalPrivacyControlEnabled: Bool {
+            get { return prefs.bool(forSetting: "TrackingProtection", key: "globalPrivacyControlEnabled") }
+            set { prefs.set(newValue, forSetting: "TrackingProtection", key: "globalPrivacyControlEnabled") }
+        }
+    }
+    
     // MARK: - New Tab
     struct NewTabSettings {
         static var newTabDisplayOption: NewTabDisplayOption {
@@ -343,15 +484,6 @@ final class BrowserPreferences {
     
     // MARK: - Homepage
     struct HomepageSettings {
-        static var restoresPreviousSession: Bool {
-            get {
-                return prefs.bool(forSetting: "HomepageSettings", key: "restoresPreviousSession")
-            }
-            set {
-                prefs.set(newValue, forSetting: "HomepageSettings", key: "restoresPreviousSession")
-            }
-        }
-
         static var openingScreen: HomepageOpeningScreen {
             get {
                 let rawValue = prefs.string(forSetting: "HomepageSettings", key: "openingScreen") ?? HomepageOpeningScreen.homepage.rawValue
@@ -438,6 +570,26 @@ final class BrowserPreferences {
             }
             set {
                 prefs.set(newValue, forSetting: "HomepageSettings", key: "recentlyClosedTabLimit")
+                NotificationCenter.default.post(name: .homepageSettingsDidChange, object: nil)
+            }
+        }
+        
+        static var showsRecommendations: Bool {
+            get {
+                return prefs.bool(forSetting: "HomepageSettings", key: "showsRecommendations")
+            }
+            set {
+                prefs.set(newValue, forSetting: "HomepageSettings", key: "showsRecommendations")
+                NotificationCenter.default.post(name: .homepageSettingsDidChange, object: nil)
+            }
+        }
+        
+        static var showsNewUpdates: Bool {
+            get {
+                return prefs.bool(forSetting: "HomepageSettings", key: "showsNewUpdates")
+            }
+            set {
+                prefs.set(newValue, forSetting: "HomepageSettings", key: "showsNewUpdates")
                 NotificationCenter.default.post(name: .homepageSettingsDidChange, object: nil)
             }
         }
@@ -645,18 +797,6 @@ final class BrowserPreferences {
             }
         }
         
-        static var defaultPageZoomLevel: Int {
-            get {
-                let level = prefs.integer(forSetting: "AppearanceSettings", key: "defaultPageZoomLevel")
-                return PageZoomLevels.all.contains(level) ? level : PageZoomLevels.defaultLevel
-            }
-            set {
-                guard PageZoomLevels.all.contains(newValue) else {
-                    return
-                }
-                prefs.set(newValue, forSetting: "AppearanceSettings", key: "defaultPageZoomLevel")
-            }
-        }
     }
     
     // MARK: - JIT
@@ -675,6 +815,18 @@ final class BrowserPreferences {
             }
             set {
                 prefs.set(hasPairingFile && newValue, forSetting: "JITSettings", key: "isJITEnabled")
+            }
+        }
+    }
+    
+    // MARK: - Experimental
+    struct ExperimentalSettings {
+        static var isVideoPictureInPictureEnabled: Bool {
+            get {
+                return prefs.bool(forSetting: "ExperimentalSettings", key: "isVideoPictureInPictureEnabled")
+            }
+            set {
+                prefs.set(newValue, forSetting: "ExperimentalSettings", key: "isVideoPictureInPictureEnabled")
             }
         }
     }

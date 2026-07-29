@@ -119,6 +119,7 @@ final class BrowserViewController: UIViewController {
             return
         }
         
+        applyGeckoPreferences()
         configureBrowserInterface()
         observeNotifications()
         contextMenuCoordinator.configure()
@@ -175,13 +176,6 @@ final class BrowserViewController: UIViewController {
         super.viewDidLayoutSubviews()
         invalidateNavigationThumbnailsIfNeeded()
     }
-
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        DownloadFileIconProvider.shared.clearMemoryCache()
-        FaviconStore.shared.cancelOutstandingRequests()
-        tabManager.handleMemoryWarning()
-    }
     
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
@@ -219,6 +213,17 @@ final class BrowserViewController: UIViewController {
                 }
             }
         }
+    }
+    
+    // MARK: - Preferences
+    
+    private func applyGeckoPreferences() {
+        // HTTPS-only mode
+        HTTPSOnlyModePolicyController.applyHTTPSOnlyMode()
+        
+        // Tracking Protection
+        TrackingProtectionPolicyController.applyEnhancedTrackingProtection()
+        TrackingProtectionPolicyController.applyGlobalPrivacyControl()
     }
     
     // MARK: - Browser Layout
@@ -306,7 +311,7 @@ final class BrowserViewController: UIViewController {
             self?.setSelectedPageZoomToNextLevel()
         }
         browserChrome.onPageZoomReset = { [weak self] in
-            self?.setSelectedPageZoomLevel(Prefs.AppearanceSettings.defaultPageZoomLevel)
+            self?.setSelectedPageZoomLevel(Prefs.BrowsingSettings.defaultPageZoomLevel)
         }
     }
     

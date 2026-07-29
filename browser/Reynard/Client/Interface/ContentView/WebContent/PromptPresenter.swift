@@ -31,6 +31,9 @@ final class PromptPresenter: PromptPresenting {
         case .text(let request):
             return await presentText(request: request)
             
+        case .auth(let request):
+            return await presentAuth(request: request)
+            
         case .folderUpload(let request):
             return await presentFolderUpload(request: request)
             
@@ -149,23 +152,64 @@ final class PromptPresenter: PromptPresenting {
         }
     }
     
+    private func presentAuth(request: AuthPromptRequest) async -> PromptResponse? {
+        guard let presenter = UIApplication.shared.topViewController() else {
+            return nil
+        }
+        
+        let host = URL(string: request.uri)?.host
+        let title = host.map {
+            String(format: NSLocalizedString("Sign in to %@", comment: "Authentication host"), $0)
+        } ?? request.title
+        let message = request.level == 2
+        ? NSLocalizedString("Your login information will be sent securely.", comment: "")
+        : NSLocalizedString("Your login information will not be sent securely.", comment: "")
+        let passwordOnly = request.mode == "password"
+        
+        return await withCheckedContinuation { continuation in
+            let alert = UIAlertController(
+                title: title.isEmpty ? NSLocalizedString("Sign In", comment: "") : title,
+                message: message,
+                preferredStyle: .alert
+            )
+            
+            if !passwordOnly {
+                alert.addTextField { textField in
+                    textField.placeholder = NSLocalizedString("User Name", comment: "")
+                    textField.text = request.username
+                    textField.textContentType = .username
+                    textField.autocapitalizationType = .none
+                    textField.autocorrectionType = .no
+                }
+            }
+            
+            alert.addTextField { textField in
+                textField.placeholder = NSLocalizedString("Password", comment: "")
+                textField.text = request.password
+                textField.textContentType = .password
+                textField.isSecureTextEntry = true
+            }
+            
+            alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel) { _ in
+                continuation.resume(returning: nil)
+            })
+            alert.addAction(UIAlertAction(title: NSLocalizedString("Sign In", comment: ""), style: .default) { _ in
+                let username = passwordOnly ? request.username : alert.textFields?.first?.text ?? ""
+                let password = alert.textFields?.last?.text ?? ""
+                continuation.resume(returning: .auth(username: username, password: password))
+            })
+            presenter.present(alert, animated: true)
+        }
+    }
+    
     private func presentFolderUpload(request: FolderUploadPromptRequest) async -> PromptResponse? {
         guard let presenter = UIApplication.shared.topViewController() else {
             return nil
         }
         
-        let message: String
-        if request.directoryName.isEmpty {
-            message = NSLocalizedString("Are you sure you want to upload all files? Only do this if you trust the site.", comment: "")
-        } else {
-            message = String(
-                format: NSLocalizedString(
-                    "Are you sure you want to upload all files from \"%@\"? Only do this if you trust the site.",
-                    comment: "Directory name"
-                ),
-                request.directoryName
-            )
-        }
+        let message = request.directoryName.isEmpty
+        ? NSLocalizedString("Are you sure you want to upload all files? Only do this if you trust the site.", comment: "")
+        : NSLocalizedString("Are you sure you want to upload all files from \"\(request.directoryName)\"? Only do this if you trust the site.", comment: "")
         
         return await withCheckedContinuation { continuation in
             let alert = UIAlertController(
@@ -285,6 +329,10 @@ final class PromptPresenter: PromptPresenting {
               let geckoView = session.engineView,
               let window = geckoView.window else {
             return nil
+        }
+        
+        if session.isAddonPopup {
+            return (geckoView, rect)
         }
         
         var localRect = rect
