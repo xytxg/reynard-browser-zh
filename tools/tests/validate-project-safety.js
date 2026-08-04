@@ -49,9 +49,22 @@ requireText(tabStore, "selectedPrivateTabID: nil", "private tab selection can be
 requireText(tabStore, "purgePersistedPrivateTabsLocked", "legacy private tab records are not purged");
 rejectText(tabStore, "insertTabsLocked(persistedPrivateTabs", "private tabs are written to SQLite");
 
+const browserPreferences = read("browser/Reynard/Client/Preferences/BrowserPreferences.swift");
+requireText(
+  browserPreferences,
+  "static var openingScreen: HomepageOpeningScreen",
+  "homepage opening-screen preference is missing"
+);
+
 const tabManager = read("browser/Reynard/Client/TabManagement/TabManagerImpl.swift");
 requireText(tabManager, "guard !tab.isPrivate", "private navigation state is not protected from persistence");
-requireText(tabManager, "restoresPreviousSession", "session restore preference is not enforced");
+requireText(
+  tabManager,
+  "func createInitialTab(openingScreen: HomepageOpeningScreen)",
+  "session restore preference is not passed into initial-tab creation"
+);
+requireText(tabManager, "case .lastTab:", "last-session startup mode is not handled");
+requireText(tabManager, "restoreTabsIfNeeded()", "last-session startup mode does not restore persisted tabs");
 
 const downloadStore = read("browser/Reynard/Client/Stores/DownloadStore.swift");
 requireText(downloadStore, "DownloadCleanupPolicy.partition", "date-based download cleanup does not use the tested policy");
