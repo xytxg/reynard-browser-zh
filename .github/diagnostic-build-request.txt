@@ -1,0 +1,2 @@
+Diagnostic full IPA build for commit 51454daee379416de84a82eb68e26cb7c4aedd39.
+This file exists only to expose pull-request workflow logs for automated CI diagnosis.
