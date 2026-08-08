@@ -24,11 +24,16 @@ final class TabManagerImplementation: NSObject, TabManager {
         return tabs(for: selectedTabMode)[safe: selectedTabIndex]
     }
     
-    private let promptCoordinator = PromptCoordinator(
-        presenter: PromptPresenter()
+    private lazy var requestContentKeyboardFocus: (GeckoSession) -> Void = { [weak self] session in
+        guard let self else { return }
+        self.delegate?.tabManager(self, didRequestContentKeyboardFocusFor: session)
+    }
+    private lazy var promptCoordinator = PromptCoordinator(
+        presenter: PromptPresenter(),
+        onPromptFinished: requestContentKeyboardFocus
     )
-    private let selectionActionCoordinator = SelectionActionCoordinator(
-        presenter: SelectionActionPresenter()
+    private lazy var selectionActionCoordinator = SelectionActionCoordinator(
+        presenter: SelectionActionPresenter(onMenuDismissed: requestContentKeyboardFocus)
     )
     private let permissionCoordinator = PermissionCoordinator(
         promptPresenter: PermissionPromptPresenter()
@@ -58,14 +63,9 @@ final class TabManagerImplementation: NSObject, TabManager {
     // Keep the session eligible for silent recovery until a foreground composite confirms it survived.
     private weak var sessionEligibleForSilentRecovery: GeckoSession?
     
-    private lazy var lenientURLExpression: NSRegularExpression? = {
+    private lazy var lenientURLExpression: NSRegularExpression = {
         let pattern = "^\\s*(\\w+-+)*[\\w\\[]+(://[/]*|:|\\.)(\\w+-+)*[\\w\\[:]+([\\S&&[^\\w-]]\\S*)?\\s*$"
-        do {
-            return try NSRegularExpression(pattern: pattern)
-        } catch {
-            NSLog("TabManager: failed to compile URL expression: %@", error.localizedDescription)
-            return nil
-        }
+        return try! NSRegularExpression(pattern: pattern)
     }()
     
     init(
@@ -820,10 +820,7 @@ final class TabManagerImplementation: NSObject, TabManager {
         }
         
         let navigationInputRange = NSRange(location: 0, length: (navigationInput as NSString).length)
-        let shouldNavigateDirectly = lenientURLExpression?.firstMatch(
-            in: navigationInput,
-            range: navigationInputRange
-        ) != nil
+        let shouldNavigateDirectly = lenientURLExpression.firstMatch(in: navigationInput, range: navigationInputRange) != nil
         
         if shouldNavigateDirectly {
             loadURL(navigationInput, in: tab)
@@ -1040,7 +1037,31 @@ extension TabManagerImplementation: ContentDelegate {
     
     func onPaintStatusReset(session: GeckoSession) {}
     
-    func onWebAppManifest(session: GeckoSession, manifest: Any) {}
+    func onWebAppManifest(session: GeckoSession, manifest: Any) {
+        guard let location = tabLocation(for: session),
+              let url = remoteURL(from: tabs(for: location.mode)[location.index].url) else {
+            return
+        }
+        
+        let tab = tabs(for: location.mode)[location.index]
+        let tabID = tab.id
+        let expectedURL = url.absoluteString
+        cancelFaviconTask(for: tabID)
+        faviconTasks[tabID] = Task { [weak self] in
+            guard let self else {
+                return
+            }
+            
+            let image = await self.faviconStore.favicon(for: url, webAppManifest: manifest)
+            guard !Task.isCancelled else {
+                return
+            }
+            
+            await MainActor.run {
+                self.applyResolvedFavicon(image, toTabWithID: tabID, expectedURL: expectedURL)
+            }
+        }
+    }
     
     func onSlowScript(session: GeckoSession, scriptFileName: String) async -> SlowScriptResponse {
         return .halt

@@ -31,6 +31,7 @@ final class BrowserViewController: UIViewController {
     private var preFullscreenOrientation: UIInterfaceOrientation?
     weak var fullscreenSession: GeckoSession?
     private let allowsSidebarHosting: Bool
+    private var shouldRestoreContentFocus = false
     private(set) var browserLayout = BrowserLayout.initial(
         interfaceIdiom: UIDevice.current.userInterfaceIdiom
     )
@@ -158,6 +159,8 @@ final class BrowserViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         performContentLifecycle {
+            shouldRestoreContentFocus =
+            tabManager.selectedTab?.session.engineView?.isFirstResponder == true
             view.endEditing(true)
         }
     }
@@ -169,11 +172,16 @@ final class BrowserViewController: UIViewController {
             browserChrome.syncSidebarButton(splitViewController: splitViewController)
             downloadsCoordinator.syncToolbarButtonState()
             updateBrowserLayout(animated: false)
+            if shouldRestoreContentFocus {
+                shouldRestoreContentFocus = false
+                requestContentKeyboardFocus()
+            }
         }
     }
     
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        updateDynamicToolbarMaxHeight()
         invalidateNavigationThumbnailsIfNeeded()
     }
     
@@ -248,6 +256,7 @@ final class BrowserViewController: UIViewController {
             contentView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             contentView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor).withPriority(.defaultHigh),
             contentView.bottomAnchor.constraint(equalTo: browserChrome.bottomToolbarTopAnchor).withPriority(.defaultHigh),
+            contentView.webContentBottomAnchor.constraint(equalTo: view.bottomAnchor),
             
             browserChrome.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             browserChrome.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -362,6 +371,7 @@ final class BrowserViewController: UIViewController {
         overlayCoordinator.dismiss(.homepage, on: .detached, animated: false)
         overlayCoordinator.dismiss(.search, on: .detached, animated: false)
         applyBrowserLayout(animated: false)
+        requestContentKeyboardFocus()
     }
     
     func updateBrowserLayoutIfNeeded(
@@ -422,6 +432,15 @@ final class BrowserViewController: UIViewController {
             bottomAnchor: browserChrome.bottomToolbarTopAnchor
         )
         setTabBarVisible(false)
+    }
+    
+    private func updateDynamicToolbarMaxHeight() {
+        let hasBottomToolbar = !isShowingFullscreenMedia &&
+        browserLayout.chromeMode != .pad &&
+        !(searchOverlayCoordinator.isFocused && !tabOverview.isPresented)
+        let toolbarFrame = browserChrome.bottomToolbarTransitionFrame(in: view)
+        let height = hasBottomToolbar ? max(0, view.bounds.maxY - toolbarFrame.minY) : 0
+        contentView.setDynamicToolbarMaxHeight(height)
     }
     
     private func applyPadLayout() {
@@ -670,6 +689,51 @@ final class BrowserViewController: UIViewController {
     
     // MARK: - Keyboard
     
+    func requestContentKeyboardFocus(for expectedSession: GeckoSession? = nil) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if let presentedController = presentedControllerInHierarchy {
+                guard let transitionCoordinator = presentedController.transitionCoordinator else {
+                    return
+                }
+                transitionCoordinator.animate(alongsideTransition: nil) { [weak self] _ in
+                    self?.requestContentKeyboardFocus(for: expectedSession)
+                }
+                return
+            }
+            restoreContentKeyboardFocus(for: expectedSession)
+        }
+    }
+    
+    private func restoreContentKeyboardFocus(for expectedSession: GeckoSession? = nil) {
+        guard !browserChrome.isAddressBarEditing,
+              let selectedSession = tabManager.selectedTab?.session else {
+            return
+        }
+        if let expectedSession, expectedSession !== selectedSession {
+            return
+        }
+        guard contentView.isDisplaying(session: selectedSession),
+              let engineView = selectedSession.engineView,
+              let window = engineView.window,
+              window.isKeyWindow,
+              window.windowScene?.activationState == .foregroundActive else {
+            return
+        }
+        selectedSession.focusForHardwareKeyboard()
+    }
+    
+    private var presentedControllerInHierarchy: UIViewController? {
+        var controller: UIViewController? = self
+        while let currentController = controller {
+            if let presentedController = currentController.presentedViewController {
+                return presentedController
+            }
+            controller = currentController.parent
+        }
+        return nil
+    }
+    
     @objc private func keyboardFrameWillChange(_ notification: Notification) {
         guard let frameValue = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else {
             return
@@ -681,7 +745,11 @@ final class BrowserViewController: UIViewController {
             view.bounds.maxY - keyboardFrame.minY - view.safeAreaInsets.bottom
         )
         let animation = keyboardAnimation(from: notification)
-        if !searchOverlayCoordinator.isFocused && !tabOverview.isPresented && keyboardInset > 0 {
+        let isInHardwareKeyboardMode = tabManager.selectedTab?.session.isInHardwareKeyboardMode() == true
+        if !searchOverlayCoordinator.isFocused
+            && !tabOverview.isPresented
+            && keyboardInset > 0
+            && !isInHardwareKeyboardMode {
             contentView.relocateFocusedInput(
                 above: keyboardFrame,
                 animationDuration: animation.duration,
@@ -791,6 +859,7 @@ final class BrowserViewController: UIViewController {
         updateBrowserLayout(animated: true)
         updateFullscreenOrientation(fullScreen)
         UIApplication.shared.isIdleTimerDisabled = fullScreen
+        requestContentKeyboardFocus(for: tabManager.selectedTab?.session)
     }
     
     private func updateFullscreenOrientation(_ fullScreen: Bool) {

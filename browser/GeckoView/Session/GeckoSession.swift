@@ -157,8 +157,7 @@ public class GeckoSession {
     
     public func open(windowId: String? = nil) {
         if isOpen() {
-            NSLog("GeckoSession: ignored duplicate open request")
-            return
+            fatalError("cannot open a GeckoSession twice")
         }
         
         id = windowId ?? UUID().uuidString.replacingOccurrences(of: "-", with: "")
@@ -202,11 +201,7 @@ public class GeckoSession {
             isPrivateMode
         )
         guard let engineView = window?.view() else {
-            NSLog("GeckoSession: window opened without a view; closing the incomplete session")
-            window?.close()
-            window = nil
-            id = nil
-            return
+            fatalError("GeckoView window has no view")
         }
         autofillHandler.attach(to: engineView)
     }
@@ -305,6 +300,7 @@ public class GeckoSession {
         dispatcher.dispatch(type: "GeckoView:SetFocused", message: ["focused": focused])
     }
     
+    // Keyboard
     public func focusedInputBottomRatio() async -> CGFloat? {
         let response = try? await dispatcher.query(type: "GeckoView:GetFocusedInputMetrics")
         guard let values = response as? [AnyHashable: Any],
@@ -313,6 +309,15 @@ public class GeckoSession {
         }
         
         return PayloadValue.cgFloat(bottomRatioValue)
+    }
+    
+    @discardableResult
+    public func focusForHardwareKeyboard() -> Bool {
+        return window?.focusForHardwareKeyboard() ?? false
+    }
+    
+    public func isInHardwareKeyboardMode() -> Bool {
+        return window?.isInHardwareKeyboardMode() ?? false
     }
     
     // MARK: - Selection Actions
@@ -325,5 +330,10 @@ public class GeckoSession {
                 "id": commandId,
             ]
         )
+    }
+    
+    // Toolbar
+    public func setDynamicToolbarMaxHeight(_ height: CGFloat) {
+        window?.setDynamicToolbarMaxHeight(max(0, height))
     }
 }
