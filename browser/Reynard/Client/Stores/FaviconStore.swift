@@ -258,6 +258,13 @@ final class FaviconStore {
             }
         }
     }
+
+    func cancelOutstandingRequests() {
+        stateQueue.async {
+            self.activeRequests.values.forEach { $0.cancel() }
+            self.activeRequests.removeAll()
+        }
+    }
     
     // MARK: - Storage
     
@@ -1334,3 +1341,4 @@ final class FaviconStore {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 }
+
