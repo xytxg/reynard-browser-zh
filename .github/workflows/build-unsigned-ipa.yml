@@ -132,16 +132,16 @@ jobs:
             ~/.cargo/git
             ~/.cargo/bin/cbindgen
             support/idevice/target
-          key: idevice-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.xcode-key }}-cbindgen-0.29.1-${{ hashFiles('support/idevice/ffi/Cargo.lock', 'tools/development/build-idevice.sh') }}
+          key: idevice-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.xcode-key }}-cbindgen-0.29.4-${{ hashFiles('support/idevice/ffi/Cargo.lock', 'tools/development/build-idevice.sh') }}
           restore-keys: |
-            idevice-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.xcode-key }}-cbindgen-0.29.1-
+            idevice-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.xcode-key }}-cbindgen-0.29.4-
 
       - name: Install Gecko build tools
         shell: bash
         run: |
           set -euo pipefail
-          if ! cbindgen --version 2>/dev/null | grep -Fxq 'cbindgen 0.29.1'; then
-            cargo install cbindgen --locked --version 0.29.1
+          if ! cbindgen --version 2>/dev/null | grep -Fxq 'cbindgen 0.29.4'; then
+            cargo install cbindgen --locked --version 0.29.4
           fi
           cbindgen --version
 
@@ -248,7 +248,7 @@ jobs:
             ~/.cargo/git
             ~/.cargo/bin/cbindgen
             support/idevice/target
-          key: idevice-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.xcode-key }}-cbindgen-0.29.1-${{ hashFiles('support/idevice/ffi/Cargo.lock', 'tools/development/build-idevice.sh') }}
+          key: idevice-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.xcode-key }}-cbindgen-0.29.4-${{ hashFiles('support/idevice/ffi/Cargo.lock', 'tools/development/build-idevice.sh') }}
 
       - name: Build Gecko for iOS
         shell: bash
