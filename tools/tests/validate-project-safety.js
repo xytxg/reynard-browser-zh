@@ -84,6 +84,28 @@ rejectText(
   "missing Gecko view still crashes the browser"
 );
 
+const faviconStore = read("browser/Reynard/Client/Stores/FaviconStore.swift");
+rejectText(
+  faviconStore,
+  "SafariSharedUI",
+  "favicon rendering still calls a private Safari framework"
+);
+requireText(
+  faviconStore,
+  "?? fileManager.temporaryDirectory",
+  "favicon cache initialization can still crash when Application Support is unavailable"
+);
+requireText(
+  faviconStore,
+  "CGImageSourceCopyPropertiesAtIndex",
+  "favicon decoding does not validate image dimensions before UIKit decoding"
+);
+requireText(
+  faviconStore,
+  "URLUtils.isWebURL(requestedURL)",
+  "favicon metadata requests allow non-web URL schemes"
+);
+
 const pictureInPictureDelegate = read("browser/GeckoView/Delegates/PictureInPictureDelegate.swift");
 rejectText(
   pictureInPictureDelegate,
@@ -102,7 +124,32 @@ requireText(
 requireText(
   pictureInPictureCoordinator,
   "deinit",
-  "picture-in-picture coordinator does not clean up its timer and delegates"
+  "picture-in-picture coordinator does not define lifecycle cleanup"
+);
+requireText(
+  pictureInPictureCoordinator,
+  "observedSession?.pictureInPictureDelegate = nil",
+  "picture-in-picture coordinator leaves the Gecko session delegate attached"
+);
+requireText(
+  pictureInPictureCoordinator,
+  "state.presentation?.controller.delegate = nil",
+  "picture-in-picture coordinator leaves the AVKit controller delegate attached"
+);
+requireText(
+  pictureInPictureCoordinator,
+  "mediaSession.observer = nil",
+  "picture-in-picture coordinator leaves the media observer attached"
+);
+requireText(
+  pictureInPictureCoordinator,
+  "sessionManager.applicationStateObserver = nil",
+  "picture-in-picture coordinator leaves the application observer attached"
+);
+requireText(
+  pictureInPictureCoordinator,
+  "sessionManager.pictureInPictureHandler = nil",
+  "picture-in-picture coordinator leaves the session handler attached"
 );
 
 console.log("Project safety validation passed");
