@@ -232,6 +232,16 @@ jobs:
           path: engine/firefox/obj-aarch64-apple-ios
           key: gecko-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.xcode-key }}-${{ steps.toolchain.outputs.wasm-key }}-${{ hashFiles('engine/release.txt', 'patches/**/*.patch', 'tools/development/build-gecko.sh') }}
 
+      - name: Restore Gecko recovery cache
+        id: gecko-recovery-cache
+        if: steps.gecko-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: engine/firefox/obj-aarch64-apple-ios
+          key: gecko-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.xcode-key }}-${{ steps.toolchain.outputs.wasm-key }}-${{ hashFiles('engine/release.txt', 'patches/**/*.patch', 'tools/development/build-gecko.sh') }}-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            gecko-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.xcode-key }}-${{ steps.toolchain.outputs.wasm-key }}-${{ hashFiles('engine/release.txt', 'patches/**/*.patch', 'tools/development/build-gecko.sh') }}-recovery-
+
       - name: Build idevice support library
         shell: bash
         run: |
@@ -251,6 +261,7 @@ jobs:
           key: idevice-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.xcode-key }}-cbindgen-0.29.4-${{ hashFiles('support/idevice/ffi/Cargo.lock', 'tools/development/build-idevice.sh') }}
 
       - name: Build Gecko for iOS
+        id: build-gecko
         shell: bash
         env:
           WASM_CC: ${{ steps.wasi.outputs.wasm-cc }}
@@ -279,6 +290,13 @@ jobs:
         with:
           path: engine/firefox/obj-aarch64-apple-ios
           key: gecko-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.xcode-key }}-${{ steps.toolchain.outputs.wasm-key }}-${{ hashFiles('engine/release.txt', 'patches/**/*.patch', 'tools/development/build-gecko.sh') }}
+
+      - name: Save Gecko recovery cache after failure
+        if: steps.build-gecko.outcome == 'failure' && steps.gecko-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: engine/firefox/obj-aarch64-apple-ios
+          key: gecko-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.xcode-key }}-${{ steps.toolchain.outputs.wasm-key }}-${{ hashFiles('engine/release.txt', 'patches/**/*.patch', 'tools/development/build-gecko.sh') }}-recovery-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Build unsigned Reynard.app
         shell: bash
