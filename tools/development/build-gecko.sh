@@ -46,6 +46,9 @@ trap restore_mozconfig EXIT
 	echo "ac_add_options --enable-rust-simd"
 	echo "ac_add_options --disable-debug"
 	echo "ac_add_options --disable-tests"
+	if [ "${1:-}" = "--disable-jemalloc" ]; then
+		echo "ac_add_options --disable-jemalloc"
+	fi
 } > "$MOZCONFIG"
 
 if ! rustup target list | grep -q "^$TARGET (installed)"; then
