@@ -22,9 +22,11 @@ final class SessionManager {
     private let sessionSettings: SessionSettingsManager
     private let history: NavigationHistory
     private let permissionStore: SitePermissionStore
+    let universalLinkManager = UniversalLinkManager()
     let trackingProtection: TrackingProtectionManager
     
     private var sessionsRequestedActive: [ObjectIdentifier: GeckoSession] = [:]
+    private var pageBackgroundColors: [ObjectIdentifier: UIColor] = [:]
     private var isApplicationForeground = true
     private(set) var isApplicationActive = true
     private weak var pictureInPictureSession: GeckoSession?
@@ -229,6 +231,7 @@ final class SessionManager {
         deactivate(session)
         trackingProtection.removeSession(session)
         permissionStore.removePrivateActions(for: session)
+        pageBackgroundColors.removeValue(forKey: ObjectIdentifier(session))
         session.close()
     }
     
@@ -242,6 +245,16 @@ final class SessionManager {
             history.removeHistory(for: tabID)
         }
         closeImmediately(session)
+    }
+    
+    // MARK: - Page Background Color
+    
+    func pageBackgroundColor(for session: GeckoSession) -> UIColor {
+        return pageBackgroundColors[ObjectIdentifier(session)] ?? .systemBackground
+    }
+    
+    func setPageBackgroundColor(_ color: UIColor, for session: GeckoSession) {
+        pageBackgroundColors[ObjectIdentifier(session)] = color
     }
     
     // MARK: - Addon Tab State
@@ -301,12 +314,17 @@ final class SessionManager {
         return history.availability(for: tabID, sessionState: sessionState)
     }
     
+    func navigationHistory(for tabID: UUID) -> NavigationHistoryStore.Snapshot {
+        return history.snapshot(for: tabID)
+    }
+    
     func recordNavigation(
         to url: String,
+        title: String,
         for tabID: UUID,
         sessionState: SessionNavigationAvailability
     ) -> NavigationAvailability {
-        return history.record(to: url, for: tabID, sessionState: sessionState)
+        return history.record(to: url, title: title, for: tabID, sessionState: sessionState)
     }
     
     func goBack(
@@ -316,6 +334,14 @@ final class SessionManager {
         return history.goBack(for: tabID, sessionState: sessionState)
     }
     
+    func goBack(
+        to index: Int,
+        for tabID: UUID,
+        sessionState: SessionNavigationAvailability
+    ) -> NavigationTransition? {
+        return history.goBack(to: index, for: tabID, sessionState: sessionState)
+    }
+    
     func goForward(
         for tabID: UUID,
         sessionState: SessionNavigationAvailability
@@ -323,8 +349,20 @@ final class SessionManager {
         return history.goForward(for: tabID, sessionState: sessionState)
     }
     
+    func goForward(
+        to index: Int,
+        for tabID: UUID,
+        sessionState: SessionNavigationAvailability
+    ) -> NavigationTransition? {
+        return history.goForward(to: index, for: tabID, sessionState: sessionState)
+    }
+    
     func useStoredNavigationHistory(for tabID: UUID) -> NavigationAvailability {
         return history.useStoredHistory(for: tabID)
+    }
+    
+    func updateCurrentHistoryTitle(_ title: String, for tabID: UUID, matching url: String) {
+        history.updateCurrentHistoryTitle(title, for: tabID, matching: url)
     }
     
     func updateCurrentHistoryThumbnail(_ image: UIImage?, for tabID: UUID, matching url: String) {
