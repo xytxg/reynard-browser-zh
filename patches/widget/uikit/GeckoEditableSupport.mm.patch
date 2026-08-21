@@ -1,9 +1,9 @@
 diff --git a/widget/uikit/GeckoEditableSupport.mm b/widget/uikit/GeckoEditableSupport.mm
 new file mode 100644
-index 000000000000..8ebc61669720
+index 000000000000..58e0c7ed35bd
 --- /dev/null
 +++ b/widget/uikit/GeckoEditableSupport.mm
-@@ -0,0 +1,4198 @@
+@@ -0,0 +1,4276 @@
 +/* This Source Code Form is subject to the terms of the Mozilla Public
 + * License, v. 2.0. If a copy of the MPL was not distributed with this
 + * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -32,6 +32,11 @@ index 000000000000..8ebc61669720
 +using namespace mozilla;
 +using namespace mozilla::widget;
 +using mozilla::widget::UIKitUtils;
++
++@interface UIKeyboardImpl : NSObject
+++ (instancetype)sharedInstance;
++- (BOOL)isInHardwareKeyboardMode;
++@end
 +
 +@class UITextInputArrowKeyHistory;
 +
@@ -392,14 +397,8 @@ index 000000000000..8ebc61669720
 +
 +@interface ChildView : UIView {
 + @public
-+  // Redeclarations
 +  nsWindow* mGeckoChild;
-+  BOOL mWaitingForPaint;
-+  NSMapTable<UITouch*, NSNumber*>* mTouches;
-+  int mNextTouchID;
 +  GeckoEditableState mEditable;
-+  CALayer* mRootCALayer;
-+  BOOL mIsUpdatingLayer;
 +}
 +@end
 +
@@ -410,6 +409,7 @@ index 000000000000..8ebc61669720
 +
 +- (void)setupTextInput;
 +- (void)teardownTextInput;
++- (void)handleTap:(UITapGestureRecognizer*)aSender;
 +- (widget::TextInputHandler*)textHandler;
 +- (NSRange)selectedRange;
 +- (NSUInteger)clampOffset:(NSUInteger)aOffset;
@@ -460,6 +460,7 @@ index 000000000000..8ebc61669720
 +- (NSRange)deleteBackwardRangeWithHandler:(widget::TextInputHandler*)aHandler;
 +- (void)configureTextInteractionForTouchInput:(UITextInteraction*)aInteraction;
 +- (void)updateTextInteractions;
++- (void)updateInputAssistantItem;
 +- (void)scheduleResponderBlur;
 +- (void)cancelResponderBlur;
 +- (void)applyResponderBlur;
@@ -654,6 +655,63 @@ index 000000000000..8ebc61669720
 +
 +  [self teardownModernTextInput];
 +  [self resetHandleState];
++}
++
++- (void)handleTap:(UITapGestureRecognizer*)aSender {
++  // UIKit text interactions already handle taps that are placing or
++  // adjusting the caret. Replaying the same tap as a Gecko click resets the
++  // selection after UIKit has positioned it.
++  if (aSender.state != UIGestureRecognizerStateEnded ||
++      mEditable.mTextInteractionInProgress) {
++    return;
++  }
++
++  BOOL wasFirstResponder = [self isFirstResponder];
++
++  // Save the caret offset before sending events to Gecko so we can detect
++  // whether the caret actually moved once Gecko responds.
++  NSRange preSel = [self selectedRange];
++  NSUInteger preOffset =
++      (wasFirstResponder && preSel.location != NSNotFound && preSel.length == 0)
++          ? preSel.location
++          : NSNotFound;
++
++  BOOL tapInsideEditor = NO;
++  // When re-tapping an already-focused editable field with a
++  // collapsed caret, arm the pending caret-menu flag. Gecko processes mouse
++  // events asynchronously, so we resolve the flag later:
++  //   - If NOTIFY_IME_OF_POSITION_CHANGE arrives (caret moved),
++  //     selectionGeometryChanged cancels the pending menu.
++  //   - If no notification arrives (caret stayed), the fallback timer
++  //     fires and shows the menu.
++  if (preOffset != NSNotFound && mGeckoChild && [self isFirstResponder]) {
++    LayoutDeviceIntRect editorDevRect;
++    widget::TextInputHandler* handler = mGeckoChild->GetTextInputHandler();
++    if (handler && handler->EditorRect(editorDevRect)) {
++      CGRect editorRect =
++          DevPixelsToUIKitPoints(editorDevRect, [self contentScaleFactor]);
++      if (ClipCGRectToBounds(editorRect, self.bounds)) {
++        tapInsideEditor = CGRectContainsPoint(CGRectStandardize(editorRect),
++                                              [aSender locationInView:self]);
++      }
++    }
++  }
++
++  if (preOffset == NSNotFound || !tapInsideEditor) {
++    return;
++  }
++
++  mEditable.mPreTapCaretOffset = preOffset;
++  mEditable.mPendingCaretMenu = YES;
++  [NSObject
++      cancelPreviousPerformRequestsWithTarget:self
++                                     selector:@selector(
++                                                  resolveCaretMenuIfPending)
++                                       object:nil];
++  [self performSelector:@selector(resolveCaretMenuIfPending)
++             withObject:nil
++             afterDelay:0.1
++                inModes:@[ NSRunLoopCommonModes ]];
 +}
 +
 +// Returns the live Gecko text-input bridge for this view.
@@ -1893,6 +1951,8 @@ index 000000000000..8ebc61669720
 +// Toggle between editable and non-editable UITextInteraction
 +// based on the current input context so native selection handles appear.
 +- (void)updateTextInteractions {
++  [self updateInputAssistantItem];
++
 +  if (mEditable.mSelectionDisplayInteraction != nil) {
 +    [self updateModernTextInteractions];
 +    return;
@@ -2354,7 +2414,25 @@ index 000000000000..8ebc61669720
 +  return self;
 +}
 +
++- (void)updateInputAssistantItem {
++  Class keyboardClass = NSClassFromString(@"UIKeyboardImpl");
++  MOZ_RELEASE_ASSERT(keyboardClass);
++  UIKeyboardImpl* keyboard = [keyboardClass sharedInstance];
++  MOZ_RELEASE_ASSERT(keyboard);
++
++  const bool softwareKeyboardInactive =
++      mGeckoChild && (mGeckoChild->IsVirtualKeyboardDisabled() ||
++                      mGeckoChild->IsSoftwareKeyboardSuppressed());
++  NSArray* buttonGroups =
++      ([keyboard isInHardwareKeyboardMode] || softwareKeyboardInactive) ? @[]
++                                                                        : nil;
++  self.inputAssistantItem.leadingBarButtonGroups = buttonGroups;
++  self.inputAssistantItem.trailingBarButtonGroups = buttonGroups;
++}
++
 +- (UIView*)inputView {
++  [self updateInputAssistantItem];
++
 +  if (mGeckoChild && (mGeckoChild->IsVirtualKeyboardDisabled() ||
 +                      mGeckoChild->IsSoftwareKeyboardSuppressed())) {
 +    static UIView* sHiddenInputView = nil;
