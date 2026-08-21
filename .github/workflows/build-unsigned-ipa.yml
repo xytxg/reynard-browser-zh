@@ -182,8 +182,8 @@ jobs:
           builtins="$(find "$compiler_rt_root" -type f \
             -name 'libclang_rt.builtins*.a' -print -quit 2>/dev/null || true)"
           if [[ -z "$builtins" ]]; then
-            # Firefox 153 ships its default Clang 21 WASI runtime under this
-            # exact Taskcluster build name; no -20 build exists.
+            # Firefox 154 still publishes the Clang 21 WASI runtime under this
+            # exact Taskcluster build name; no matching -20 build exists.
             (
               cd "$wasi_root"
               "$GITHUB_WORKSPACE/engine/firefox/mach" artifact toolchain \
