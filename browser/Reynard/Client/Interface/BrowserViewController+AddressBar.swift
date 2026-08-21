@@ -54,6 +54,15 @@ extension BrowserViewController: AddressBarDelegate, AddressBarGestureDelegate {
         tabManager.reloadOrStopSelectedTab()
     }
     
+    func addressBarDidRequestHardReload(_ addressBar: AddressBar) {
+        if tabManager.selectedTab?.session.isOpen() == false {
+            reloadTerminatedTab()
+            return
+        }
+        
+        tabManager.hardReloadSelectedTab()
+    }
+    
     func addressBarAddonItems(_ addressBar: AddressBar) -> [AddressBarMenu.AddonItem] {
         addonCoordinator.currentSiteMenuItems().map { item in
             AddressBarMenu.AddonItem(
@@ -65,6 +74,14 @@ extension BrowserViewController: AddressBarDelegate, AddressBarGestureDelegate {
     
     func addressBar(_ addressBar: AddressBar, didSelectAddon item: AddonMenuItem) {
         addonCoordinator.activateMenuItem(item)
+    }
+    
+    func addressBarDidRequestFindInPage(_ addressBar: AddressBar) {
+        guard tabManager.selectedTab != nil else {
+            return
+        }
+        
+        browserChrome.showActionBar(.findInPage, animated: true)
     }
     
     func addressBarDidRequestPageZoom(_ addressBar: AddressBar) {
@@ -98,6 +115,29 @@ extension BrowserViewController: AddressBarDelegate, AddressBarGestureDelegate {
         }
         
         return tabManager.shareableURL(for: selectedTab)
+    }
+    
+    func addressBarTabCount(_ addressBar: AddressBar) -> Int {
+        return tabManager.activeTabs.count
+    }
+    
+    func addressBarDidRequestCloseThisTab(_ addressBar: AddressBar) {
+        closeTab()
+    }
+    
+    func addressBarDidRequestCloseAllTabs(_ addressBar: AddressBar) {
+        closeAllTabs()
+    }
+    
+    func addressBar(
+        _ addressBar: AddressBar,
+        didRequestShareLink url: URL
+    ) {
+        presentShareSheet(
+            items: [url],
+            sourceView: addressBar,
+            sourceRect: addressBar.bounds
+        )
     }
     
     // MARK: - AddressBarGestureDelegate
@@ -138,6 +178,10 @@ extension BrowserViewController: AddressBarDelegate, AddressBarGestureDelegate {
         return tabManager.activeTabs
     }
     
+    func pageBackgroundColor(for tab: Tab) -> UIColor {
+        return sessionManager.pageBackgroundColor(for: tab.session)
+    }
+    
     func selectTabFromGesture(at index: Int, mode: TabMode) {
         tabManager.selectTab(at: index, mode: mode)
     }
@@ -154,7 +198,7 @@ extension BrowserViewController: AddressBarDelegate, AddressBarGestureDelegate {
         }
         
         if let tab = tabManager.activeTabs[safe: index],
-           let previewImage = homepageOverlayCoordinator.previewImage(for: tab, size: contentView.bounds.size) {
+           let previewImage = homepageOverlayCoordinator.previewImage(for: tab) {
             tabManager.updateThumbnail(previewImage, forTabAt: index, mode: mode)
         }
         
@@ -169,15 +213,23 @@ extension BrowserViewController: AddressBarDelegate, AddressBarGestureDelegate {
         setTabOverviewVisible(true, animated: animated)
     }
     
-    func addressBarGestureWillBegin() {
+    func addressBarTransitionWillBegin(prepareForGesture: Bool) {
+        toolbarController.lock(for: .addressBarTransition)
+        guard prepareForGesture else {
+            return
+        }
         browserChrome.dismissActionBar(animated: false)
         captureTabThumbnailIfNeeded()
+    }
+    
+    func addressBarTransitionDidEnd() {
+        toolbarController.unlock(for: .addressBarTransition)
     }
     
     private func captureTabThumbnailIfNeeded() {
         if let tab = tabManager.activeTabs[safe: tabManager.selectedTabIndex],
            homepageOverlayCoordinator.needsHomepageThumbnail(for: tab) {
-            if let thumbnail = homepageOverlayCoordinator.previewImage(for: tab, size: contentView.bounds.size) {
+            if let thumbnail = homepageOverlayCoordinator.previewImage(for: tab) {
                 tabManager.updateThumbnail(thumbnail, forTabAt: tabManager.selectedTabIndex, mode: tabManager.selectedTabMode)
             }
             return
@@ -231,7 +283,7 @@ extension BrowserViewController: AddressBarDelegate, AddressBarGestureDelegate {
         presentContentModal(settingsController)
     }
     
-    private func presentBookmarkEditor(addToFavorites: Bool) {
+    func presentBookmarkEditor(addToFavorites: Bool) {
         guard let selectedTab = tabManager.selectedTab,
               let urlString = selectedTab.url?.trimmingCharacters(in: .whitespacesAndNewlines),
               let url = URL(string: urlString) else {
