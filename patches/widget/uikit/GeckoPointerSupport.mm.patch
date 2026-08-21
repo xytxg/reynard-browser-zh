@@ -1,9 +1,9 @@
 diff --git a/widget/uikit/GeckoPointerSupport.mm b/widget/uikit/GeckoPointerSupport.mm
 new file mode 100644
-index 000000000000..15b615ec23b2
+index 000000000000..3ddc17cbaeb0
 --- /dev/null
 +++ b/widget/uikit/GeckoPointerSupport.mm
-@@ -0,0 +1,810 @@
+@@ -0,0 +1,759 @@
 +/* This Source Code Form is subject to the terms of the Mozilla Public
 + * License, v. 2.0. If a copy of the MPL was not distributed with this
 + * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -16,7 +16,7 @@ index 000000000000..15b615ec23b2
 +#include <cmath>
 +
 +#include "GeckoEditableSupport.h"
-+#include "GeckoViewSwiftSupport.h"
++#include "GeckoKeyboardSupport.h"
 +#include "InputData.h"
 +#include "nsGkAtoms.h"
 +#include "nsWindow.h"
@@ -75,37 +75,6 @@ index 000000000000..15b615ec23b2
 +  return [NSProcessInfo.processInfo isOperatingSystemAtLeastVersion:version];
 +}
 +
-+static bool IsIndirectPointerTouch(UITouch* aTouch) {
-+  if (SupportsPointerInput()) {
-+    return aTouch.type == UITouchTypeIndirectPointer;
-+  }
-+  return false;
-+}
-+
-+static Modifiers GeckoModifiersForUIKitModifiers(
-+    UIKeyModifierFlags aModifiers) {
-+  Modifiers modifiers = MODIFIER_NONE;
-+  if (aModifiers & UIKeyModifierAlphaShift) {
-+    modifiers |= MODIFIER_CAPSLOCK;
-+  }
-+  if (aModifiers & UIKeyModifierShift) {
-+    modifiers |= MODIFIER_SHIFT;
-+  }
-+  if (aModifiers & UIKeyModifierControl) {
-+    modifiers |= MODIFIER_CONTROL;
-+  }
-+  if (aModifiers & UIKeyModifierAlternate) {
-+    modifiers |= MODIFIER_ALT;
-+  }
-+  if (aModifiers & UIKeyModifierCommand) {
-+    modifiers |= MODIFIER_META;
-+  }
-+  if (aModifiers & UIKeyModifierNumericPad) {
-+    modifiers |= MODIFIER_NUMLOCK;
-+  }
-+  return modifiers;
-+}
-+
 +static TimeStamp GeckoTimeStampForUIKitTimestamp(NSTimeInterval aTimestamp) {
 +  NSTimeInterval age = NSProcessInfo.processInfo.systemUptime - aTimestamp;
 +  return TimeStamp::Now() - TimeDuration::FromSeconds(age);
@@ -152,7 +121,7 @@ index 000000000000..15b615ec23b2
 +@implementation GeckoPointerSupport {
 +  ChildView* mView;
 +  nsWindow* mGeckoChild;
-+  id<GeckoViewInputResultDelegate> mInputResultDelegate;
++  id<GeckoViewInteractionDelegate> mInteractionDelegate;
 +  UIHoverGestureRecognizer* mHoverRecognizer;
 +  UIPanGestureRecognizer* mScrollRecognizer;
 +  UIPinchGestureRecognizer* mPinchRecognizer;
@@ -164,8 +133,7 @@ index 000000000000..15b615ec23b2
 +  CGPoint mScrollLocation;
 +  CGFloat mLastPinchSpan;
 +  BOOL mPointerInside;
-+  BOOL mSecondaryClickHandledAsTextAction;
-+  GeckoHistorySwipeDirections mHistorySwipeDirection;
++  GeckoEdgeSwipeDirections mEdgeSwipeDirection;
 +}
 +
 +- (instancetype)initWithView:(ChildView*)view geckoChild:(nsWindow*)geckoChild {
@@ -224,6 +192,7 @@ index 000000000000..15b615ec23b2
 +    return;
 +  }
 +
++  [self excludeIndirectPointerFromSystemSecondaryClickDriver];
 +  for (UITextInteraction* interaction in textInteractions) {
 +    for (UIGestureRecognizer* gesture in interaction
 +             .gesturesForFailureRequirements) {
@@ -232,19 +201,19 @@ index 000000000000..15b615ec23b2
 +  }
 +}
 +
-+- (void)setInputResultDelegate:
-+    (id<GeckoViewInputResultDelegate>)inputResultDelegate {
-+  mInputResultDelegate = inputResultDelegate;
-+}
-+
-+- (NSSet<UITouch*>*)directTouchesFromTouches:(NSSet<UITouch*>*)touches {
-+  NSMutableSet<UITouch*>* directTouches = [NSMutableSet set];
-+  for (UITouch* touch in touches) {
-+    if (!IsIndirectPointerTouch(touch)) {
-+      [directTouches addObject:touch];
++- (void)excludeIndirectPointerFromSystemSecondaryClickDriver {
++  for (UIGestureRecognizer* gesture in mView.gestureRecognizers) {
++    if ([NSStringFromClass(gesture.class)
++            isEqualToString:@"_UISecondaryClickDriverGestureRecognizer"]) {
++      gesture.allowedTouchTypes =
++          @[ @(UITouchTypeDirect), @(UITouchTypePencil) ];
 +    }
 +  }
-+  return directTouches;
++}
++
++- (void)setInteractionDelegate:
++    (id<GeckoViewInteractionDelegate>)interactionDelegate {
++  mInteractionDelegate = interactionDelegate;
 +}
 +
 +- (void)dispatchMouseEvent:(EventMessage)message
@@ -303,7 +272,16 @@ index 000000000000..15b615ec23b2
 +  contextMenuEvent.mClickCount = clickCount;
 +  contextMenuEvent.mModifiers = modifiers;
 +  contextMenuEvent.mTimeStamp = timestamp;
-+  mGeckoChild->DispatchInputEvent(&contextMenuEvent);
++
++  // Prioritize page's contextmenu -> UIMenuController
++  nsIWidget::ContentAndAPZEventStatus contextMenuStatus =
++      mGeckoChild->DispatchInputEvent(&contextMenuEvent);
++  BOOL insideFocusedEditor = [self isPointInsideFocusedEditor:location];
++  if (contextMenuStatus.mApzStatus != nsEventStatus_eConsumeNoDefault &&
++      contextMenuStatus.mContentStatus != nsEventStatus_eConsumeNoDefault &&
++      insideFocusedEditor) {
++    [mView showEditMenuForSecondaryClick];
++  }
 +}
 +
 +- (void)synchronizePointerButtons:(UIEventButtonMask)buttons
@@ -328,21 +306,6 @@ index 000000000000..15b615ec23b2
 +      mPointerButtons |= buttonMask;
 +    } else {
 +      mPointerButtons &= ~buttonMask;
-+    }
-+    if (button == MouseButton::eSecondary) {
-+      if (pressed) {
-+        mSecondaryClickHandledAsTextAction =
-+            [self isPointInsideFocusedEditor:location];
-+        if (mSecondaryClickHandledAsTextAction) {
-+          [mView showEditMenuForSecondaryClick];
-+        }
-+      }
-+      if (mSecondaryClickHandledAsTextAction) {
-+        if (!pressed) {
-+          mSecondaryClickHandledAsTextAction = NO;
-+        }
-+        continue;
-+      }
 +    }
 +    EventMessage message = pressed ? eMouseDown : eMouseUp;
 +    [self dispatchMouseEvent:message
@@ -391,15 +354,13 @@ index 000000000000..15b615ec23b2
 +                       allowClick:NO];
 +}
 +
-+- (void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
++- (void)handlePointerInputBegan:(NSSet<UITouch*>*)pointerTouches
++                      withEvent:(UIEvent*)event {
 +  if (!SupportsPointerInput()) {
 +    return;
 +  }
 +
-+  for (UITouch* touch in touches) {
-+    if (!IsIndirectPointerTouch(touch)) {
-+      continue;
-+    }
++  for (UITouch* touch in pointerTouches) {
 +    CGPoint location = [touch locationInView:mView];
 +    UIEventButtonMask pressedButtons = event.buttonMask & ~mPointerButtons;
 +    [mPointerTouches setObject:[NSNumber numberWithInteger:pressedButtons]
@@ -414,28 +375,23 @@ index 000000000000..15b615ec23b2
 +  }
 +}
 +
-+- (void)touchesCancelled:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
++- (void)handlePointerInputCancelled:(NSSet<UITouch*>*)pointerTouches {
 +  if (!SupportsPointerInput()) {
 +    return;
 +  }
 +
-+  for (UITouch* touch in touches) {
-+    if (IsIndirectPointerTouch(touch)) {
-+      [self releasePointerButtons];
-+      return;
-+    }
++  if (pointerTouches.count > 0) {
++    [self releasePointerButtons];
 +  }
 +}
 +
-+- (void)touchesEnded:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
++- (void)handlePointerInputEnded:(NSSet<UITouch*>*)pointerTouches
++                      withEvent:(UIEvent*)event {
 +  if (!SupportsPointerInput()) {
 +    return;
 +  }
 +
-+  for (UITouch* touch in touches) {
-+    if (!IsIndirectPointerTouch(touch)) {
-+      continue;
-+    }
++  for (UITouch* touch in pointerTouches) {
 +    NSNumber* pressedButtons = [mPointerTouches objectForKey:touch];
 +    if (!pressedButtons) {
 +      continue;
@@ -453,15 +409,13 @@ index 000000000000..15b615ec23b2
 +  }
 +}
 +
-+- (void)touchesMoved:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
++- (void)handlePointerInputMoved:(NSSet<UITouch*>*)pointerTouches
++                      withEvent:(UIEvent*)event {
 +  if (!SupportsPointerInput()) {
 +    return;
 +  }
 +
-+  for (UITouch* touch in touches) {
-+    if (!IsIndirectPointerTouch(touch)) {
-+      continue;
-+    }
++  for (UITouch* touch in pointerTouches) {
 +    CGPoint location = [touch locationInView:mView];
 +    Modifiers modifiers = GeckoModifiersForUIKitModifiers(event.modifierFlags);
 +    TimeStamp timestamp = GeckoTimeStampForUIKitEvent(event);
@@ -661,65 +615,60 @@ index 000000000000..15b615ec23b2
 +                       allowClick:YES];
 +}
 +
-+- (BOOL)handleHistorySwipeEvent:(WidgetSimpleGestureEvent&)event {
++- (BOOL)handleEdgeSwipeEvent:(WidgetSimpleGestureEvent&)event {
 +  switch (event.mMessage) {
 +    case eSwipeGestureMayStart: {
-+      GeckoHistorySwipeDirections allowedDirections =
-+          [mInputResultDelegate allowedHistorySwipeDirections];
-+      if (allowedDirections & GeckoHistorySwipeDirectionsBack) {
++      GeckoEdgeSwipeDirections allowedDirections =
++          [mInteractionDelegate allowedEdgeSwipeDirections];
++      if (allowedDirections & GeckoEdgeSwipeDirectionLeft) {
 +        event.mAllowedDirections |= SimpleGestureEventBinding::DIRECTION_LEFT;
 +      }
-+      if (allowedDirections & GeckoHistorySwipeDirectionsForward) {
++      if (allowedDirections & GeckoEdgeSwipeDirectionRight) {
 +        event.mAllowedDirections |= SimpleGestureEventBinding::DIRECTION_RIGHT;
 +      }
 +
 +      if (event.mDirection == SimpleGestureEventBinding::DIRECTION_LEFT) {
-+        mHistorySwipeDirection = GeckoHistorySwipeDirectionsBack;
++        mEdgeSwipeDirection = GeckoEdgeSwipeDirectionLeft;
 +      } else if (event.mDirection ==
 +                 SimpleGestureEventBinding::DIRECTION_RIGHT) {
-+        mHistorySwipeDirection = GeckoHistorySwipeDirectionsForward;
++        mEdgeSwipeDirection = GeckoEdgeSwipeDirectionRight;
 +      } else {
-+        mHistorySwipeDirection = 0;
++        mEdgeSwipeDirection = 0;
 +      }
-+      return mHistorySwipeDirection != 0 &&
-+             (allowedDirections & mHistorySwipeDirection) != 0;
++      return mEdgeSwipeDirection != 0 &&
++             (allowedDirections & mEdgeSwipeDirection) != 0;
 +    }
 +    case eSwipeGestureStart:
-+      [mInputResultDelegate historySwipeDidStart:mHistorySwipeDirection];
++      [mInteractionDelegate edgeSwipeDidStart:mEdgeSwipeDirection];
 +      return YES;
 +    case eSwipeGestureUpdate:
-+      [mInputResultDelegate historySwipeDidUpdate:std::abs(event.mDelta)];
++      [mInteractionDelegate edgeSwipeDidUpdate:std::abs(event.mDelta)];
 +      return YES;
 +    case eSwipeGesture:
 +      if (event.mDirection == SimpleGestureEventBinding::DIRECTION_LEFT) {
-+        [mInputResultDelegate
-+            historySwipeDidComplete:GeckoHistorySwipeDirectionsBack];
++        [mInteractionDelegate edgeSwipeDidComplete:GeckoEdgeSwipeDirectionLeft];
 +      } else if (event.mDirection ==
 +                 SimpleGestureEventBinding::DIRECTION_RIGHT) {
-+        [mInputResultDelegate
-+            historySwipeDidComplete:GeckoHistorySwipeDirectionsForward];
++        [mInteractionDelegate
++            edgeSwipeDidComplete:GeckoEdgeSwipeDirectionRight];
 +      }
 +      return YES;
 +    case eSwipeGestureEnd:
-+      [mInputResultDelegate historySwipeDidEnd];
-+      mHistorySwipeDirection = 0;
++      [mInteractionDelegate edgeSwipeDidEnd];
++      mEdgeSwipeDirection = 0;
 +      return YES;
 +    default:
 +      return NO;
 +  }
 +}
 +
-+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer*)gestureRecognizer {
-+  if (gestureRecognizer != mSecondaryClickRecognizer) {
-+    return YES;
-+  }
-+
-+  return ![self
-+      isPointInsideFocusedEditor:[gestureRecognizer locationInView:mView]];
-+}
-+
 +- (BOOL)gestureRecognizer:(UIGestureRecognizer*)gestureRecognizer
 +       shouldReceiveEvent:(UIEvent*)event API_AVAILABLE(ios(13.4)) {
++  if (gestureRecognizer == mSecondaryClickRecognizer) {
++    if (event.buttonMask & UIEventButtonMaskSecondary) {
++      [self excludeIndirectPointerFromSystemSecondaryClickDriver];
++    }
++  }
 +  if (mGeckoChild && gestureRecognizer == mScrollRecognizer &&
 +      event.type == UIEventTypeScroll) {
 +    LayoutDeviceIntPoint point =
@@ -779,7 +728,7 @@ index 000000000000..15b615ec23b2
 +- (void)widgetDestroyed {
 +  [self releasePointerButtons];
 +  mGeckoChild = nullptr;
-+  mInputResultDelegate = nil;
++  mInteractionDelegate = nil;
 +  [self tearDownPointerInput];
 +}
 +
