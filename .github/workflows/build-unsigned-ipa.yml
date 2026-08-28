@@ -174,10 +174,15 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/reynard-gecko-dist"
+          mkdir -p "$RUNNER_TEMP/reynard-gecko-dist/bin" "$RUNNER_TEMP/reynard-gecko-dist/include"
           # dist contains symlinks into generated object directories. Dereference
           # them so a cached distribution works on a fresh runner without old objects.
-          rsync -aL --delete engine/firefox/obj-aarch64-apple-ios/dist/ "$RUNNER_TEMP/reynard-gecko-dist/"
+          # Xcode only needs bin and include. dist/lib contains large intermediate
+          # archives and copying them can exhaust the runner after a successful build.
+          for directory in bin include; do
+            rsync -aL --delete "engine/firefox/obj-aarch64-apple-ios/dist/$directory/" "$RUNNER_TEMP/reynard-gecko-dist/$directory/"
+          done
+          du -sh "$RUNNER_TEMP/reynard-gecko-dist"
 
       - name: Save exact Gecko distribution cache
         if: steps.materialize-gecko.outcome == 'success'

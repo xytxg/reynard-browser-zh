@@ -791,19 +791,7 @@ final class DownloadStore: NSObject {
     private func makeSummaryLocked() -> DownloadStoreSummary {
         let activeProgress = activeDownloads.values.map { ($0.expectedBytes, $0.downloadedBytes) }
         + capturedDownloads.values.map { ($0.expectedBytes, $0.downloadedBytes) }
-        let hasUnknownExpectedBytes = activeProgress.contains { $0.0 == nil }
-        let totalExpectedBytes = activeProgress.reduce(Int64(0)) { partialResult, item in
-            partialResult + max(item.0 ?? 0, 0)
-        }
-        let totalDownloadedBytes = activeProgress.reduce(Int64(0)) { partialResult, item in
-            partialResult + min(item.1, item.0 ?? item.1)
-        }
-        let aggregateProgress: Float
-        if totalExpectedBytes > 0 && !hasUnknownExpectedBytes {
-            aggregateProgress = Float(totalDownloadedBytes) / Float(totalExpectedBytes)
-        } else {
-            aggregateProgress = 0
-        }
+        let aggregateProgress = DownloadProgressSafety.aggregateProgress(activeProgress)
 
         let terminalCount = persistedDownloads.lazy.filter { $0.effectiveState != .inProgress }.count
         return DownloadStoreSummary(

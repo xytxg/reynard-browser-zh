@@ -28,6 +28,7 @@ private struct DownloadSafetyTests {
         try testPartialCleanupRetainsOlderEntries()
         try testFullCleanupRemovesEveryCompletedEntry()
         try testCleanupKeepsActiveAndPausedDownloads()
+        try testProgressWithUntrustedLengths()
         try testManifestEncodingAndRecovery()
         try testFileNameSanitization()
         try testFileNameLengthPreservesExtension()
@@ -202,5 +203,18 @@ private struct DownloadSafetyTests {
             try expect(result.retained.contains { $0.name == "paused" }, "Cleanup removed a paused download")
             try expect(result.removed.contains { $0.name == "completed" }, "Cleanup retained a matching completed download")
         }
+    }
+
+    private static func testProgressWithUntrustedLengths() throws {
+        try expect(DownloadProgressSafety.aggregateProgress([(Int64.max, Int64.max), (Int64.max, Int64.max)]) == 1,
+                   "Large Content-Length values overflowed aggregate progress")
+        try expect(DownloadProgressSafety.aggregateProgress([(100, 50), (100, 50)]) == 0.5,
+                   "Known transfer sizes produced incorrect progress")
+        try expect(DownloadProgressSafety.aggregateProgress([(nil, 50), (100, 50)]) == 0,
+                   "Unknown transfer sizes reported determinate progress")
+        try expect(DownloadProgressSafety.aggregateProgress([(100, -50)]) == 0,
+                   "Negative received bytes produced invalid progress")
+        try expect(DownloadProgressSafety.aggregateProgress([]) == 0,
+                   "No transfers produced nonzero progress")
     }
 }
