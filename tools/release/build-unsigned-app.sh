@@ -16,7 +16,10 @@ rm -rf "$DERIVED_DATA" "$DIST_DIR/Reynard.app"
 cp "$XCCONFIG_SOURCE" "$XCCONFIG_PATH"
 
 BUILD_SHA="$(git -C "$ROOT_DIR" rev-parse --short=7 HEAD)"
-perl -pi -e "s/^CURRENT_BUILD = .*/CURRENT_BUILD = $BUILD_SHA/" "$XCCONFIG_PATH"
+BUILD_NUMBER="${GITHUB_RUN_NUMBER:-$(git -C "$ROOT_DIR" rev-list --count HEAD)}"
+[[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || { echo "Build number must be numeric"; exit 64; }
+perl -pi -e "s/^CURRENT_BUILD = .*/CURRENT_BUILD = $BUILD_NUMBER/" "$XCCONFIG_PATH"
+printf 'Source commit: %s\nBuild number: %s\n' "$BUILD_SHA" "$BUILD_NUMBER" > "$LOG_DIR/build-source.log"
 
 export REYNARD_UNSIGNED_BUILD=1
 

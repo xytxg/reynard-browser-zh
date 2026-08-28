@@ -77,10 +77,25 @@ final class ToolbarController {
     
     // MARK: - Layout
     
-    func updateLayout(chromeMode: BrowserChromeMode, isToolbarEnabled: Bool) {
+    func updateLayout(
+        chromeMode: BrowserChromeMode,
+        isToolbarEnabled: Bool,
+        extendsContentBehindToolbar: Bool
+    ) {
         let offsetLimits = toolbarOffsetLimits(for: chromeMode)
-        let maxToolbarOffset = isToolbarEnabled ? offsetLimits.total : 0
-        let maxTopToolbarOffset = isToolbarEnabled ? offsetLimits.top : 0
+        let canHideToolbar = isToolbarEnabled
+        && Prefs.AppearanceSettings.scrollToHideToolbarEnabled
+        let maxToolbarOffset = canHideToolbar ? offsetLimits.total : 0
+        let maxTopToolbarOffset = canHideToolbar ? offsetLimits.top : 0
+        
+        var webContentBottomOffset: CGFloat = 0
+        if isToolbarEnabled {
+            webContentBottomOffset = offsetLimits.top
+            if !canHideToolbar && !extendsContentBehindToolbar {
+                webContentBottomOffset -= offsetLimits.total
+            }
+        }
+        
         if self.chromeMode != chromeMode
             || abs(maxToolbarOffset - self.maxToolbarOffset) > 0.5
             || abs(maxTopToolbarOffset - self.maxTopToolbarOffset) > 0.5 {
@@ -91,7 +106,7 @@ final class ToolbarController {
         }
         contentView.setToolbarLimits(
             maxHeight: maxToolbarOffset,
-            topOffset: maxTopToolbarOffset
+            webContentBottomOffset: webContentBottomOffset
         )
     }
     
@@ -167,7 +182,8 @@ final class ToolbarController {
         tabBar.transform = CGAffineTransform(translationX: 0, y: -tabBarOffset)
         contentView.applyToolbarOffsets(
             top: topContentOffset,
-            bottom: topToolbarOffset + bottomToolbarOffset
+            bottom: topToolbarOffset + bottomToolbarOffset,
+            refresh: refresh
         )
     }
     

@@ -70,7 +70,7 @@ final class ContentView: UIView, UIGestureRecognizerDelegate {
     private var dynamicToolbarMaxHeight: CGFloat = 0
     private var contentBottomOffset: CGFloat = 0
     private var toolbarTopOffset: CGFloat = 0
-    private var maxTopToolbarOffset: CGFloat = 0
+    private var webContentBottomOffset: CGFloat = 0
     private var focusedInputTask: Task<Void, Never>?
     private var inputBottomRatio: CGFloat?
     private var focusedInputOffset: CGFloat = 0
@@ -247,20 +247,20 @@ final class ContentView: UIView, UIGestureRecognizerDelegate {
         return previousSize != size
     }
     
-    func setToolbarLimits(maxHeight: CGFloat, topOffset: CGFloat) {
+    func setToolbarLimits(maxHeight: CGFloat, webContentBottomOffset: CGFloat) {
         if maxHeight != dynamicToolbarMaxHeight {
             dynamicToolbarMaxHeight = maxHeight
             session?.setDynamicToolbarMaxHeight(maxHeight)
         }
         
-        guard abs(topOffset - maxTopToolbarOffset) > 0.5 else {
+        guard abs(webContentBottomOffset - self.webContentBottomOffset) > 0.5 else {
             return
         }
-        maxTopToolbarOffset = topOffset
+        self.webContentBottomOffset = webContentBottomOffset
         updateContentBottomInset()
     }
     
-    func applyToolbarOffsets(top: CGFloat, bottom: CGFloat) {
+    func applyToolbarOffsets(top: CGFloat, bottom: CGFloat, refresh: Bool = false) {
         toolbarTopOffset = top
         webContentView.transform = toolbarAlignedTransform(
             translationX: webContentView.transform.tx
@@ -272,7 +272,7 @@ final class ContentView: UIView, UIGestureRecognizerDelegate {
             translationX: historyTransitionOverlayView.transform.tx
         )
         let contentBottomOffset = -bottom
-        guard contentBottomOffset != self.contentBottomOffset else {
+        guard refresh || contentBottomOffset != self.contentBottomOffset else {
             return
         }
         self.contentBottomOffset = contentBottomOffset
@@ -290,7 +290,7 @@ final class ContentView: UIView, UIGestureRecognizerDelegate {
         let bottomConstraint = webContentView.bottomAnchor.constraint(equalTo: bottomAnchor)
         bottomConstraint.isActive = true
         webContentBottomConstraint = bottomConstraint
-        webContentView.extendPageBackground(to: topAnchor)
+        webContentView.extendPageBackground(from: topAnchor, to: bottomAnchor)
         [historyPreviewImageView, historyTransitionOverlayView].forEach { contentView in
             NSLayoutConstraint.activate([
                 contentView.topAnchor.constraint(equalTo: topAnchor),
@@ -322,6 +322,7 @@ final class ContentView: UIView, UIGestureRecognizerDelegate {
         topConstraint = nextTopConstraint
         bottomConstraint = nextBottomConstraint
         updateLayoutOffsets()
+        transform = focusedInputTransform
         updatePullToRefreshAvailability()
     }
     
@@ -349,10 +350,11 @@ final class ContentView: UIView, UIGestureRecognizerDelegate {
     }
     
     private func updateLayoutOffsets() {
-        topConstraint?.constant = layoutState.mode == .fullscreen ? 0 : -focusedInputOffset
+        let constraintOffset = layoutState.mode == .standard ? 0 : focusedInputOffset
+        topConstraint?.constant = layoutState.mode == .fullscreen ? 0 : -constraintOffset
         switch layoutState.mode {
         case .standard:
-            bottomConstraint?.constant = -focusedInputOffset
+            bottomConstraint?.constant = 0
         case .searchFocused:
             bottomConstraint?.constant = -UX.phoneSearchFocusedBottomInset
         case .fullscreen:
@@ -362,7 +364,15 @@ final class ContentView: UIView, UIGestureRecognizerDelegate {
     }
     
     private func updateContentBottomInset() {
-        webContentBottomConstraint?.constant = maxTopToolbarOffset - focusedInputOffset
+        let constraintOffset = layoutState.mode == .standard ? 0 : focusedInputOffset
+        webContentBottomConstraint?.constant = webContentBottomOffset - constraintOffset
+    }
+    
+    private var focusedInputTransform: CGAffineTransform {
+        guard layoutState.mode == .standard else {
+            return .identity
+        }
+        return CGAffineTransform(translationX: 0, y: -focusedInputOffset)
     }
     
     // MARK: - Focused Input Relocation
@@ -413,7 +423,7 @@ final class ContentView: UIView, UIGestureRecognizerDelegate {
             0,
             unshiftedFrame.height - keyboardOverlap - UX.focusedInputBottomClearance
         )
-        return min(keyboardOverlap, max(0, focusBottom - visibleBottom))
+        return max(0, focusBottom - visibleBottom)
     }
     
     func resetFocusedInputRelocation(
@@ -432,6 +442,7 @@ final class ContentView: UIView, UIGestureRecognizerDelegate {
     
     private func animateLayout(duration: TimeInterval, options: UIView.AnimationOptions) {
         guard duration > 0 else {
+            transform = focusedInputTransform
             superview?.layoutIfNeeded()
             return
         }
@@ -441,6 +452,7 @@ final class ContentView: UIView, UIGestureRecognizerDelegate {
             delay: 0,
             options: [options, .beginFromCurrentState, .allowUserInteraction]
         ) {
+            self.transform = self.focusedInputTransform
             self.superview?.layoutIfNeeded()
         }
     }

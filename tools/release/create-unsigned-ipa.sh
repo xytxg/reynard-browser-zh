@@ -9,7 +9,9 @@ fi
 
 SOURCE_APP="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 OUTPUT_IPA="$(mkdir -p "$(dirname "$2")" && cd "$(dirname "$2")" && pwd)/$(basename "$2")"
-WORK_DIR="$(dirname "$OUTPUT_IPA")/unsigned-ipa-work"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+WORK_DIR="$(mktemp -d "$(dirname "$OUTPUT_IPA")/unsigned-ipa-work.XXXXXX")"
+trap 'rm -rf "$WORK_DIR"' EXIT
 PAYLOAD_DIR="$WORK_DIR/Payload"
 APP_PATH="$PAYLOAD_DIR/Reynard.app"
 
@@ -18,14 +20,13 @@ if [[ ! -d "$SOURCE_APP" ]]; then
     exit 66
 fi
 
-for command_name in codesign ditto file unzip zip; do
+for command_name in codesign ditto file python3 zip; do
     command -v "$command_name" >/dev/null || {
         echo "$command_name is required."
         exit 69
     }
 done
 
-rm -rf "$WORK_DIR"
 mkdir -p "$PAYLOAD_DIR"
 ditto "$SOURCE_APP" "$APP_PATH"
 
@@ -67,16 +68,13 @@ while IFS= read -r -d '' candidate; do
     fi
 done < <(find "$APP_PATH" -type f -print0)
 
-rm -f "$OUTPUT_IPA"
+TEMP_IPA="$WORK_DIR/verified.ipa"
 (
     cd "$WORK_DIR"
-    zip -qry "$OUTPUT_IPA" Payload -x '._*' -x '*.DS_Store' -x '__MACOSX/*'
+    zip -qry "$TEMP_IPA" Payload -x '._*' -x '*.DS_Store' -x '__MACOSX/*'
 )
 
-unzip -tq "$OUTPUT_IPA" >/dev/null
-unzip -l "$OUTPUT_IPA" | grep -q 'Payload/Reynard.app/PlugIns/OpenIn.appex/'
-unzip -l "$OUTPUT_IPA" | grep -q 'Payload/Reynard.app/PlugIns/Reynard Helper.appex/'
-unzip -l "$OUTPUT_IPA" | grep -q 'Payload/Reynard.app/Frameworks/GeckoView.framework/'
+python3 "$SCRIPT_DIR/verify-unsigned-ipa.py" "$TEMP_IPA"
+mv -f "$TEMP_IPA" "$OUTPUT_IPA"
 
-rm -rf "$WORK_DIR"
 echo "Created unsigned IPA from source-built app: $OUTPUT_IPA"

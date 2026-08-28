@@ -9,6 +9,10 @@ const addonCatalogPath = path.join(
   root,
   "browser/Reynard/Client/Interface/Addons/AddonLocalizable.xcstrings"
 );
+const settingsCatalogPath = path.join(
+  root,
+  "browser/Reynard/Client/Interface/Library/Settings/SettingsLocalizable.xcstrings"
+);
 
 function fail(message) {
   console.error("Localization validation failed: " + message);
@@ -58,6 +62,48 @@ for (const [key, entry] of Object.entries(addonCatalog.strings)) {
   }
 }
 
+const settingsCatalog = JSON.parse(fs.readFileSync(settingsCatalogPath, "utf8"));
+for (const [key, entry] of Object.entries(settingsCatalog.strings)) {
+  const english = localizedValue(entry, "en") ?? key;
+  const chinese = localizedValue(entry, "zh-Hans");
+  if (!chinese) fail("missing settings zh-Hans translation: " + key);
+  if (placeholders(english).join("|") !== placeholders(chinese).join("|")) {
+    fail('settings placeholder mismatch for "' + key + '"');
+  }
+}
+
+// Validate source keys too: a catalog-only check misses new, untranslated UI text.
+const catalogs = {
+  Localizable: mainCatalog,
+  AddonLocalizable: addonCatalog,
+  SettingsLocalizable: settingsCatalog,
+};
+function validateSourceKeys(directory) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const filePath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      validateSourceKeys(filePath);
+    } else if (entry.name.endsWith(".swift")) {
+      const source = fs.readFileSync(filePath, "utf8");
+      const calls = /NSLocalizedString\(\s*("(?:[^"\\]|\\.)*")\s*,\s*(?:tableName:\s*"([^"]+)"\s*,)?/g;
+      for (const match of source.matchAll(calls)) {
+        if (match[1].includes("\\(")) {
+          fail(`interpolated localization key in ${path.relative(root, filePath)}; use a format placeholder`);
+        }
+        const jsonLiteral = match[1].replace(/(?<!\\)\\u\{([0-9a-fA-F]+)\}/g, (_, hex) =>
+          JSON.stringify(String.fromCodePoint(parseInt(hex, 16))).slice(1, -1)
+        );
+        const key = JSON.parse(jsonLiteral);
+        const table = match[2] ?? "Localizable";
+        if (catalogs[table] && !Object.hasOwn(catalogs[table].strings, key)) {
+          fail(`missing source key ${JSON.stringify(key)} in ${table} (${path.relative(root, filePath)})`);
+        }
+      }
+    }
+  }
+}
+validateSourceKeys(path.join(root, "browser/Reynard"));
+
 const projectFile = fs.readFileSync(
   path.join(root, "browser/Reynard.xcodeproj/project.pbxproj"),
   "utf8"
@@ -69,5 +115,5 @@ console.log(
     Object.keys(mainCatalog.strings).length +
     " app strings and " +
     Object.keys(addonCatalog.strings).length +
-    " add-on strings"
+    " add-on strings and " + Object.keys(settingsCatalog.strings).length + " settings strings"
 );

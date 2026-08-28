@@ -7,6 +7,7 @@ ROOT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 
 node "$SCRIPT_DIR/validate-localizations.js"
 node "$SCRIPT_DIR/validate-project-safety.js"
+python3 -m unittest discover -s "$ROOT_DIR/Tests" -p 'test_*.py' -v
 
 if command -v xcrun >/dev/null 2>&1; then
     SWIFTC=(xcrun swiftc)

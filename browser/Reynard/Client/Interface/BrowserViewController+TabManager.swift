@@ -38,6 +38,7 @@ extension BrowserViewController: TabManagerDelegate {
             return
         }
         
+        toolbarController.reset()
         contentView.showPageError(for: tab.url)
         captureThumbnail(
             forTabAt: tabManager.selectedTabIndex,
@@ -263,7 +264,7 @@ extension BrowserViewController: TabManagerDelegate {
         if addonCoordinator.handleExternalResponse(response) {
             return true
         }
-        guard let download = DownloadStore.shared.pendingDownload(from: response) else {
+        guard let download = DownloadStore.shared.pendingDownload(from: response, session: session) else {
             return false
         }
         return await downloadsCoordinator.confirm(download)

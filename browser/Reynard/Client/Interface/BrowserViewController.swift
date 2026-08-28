@@ -198,7 +198,8 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
         super.viewDidLayoutSubviews()
         toolbarController.updateLayout(
             chromeMode: browserLayout.chromeMode,
-            isToolbarEnabled: !isShowingFullscreenMedia
+            isToolbarEnabled: !isShowingFullscreenMedia,
+            extendsContentBehindToolbar: tabManager.selectedTab.map(homepageOverlayCoordinator.needsHomepageThumbnail(for:)) ?? false
         )
         homepageOverlayCoordinator.updateVisibleContentInsets()
         invalidateNavigationThumbnailsIfNeeded()
@@ -791,6 +792,12 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
         )
         NotificationCenter.default.addObserver(
             self,
+            selector: #selector(appearanceGestureSettingsDidChange),
+            name: .appearanceGestureSettingsDidChange,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
             selector: #selector(applyUpdateMenuButtonBadge),
             name: .appUpdateAvailable,
             object: nil
@@ -814,6 +821,10 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
     
     @objc func landscapeTabBarDidChange() {
         updateBrowserLayout(animated: true)
+    }
+    
+    @objc private func appearanceGestureSettingsDidChange() {
+        updateBrowserLayout(animated: false)
     }
     
     @objc func applyUpdateMenuButtonBadge() {

@@ -9,19 +9,16 @@ enum DownloadCleanupPolicy {
     static func partition<Entry>(
         _ entries: [Entry],
         since startDate: Date?,
-        addedAt: (Entry) -> Date
+        addedAt: (Entry) -> Date,
+        isActive: (Entry) -> Bool = { _ in false }
     ) -> (removed: [Entry], retained: [Entry]) {
-        guard let startDate else {
-            return (entries, [])
-        }
-
         var removed: [Entry] = []
         var retained: [Entry] = []
         removed.reserveCapacity(entries.count)
         retained.reserveCapacity(entries.count)
 
         for entry in entries {
-            if addedAt(entry) >= startDate {
+            if !isActive(entry), startDate.map({ addedAt(entry) >= $0 }) ?? true {
                 removed.append(entry)
             } else {
                 retained.append(entry)
