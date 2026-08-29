@@ -17,8 +17,93 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  promote-verified-ipa:
+    name: Promote verified IPA to formal release
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      contains(github.event.head_commit.message, '[promote verified ipa]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download, reverify, and publish the source-built IPA
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: v0.10.1-zh.1
+          RELEASE_TARGET: 8b32f413e8ac8027c7f373a9a9fbce181a5e2ebf
+          RELEASE_TREE: 6627347ded7c9ff2cdfe37c2f3f1d988cd592ba9
+          SOURCE_COMMIT: c73a4cc0ad563e058bd814ba1831c07f70ceb9ca
+          SOURCE_RUN: "33246451796"
+          SOURCE_ARTIFACT: Reynard-source-unsigned-18
+          EXPECTED_IPA_SHA256: 20e31f7e50859845419fe6611eac1bf85e01ca5f2f1004f5e021e4ca5eda66ba
+        run: |
+          set -euo pipefail
+
+          test "$(git rev-parse "$RELEASE_TARGET^{tree}")" = "$RELEASE_TREE"
+          test "$(git rev-parse "$SOURCE_COMMIT^{tree}")" = "$RELEASE_TREE"
+
+          run_json="$(gh run view "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --json conclusion,event,headSha)"
+          test "$(jq -r .conclusion <<< "$run_json")" = "success"
+          test "$(jq -r .event <<< "$run_json")" = "pull_request"
+          test "$(jq -r .headSha <<< "$run_json")" = "$SOURCE_COMMIT"
+
+          artifact_dir="$RUNNER_TEMP/reynard-formal-release"
+          mkdir -p "$artifact_dir"
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" \
+            --name "$SOURCE_ARTIFACT" --dir "$artifact_dir"
+
+          ipa_path="$artifact_dir/Reynard-0.10.1-c73a4cc-unsigned.ipa"
+          test -s "$ipa_path"
+          actual_sha256="$(shasum -a 256 "$ipa_path" | cut -d ' ' -f 1)"
+          test "$actual_sha256" = "$EXPECTED_IPA_SHA256"
+          python3 tools/release/verify-unsigned-ipa.py "$ipa_path" | tee "$artifact_dir/verification.json"
+
+          checksum_path="$ipa_path.sha256"
+          printf '%s  %s\n' "$actual_sha256" "$(basename "$ipa_path")" > "$checksum_path"
+          notes_path="$artifact_dir/release-notes.md"
+          {
+            echo '## Reynard Browser 中文版 0.10.1'
+            echo
+            echo '- 类型：正式版'
+            printf -- '- 标签：`%s`\n' "$RELEASE_TAG"
+            printf -- '- 发布目标：`%s`\n' "$RELEASE_TARGET"
+            printf -- '- 已验证源码：`%s`\n' "$SOURCE_COMMIT"
+            printf -- '- 源码树：`%s`\n' "$RELEASE_TREE"
+            printf -- '- 完整构建：[Run #%s](https://github.com/%s/actions/runs/%s)\n' \
+              "18" "$GITHUB_REPOSITORY" "$SOURCE_RUN"
+            echo
+            echo '> **未签名构建：此 IPA 不能直接安装。**'
+            echo '> 请使用 TrollStore、AltStore、SideStore、个人证书或其他兼容方式签名/侧载，并保留 App Extensions。'
+            echo
+            echo '该 IPA 已重新校验 SHA-256、arm64 Mach-O、签名元数据、iOS 13 最低版本、Gecko/XUL、两个扩展与简体中文资源。'
+          } > "$notes_path"
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$ipa_path#未签名 IPA" "$checksum_path#SHA-256 校验" \
+              --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --title 'Reynard Browser 中文版 0.10.1' --notes-file "$notes_path" \
+              --draft=false --prerelease=false
+          else
+            gh release create "$RELEASE_TAG" "$ipa_path#未签名 IPA" "$checksum_path#SHA-256 校验" \
+              --repo "$GITHUB_REPOSITORY" --target "$RELEASE_TARGET" \
+              --title 'Reynard Browser 中文版 0.10.1' --notes-file "$notes_path"
+          fi
+
   quality:
     name: Static checks and pure Swift tests
+    if: >-
+      github.event_name != 'push' ||
+      !contains(github.event.head_commit.message, '[promote verified ipa]')
     runs-on: macos-26
     timeout-minutes: 20
     steps:
