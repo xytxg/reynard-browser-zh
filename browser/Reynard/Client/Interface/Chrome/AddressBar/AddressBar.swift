@@ -9,33 +9,38 @@ import UIKit
 
 protocol AddressBarDelegate: AnyObject {
     func addressBarDidRequestReloadOrStop(_ addressBar: AddressBar)
+    func addressBarDidRequestHardReload(_ addressBar: AddressBar)
     func addressBarAddonItems(_ addressBar: AddressBar) -> [AddressBarMenu.AddonItem]
     func addressBar(_ addressBar: AddressBar, didSelectAddon item: AddonMenuItem)
+    func addressBarDidRequestFindInPage(_ addressBar: AddressBar)
     func addressBarDidRequestPageZoom(_ addressBar: AddressBar)
     func addressBarDidRequestWebsiteModeChange(_ addressBar: AddressBar)
     func addressBarDidRequestWebsiteSettings(_ addressBar: AddressBar)
     func addressBar(_ addressBar: AddressBar, didRequestBookmarkInFavorites favorites: Bool)
     func addressBarShareableURL(_ addressBar: AddressBar) -> URL?
+    func addressBarTabCount(_ addressBar: AddressBar) -> Int
+    func addressBarDidRequestCloseThisTab(_ addressBar: AddressBar)
+    func addressBarDidRequestCloseAllTabs(_ addressBar: AddressBar)
+    func addressBar(_ addressBar: AddressBar, didRequestShareLink url: URL)
 }
 
 final class AddressBar: UIView {
     private enum UX {
-        static let addressBarBackgroundCornerRadius: CGFloat = 16
+        static let addressBarBackgroundCornerRadius: CGFloat = 22
         static let addressBarContentHorizontalInset: CGFloat = 12
         static let addressBarButtonToTextSpacing: CGFloat = 8
         static let addressBarDismissButtonSpacing: CGFloat = 9
         static let addressBarButtonSize: CGFloat = 18
-        static let phoneAddressBarHeight: CGFloat = 42
-        static let compactAddressBarHeight: CGFloat = 38
-        static let padAddressBarHeight: CGFloat = 38
+        static let addressBarHeight: CGFloat = 44
         static let addressBarLoadingProgressHeight: CGFloat = 2
         static let addressBarAutocompleteTrailingInset: CGFloat = 30
         static let addressBarTextFontSize: CGFloat = 17
         static let addressBarDismissButtonAnimationDuration: TimeInterval = 0.2
         static let addressBarBackgroundDarkModeShadowAlpha: CGFloat = 0.3
-        static let addressBarBackgroundShadowOpacity: Float = 0.12
-        static let addressBarBackgroundShadowRadius: CGFloat = 10
+        static let addressBarBackgroundShadowOpacity: Float = 0.18
+        static let addressBarBackgroundShadowRadius: CGFloat = 14
         static let addressBarBackgroundShadowOffset = CGSize(width: 0, height: 2)
+        static let borderWidth: CGFloat = 0.5
     }
     
     enum EditingState: Equatable {
@@ -80,6 +85,11 @@ final class AddressBar: UIView {
         let trailingButton: TrailingButtonState
     }
     
+    private final class PasteAndGoMenuState {
+        var isAvailable = false
+        var menuWasReturned = false
+    }
+    
     static let placeholderText = NSLocalizedString("Search or enter address", comment: "")
     
     private weak var delegate: AddressBarDelegate?
@@ -91,6 +101,7 @@ final class AddressBar: UIView {
     private var chromeMode: BrowserChromeMode = .phone
     private var autocompleteState: AutocompleteState = .none
     private var autocompleteDeletedText: String?
+    private var trailingButtonState: TrailingButtonState = .hidden
     
     private var currentText: String?
     private var currentLocationText: String?
@@ -130,6 +141,17 @@ final class AddressBar: UIView {
         view.layer.cornerCurve = .continuous
         view.layer.cornerRadius = UX.addressBarBackgroundCornerRadius
         view.clipsToBounds = true
+        return view
+    }()
+    
+    private let addressBarBorder: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        view.layer.cornerCurve = .continuous
+        view.layer.cornerRadius = UX.addressBarBackgroundCornerRadius
+        view.layer.borderWidth = UX.borderWidth
         return view
     }()
     
@@ -233,6 +255,7 @@ final class AddressBar: UIView {
         configureConstraints()
         configureTargets()
         configureObservers()
+        updateBorderColor()
         applyState()
     }
     
@@ -258,10 +281,19 @@ final class AddressBar: UIView {
     
     override func layoutSubviews() {
         super.layoutSubviews()
-        let showsShadow = chromeMode != .pad
-        addressBarBackground.layer.shadowPath = showsShadow
-        ? UIBezierPath(roundedRect: addressBarBackground.bounds, cornerRadius: UX.addressBarBackgroundCornerRadius).cgPath
-        : nil
+        addressBarBackground.layer.shadowPath = UIBezierPath(
+            roundedRect: addressBarBackground.bounds,
+            cornerRadius: UX.addressBarBackgroundCornerRadius
+        ).cgPath
+    }
+    
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        guard previousTraitCollection?.userInterfaceStyle != traitCollection.userInterfaceStyle else {
+            return
+        }
+        
+        updateBorderColor()
     }
     
     // MARK: - Configuration
@@ -270,6 +302,36 @@ final class AddressBar: UIView {
         self.delegate = delegate
         self.searchDelegate = searchDelegate
         textField.delegate = self
+        textField.isSuggestionNavigationEnabled = { [weak self] in
+            guard let self else {
+                return false
+            }
+            return self.searchDelegate?.addressBarCanNavigateSuggestions(self) == true
+        }
+        textField.onMoveSuggestionSelection = { [weak self] offset in
+            guard let self else {
+                return
+            }
+            self.searchDelegate?.addressBar(self, didMoveSuggestionSelectionBy: offset)
+        }
+        textField.onSubmit = { [weak self] in
+            guard let self else {
+                return
+            }
+            _ = self.submitTextField()
+        }
+        textField.onMoveCursor = { [weak self] boundary in
+            guard let self else {
+                return
+            }
+            self.moveCursor(to: boundary)
+        }
+        textField.onDismissEditing = { [weak self] in
+            guard let self else {
+                return
+            }
+            self.searchDelegate?.addressBarDidTapDismiss(self)
+        }
         let gestures = AddressBarGestures(addressBar: self, delegate: gestureDelegate)
         self.gestures = gestures
         gestures.configure()
@@ -303,6 +365,10 @@ final class AddressBar: UIView {
             onAddonSelected: { [weak self] item in
                 guard let self else { return }
                 self.delegate?.addressBar(self, didSelectAddon: item)
+            },
+            onFindInPage: { [weak self] in
+                guard let self else { return }
+                self.delegate?.addressBarDidRequestFindInPage(self)
             },
             onPageZoom: { [weak self] in
                 guard let self else { return }
@@ -339,10 +405,9 @@ final class AddressBar: UIView {
     func updateLayout(position: BrowserChromePosition, chromeMode: BrowserChromeMode) {
         self.position = position
         self.chromeMode = chromeMode
-        backgroundHeightConstraint.constant = height(for: chromeMode)
-        dismissWidthConstraint.constant = height(for: chromeMode)
-        dismissHeightConstraint.constant = height(for: chromeMode)
-        dismissButton.setShadowVisible(chromeMode == .phone)
+        backgroundHeightConstraint.constant = UX.addressBarHeight
+        dismissWidthConstraint.constant = UX.addressBarHeight
+        dismissHeightConstraint.constant = UX.addressBarHeight
         applyState()
     }
     
@@ -449,6 +514,10 @@ final class AddressBar: UIView {
         leadingButton.performAfterMenuDismissal(action)
     }
     
+    var addressBarButton: AddressBarButton {
+        return leadingButton
+    }
+    
     // MARK: - Tab Transitions
     
     func resetHorizontalTransition() {
@@ -482,6 +551,10 @@ final class AddressBar: UIView {
         addressBarBackground.layer.masksToBounds = false
     }
     
+    private func updateBorderColor() {
+        addressBarBorder.layer.borderColor = UIColor.separator.withAlphaComponent(0.2).cgColor
+    }
+    
     private func configureHierarchy() {
         addSubview(addressBarBackground)
         addSubview(dismissButton)
@@ -493,6 +566,7 @@ final class AddressBar: UIView {
         addressBarContent.addSubview(addressLabel)
         addressBarContent.addSubview(autocompleteLabel)
         addressBarContent.addSubview(progressView)
+        addressBarContent.addSubview(addressBarBorder)
     }
     
     private func configureConstraints() {
@@ -501,9 +575,9 @@ final class AddressBar: UIView {
             equalTo: dismissButton.leadingAnchor,
             constant: -UX.addressBarDismissButtonSpacing
         )
-        backgroundHeightConstraint = addressBarBackground.heightAnchor.constraint(equalToConstant: UX.phoneAddressBarHeight)
-        dismissWidthConstraint = dismissButton.widthAnchor.constraint(equalToConstant: UX.phoneAddressBarHeight)
-        dismissHeightConstraint = dismissButton.heightAnchor.constraint(equalToConstant: UX.phoneAddressBarHeight)
+        backgroundHeightConstraint = addressBarBackground.heightAnchor.constraint(equalToConstant: UX.addressBarHeight)
+        dismissWidthConstraint = dismissButton.widthAnchor.constraint(equalToConstant: UX.addressBarHeight)
+        dismissHeightConstraint = dismissButton.heightAnchor.constraint(equalToConstant: UX.addressBarHeight)
         
         NSLayoutConstraint.activate([
             addressBarBackground.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -516,6 +590,11 @@ final class AddressBar: UIView {
             addressBarContent.trailingAnchor.constraint(equalTo: addressBarBackground.trailingAnchor),
             addressBarContent.topAnchor.constraint(equalTo: addressBarBackground.topAnchor),
             addressBarContent.bottomAnchor.constraint(equalTo: addressBarBackground.bottomAnchor),
+            
+            addressBarBorder.leadingAnchor.constraint(equalTo: addressBarContent.leadingAnchor),
+            addressBarBorder.trailingAnchor.constraint(equalTo: addressBarContent.trailingAnchor),
+            addressBarBorder.topAnchor.constraint(equalTo: addressBarContent.topAnchor),
+            addressBarBorder.bottomAnchor.constraint(equalTo: addressBarContent.bottomAnchor),
             
             dismissButton.trailingAnchor.constraint(equalTo: trailingAnchor),
             dismissButton.centerYAnchor.constraint(equalTo: addressBarBackground.centerYAnchor),
@@ -572,6 +651,7 @@ final class AddressBar: UIView {
         addressBarContent.addInteraction(UIContextMenuInteraction(delegate: self))
         textField.addTarget(self, action: #selector(textFieldDidChange), for: .editingChanged)
         trailingButton.addTarget(self, action: #selector(handleTrailingButtonTap), for: .touchUpInside)
+        trailingButton.addGestureRecognizer(UILongPressGestureRecognizer(target: self, action: #selector(handleTrailingButtonLongPress)))
         autocompleteButton.addTarget(self, action: #selector(handleOverlayButtonTap), for: .touchUpInside)
         dismissButton.addTarget(self, action: #selector(handleDismissButtonTap), for: .touchUpInside)
     }
@@ -590,7 +670,7 @@ final class AddressBar: UIView {
     private func applyState() {
         applyRenderModel(resolveRenderModel())
         applyLoadingState()
-        addressBarBackground.layer.shadowOpacity = chromeMode == .pad ? 0 : UX.addressBarBackgroundShadowOpacity
+        addressBarBackground.layer.shadowOpacity = UX.addressBarBackgroundShadowOpacity
         setNeedsLayout()
     }
     
@@ -718,6 +798,7 @@ final class AddressBar: UIView {
     }
     
     private func applyTrailingButtonState(_ state: TrailingButtonState) {
+        trailingButtonState = state
         let visible = state != .hidden
         trailingButton.isHidden = !visible
         trailingButton.isUserInteractionEnabled = visible
@@ -725,14 +806,6 @@ final class AddressBar: UIView {
             return
         }
         trailingButton.setImage(UIImage(named: state == .stop ? "reynard.xmark" : "reynard.arrow.clockwise"), for: .normal)
-    }
-    
-    private func height(for chromeMode: BrowserChromeMode) -> CGFloat {
-        switch chromeMode {
-        case .phone: return UX.phoneAddressBarHeight
-        case .compact: return UX.compactAddressBarHeight
-        case .pad: return UX.padAddressBarHeight
-        }
     }
     
     // MARK: - Display Content
@@ -824,6 +897,16 @@ final class AddressBar: UIView {
     }
     
     @objc
+    private func handleTrailingButtonLongPress(_ recognizer: UILongPressGestureRecognizer) {
+        guard recognizer.state == .began, trailingButtonState == .reload else {
+            return
+        }
+        
+        delegate?.addressBarDidRequestHardReload(self)
+        Haptics.rigid()
+    }
+    
+    @objc
     private func handleDismissButtonTap() {
         searchDelegate?.addressBarDidTapDismiss(self)
     }
@@ -846,6 +929,24 @@ final class AddressBar: UIView {
         if case .focusPreview = autocompleteState {
             clearFocusPreview()
             selectAllText()
+        }
+    }
+    
+    private func moveCursor(to boundary: AddressBarTextField.CursorBoundary) {
+        switch autocompleteState {
+        case .focusPreview:
+            clearFocusPreview()
+            restoreCaret(to: boundary)
+        case .suggestion:
+            switch boundary {
+            case .start:
+                clearAutocomplete()
+                restoreCaretToEnd()
+            case .end:
+                commitAutocompleteForEditing()
+            }
+        case .none:
+            break
         }
     }
     
@@ -973,8 +1074,18 @@ final class AddressBar: UIView {
     }
     
     private func restoreCaretToEnd() {
-        let end = textField.endOfDocument
-        textField.selectedTextRange = textField.textRange(from: end, to: end)
+        restoreCaret(to: .end)
+    }
+    
+    private func restoreCaret(to boundary: AddressBarTextField.CursorBoundary) {
+        let position: UITextPosition
+        switch boundary {
+        case .start:
+            position = textField.beginningOfDocument
+        case .end:
+            position = textField.endOfDocument
+        }
+        textField.selectedTextRange = textField.textRange(from: position, to: position)
     }
     
     private func selectAllText() {
@@ -991,17 +1102,133 @@ extension AddressBar: UIContextMenuInteractionDelegate {
         _ interaction: UIContextMenuInteraction,
         configurationForMenuAtLocation location: CGPoint
     ) -> UIContextMenuConfiguration? {
-        guard editingState == .inactive,
-              let url = delegate?.addressBarShareableURL(self) else {
+        guard editingState == .inactive else {
             return nil
         }
         
-        return UIContextMenuConfiguration(identifier: url as NSURL, previewProvider: nil) { _ in
-            UIMenu(title: "", children: [
-                UIAction(title: NSLocalizedString("Copy URL", comment: ""), image: UIImage(named: "reynard.document.on.document")) { _ in
-                    UIPasteboard.general.string = url.absoluteString
-                },
-            ])
+        let trailingButtonLocation = trailingButton.convert(location, from: interaction.view)
+        if trailingButtonState == .reload,
+           trailingButton.point(inside: trailingButtonLocation, with: nil) {
+            return nil
+        }
+        
+        let url = delegate?.addressBarShareableURL(self)
+        let menuState = PasteAndGoMenuState()
+        if #available(iOS 14.0, *) {
+            detectPasteAndGoAvailability { [weak self, weak interaction] isAvailable in
+                menuState.isAvailable = isAvailable
+                guard isAvailable, menuState.menuWasReturned else {
+                    return
+                }
+                
+                interaction?.updateVisibleMenu { [weak self] visibleMenu in
+                    self?.makeContextMenu(
+                        for: url,
+                        includesPasteAndGo: true
+                    ) ?? visibleMenu
+                }
+            }
+        }
+        
+        return UIContextMenuConfiguration(identifier: url.map { $0 as NSURL }, previewProvider: nil) { [weak self] _ in
+            menuState.menuWasReturned = true
+            guard let self else {
+                return nil
+            }
+            return self.makeContextMenu(
+                for: url,
+                includesPasteAndGo: menuState.isAvailable
+            )
+        }
+    }
+    
+    private func makeContextMenu(
+        for url: URL?,
+        includesPasteAndGo: Bool
+    ) -> UIMenu {
+        var children: [UIMenuElement] = []
+        if includesPasteAndGo {
+            children.append(UIAction(
+                title: NSLocalizedString("Paste and Go", comment: ""),
+                image: UIImage(named: "reynard.document.on.clipboard")
+            ) { [weak self] _ in
+                guard let text = UIPasteboard.general.string else {
+                    return
+                }
+                self?.searchDelegate?.addressBarDidSubmit(text)
+            })
+        }
+        
+        if let url {
+            children.append(UIAction(
+                title: NSLocalizedString("Copy Link", comment: ""),
+                image: UIImage(named: "reynard.document.on.document")
+            ) { _ in
+                UIPasteboard.general.string = url.absoluteString
+            })
+            children.append(UIAction(
+                title: NSLocalizedString("Share Link", comment: ""),
+                image: UIImage(named: "reynard.square.and.arrow.up")
+            ) { [weak self] _ in
+                guard let self else {
+                    return
+                }
+                self.delegate?.addressBar(
+                    self,
+                    didRequestShareLink: url
+                )
+            })
+        }
+        
+        let tabCount = delegate?.addressBarTabCount(self) ?? 0
+        let closeTabAction = UIAction(
+            title: NSLocalizedString("Close This Tab", comment: ""),
+            image: UIImage(named: "reynard.xmark"),
+            attributes: .destructive
+        ) { [weak self] _ in
+            guard let self else {
+                return
+            }
+            self.delegate?.addressBarDidRequestCloseThisTab(self)
+        }
+        var closeTabActions: [UIMenuElement] = [closeTabAction]
+        if tabCount > 1 {
+            closeTabActions.insert(UIAction(
+                title: String.localizedStringWithFormat(
+                    NSLocalizedString("Close %d Tabs", comment: "Tab count"),
+                    tabCount
+                ),
+                image: UIImage(named: "reynard.xmark"),
+                attributes: .destructive
+            ) { [weak self] _ in
+                guard let self else {
+                    return
+                }
+                self.delegate?.addressBarDidRequestCloseAllTabs(self)
+            }, at: 0)
+        }
+        
+        if children.isEmpty {
+            children.append(contentsOf: closeTabActions)
+        } else {
+            children.append(UIMenu(title: "", options: .displayInline, children: closeTabActions))
+        }
+        return UIMenu(title: "", children: children)
+    }
+    
+    @available(iOS 14.0, *)
+    private func detectPasteAndGoAvailability(completion: @escaping (Bool) -> Void) {
+        UIPasteboard.general.detectPatterns(for: [.probableWebURL, .probableWebSearch]) { result in
+            let isAvailable: Bool
+            switch result {
+            case let .success(patterns):
+                isAvailable = !patterns.isEmpty
+            case .failure:
+                isAvailable = false
+            }
+            DispatchQueue.main.async {
+                completion(isAvailable)
+            }
         }
     }
 }
@@ -1048,6 +1275,13 @@ extension AddressBar: UITextFieldDelegate {
     }
     
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        return submitTextField()
+    }
+    
+    private func submitTextField() -> Bool {
+        if searchDelegate?.addressBarDidRequestSubmitSelectedSuggestion(self) == true {
+            return true
+        }
         let searchText: String?
         if case let .suggestion(_, submissionText) = autocompleteState {
             searchText = submissionText

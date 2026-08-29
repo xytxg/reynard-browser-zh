@@ -21,7 +21,11 @@ The latest Simplified Chinese source builds are available on this repository's [
 
 For the best experience, I'd recommend sideloading Reynard via [TrollStore](https://github.com/opa334/TrollStore) using the `Reynard-TrollStore.tipa` build. This gives you automatic JIT enablement, better performance, and automatic app updates. For automatic app updates, make sure that the **URL Scheme Enabled** option is turned on in TrollStore.
 
-### AltStore or SideStore (iOS 17.0.1+)
+> [!NOTE]
+> - [palera1n](https://palera.in/) and [Dopamine](https://ellekit.space/dopamine/) users on an iOS version without TrollStore support should install [TrollStore Lite](https://havoc.app/package/trollstorelite) and sideload the `Reynard-TrollStore.tipa` build with it.
+> -  `libhooker`-based jailbreaks, such as [Taurine](https://taurine.app/), should sideload the `Reynard-Jailbroken.ipa` build instead, either through TrollStore or the Jailbroken method below.
+
+### AltStore or SideStore (iOS 17.4+)
 
 You should use [AltStore](https://altstore.io/) or [SideStore](https://sidestore.io/) to sideload the `Reynard.ipa` build when TrollStore is not available, especially on newer iOS versions. Please note that you must select the **Keep App Extensions** option during installation, as Reynard relies on its extensions to function and will not work without them. 
 

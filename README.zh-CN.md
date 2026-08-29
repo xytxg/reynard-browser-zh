@@ -10,17 +10,24 @@ Reynard 是面向 iOS 13 及更高版本的 Gecko 浏览器。本分支保留原
 
 ## 上游同步状态
 
-当前维护代码已同步原作者仓库截至 `e567c2d` 的 0.9.0 更新，并使用
-`FIREFOX_153_0_RELEASE`。本轮包含鼠标/触控板指针支持、被系统终止标签页的静默恢复、
-崩溃恢复、JIT 后台音频保活、站点缩放与桌面版网站设置、HTTPS-Only、增强型跟踪保护、
-搜索建议和历史记录改进。中文分支继续保留下载安全、私密会话保护、旧系统兼容与未签名
-IPA 自动发布能力。
+当前维护代码已合并原作者仓库截至 `7d897d596266c0048d48eb755646b8c58ad19fab`
+（2026-08-27）的更新，Gecko 为 `FIREFOX_154_0_1_RELEASE`，固定源码提交为
+`9cd094dbc3eac5df87a24e7a871e52880cb8cd42`。从此前记录的 `1ac2ddf` 基线进行三方合并，
+保留中文分支的下载安全、私密会话保护、旧系统兼容与未签名 IPA 构建。
+
+本轮包括下载暂停/继续、关闭来源标签后下载卡住、键盘焦点/Shift 键、底部工具栏、
+崩溃后工具栏恢复、合成器布局崩溃及多进程扩展清理。另修复下载重启恢复、清理任务保护、
+扩展下载临时路径、下载错误提示漏译和文件夹上传提示无法命中翻译的问题。
+
+具体基线见 `.github/upstream-sync.json`，改动和验证记录见
+`docs/UPDATE_REPORT_2026-08-28.md`。文档中的“已合并代码”不代表 IPA 已构建成功；
+请以对应 GitHub Actions 运行结果和真实产物为准。
 
 ## 简体中文
 
 当 iOS 的首选语言为“简体中文”时，Reynard 会自动使用中文；英文资源仍然保留。
 主应用、OpenIn 扩展、Reynard Helper 扩展和附加组件界面都包含中文资源。可以运行
-`tools/tests/run-static-tests.sh` 检查缺失翻译、重复键和格式化占位符。
+`tools/tests/run-static-tests.sh` 检查主界面、附加组件和设置的缺失翻译、源码中的本地化键及格式化占位符。
 
 ## 未签名 IPA 是什么
 
@@ -53,6 +60,9 @@ GitHub Actions 产物没有 Apple 开发证书、分发证书或 Provisioning Pr
 5. 检查主程序、`Info.plist`、两个应用扩展、GeckoView、XUL 和 Frameworks 后，生成标准
    `Payload/Reynard.app` IPA。
 
+打包会检查 Mach-O 的 arm64 架构、残留签名、主应用与扩展构建号、中文资源和 ZIP 完整性。
+`CFBundleVersion` 使用数字构建号，源码短 SHA 保留在产物文件名和构建日志中。
+
 IPA 文件名格式为 `Reynard-<版本>-<提交短 SHA>-unsigned.ipa`。推送到 `main` 或手动运行时，
 成功产物通常创建 `build-<运行编号>` 预发行版；推送 `v*` 标签时创建同名正式 Release。
 维护者明确标记 `[formal release]` 的主分支提交也会在真实 IPA 校验通过后发布中文版正式版。
@@ -63,10 +73,10 @@ PR 标题中加入 `[build ipa]`，但 PR 构建不会创建发行版，以防�
 
 ## 本地源码构建
 
-需要 macOS、Xcode、Python 3、Rust/Cargo、`cbindgen 0.29.1`、支持
+需要 macOS、Xcode、Python 3、Rust/Cargo、`cbindgen`、支持
 `wasm32-wasi` 的 LLVM/Clang 与 LLD（Apple Clang 不包含该目标时可使用 Homebrew LLVM/LLD）、
-与 Gecko 版本匹配的 WASI sysroot 和 compiler-rt，以及足够的磁盘空间。GitHub Actions
-会从对应的 Mozilla 工具链任务取得并缓存 WASI sysroot 与 compiler-rt。
+以及足够的磁盘空间。构建按上游成功配置使用 LLVM/LLD、Rust stable 和 Python 3.12；
+Gecko 的 `--enable-bootstrap` 自动选择匹配的 Mozilla/WASI 工具链，不再手工混用 LLVM 版本。
 克隆仓库后运行：
 
 ```bash
@@ -96,21 +106,24 @@ AltStore、SideStore 或个人证书安装是否能启用 JIT，取决于 iOS �
 - 按日期清理只删除命中日期范围的已完成下载，不会清空全部记录或删除进行中的任务。
 - 服务器文件名会移除路径分隔符、控制字符和双向文本控制符，限制 UTF-8 长度，并验证最终
   路径仍在 Downloads 目录中。
-- 下载失败会显示网络、空间不足、权限或文件保存错误；普通 URLSession 下载可以重试。
+- 下载失败会显示网络、HTTP 响应、空间不足、权限或文件保存错误；普通 URLSession 下载可以重试。
+- 普通和 Gecko 捕获下载可在当前进程存活期间暂停/继续；重启后的中断任务标为失败，支持的任务可重试。
+- 仅删除已完成记录拥有的文件；清理记录不删除正在下载、暂停的任务或用户手动放入目录的文件。
 - 下载确认会显示文件名、来源域名、大小和 MIME 类型；未知大小会明确显示。
 - 下载进度界面合并为约 350 毫秒一次刷新，完成和失败仍立即更新。
+- favicon 请求会合并同一站点的并发任务、拒绝非 Web URL，并限制压缩图片解码后的最大尺寸。
 - 私密标签页、选择状态、导航历史和缩略图不写入会话数据库；升级后会清理旧版遗留的私密
   标签数据。
 - “设置 → 主页 → 恢复上次浏览”关闭后会移除已保存的普通标签和导航状态。
 
 ## 当前限制
 
-- Gecko 捕获下载接口目前不提供可靠的 Resume Data，因此没有伪造暂停状态；普通下载失败可
-  重试，但 Gecko 捕获下载需要网页重新发起。
+- Gecko 捕获下载使用上游新的暂停/继续接口，不是持久化 Resume Data；应用退出后的 Gecko 下载仍需
+  网页重新发起。扩展下载仅在底层提供控制接口时显示暂停操作。
 - 当前普通下载仍使用前台 `URLSession`。在没有验证任务重关联、目标路径恢复和 Gecko 捕获
   兼容性前，不会声称支持系统终止后的后台续传。
 - GitHub 托管 macOS Runner 首次构建 Gecko 会很慢，并可能因磁盘、六小时任务上限、上游下载
-  或缓存大小失败。工作流会保留实际日志，不会生成空 IPA。若持续超过托管 Runner 限制，建议
+  或缓存大小失败。工作流会保留实际日志，不会生成空 IPA；编译使用 sccache，成功的 Gecko 分发文件按源码和工具链精确缓存。若持续超过托管 Runner 限制，建议
   使用至少 100 GB 可用空间的 self-hosted macOS Runner。
 - Gecko 对部分网站权限或 iOS 能力没有可用接口时，Reynard 不会提供无效开关。
 

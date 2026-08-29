@@ -15,7 +15,20 @@ protocol GeckoSessionHandlerCommon: GeckoEventListenerInternal {
 
 public enum GeckoSessionLoadFlags {
     public static let none = 0
+    public static let bypassCache = 1 << 0
     public static let replaceHistory = 1 << 6
+}
+
+public struct GeckoFindInPageResult {
+    public let found: Bool
+    public let current: Int
+    public let total: Int
+    
+    public init(found: Bool, current: Int, total: Int) {
+        self.found = found
+        self.current = current
+        self.total = total
+    }
 }
 
 public class GeckoSession {
@@ -41,6 +54,10 @@ public class GeckoSession {
             type: "GeckoView:UpdateSettings",
             message: [
                 "userAgentOverride": settings.websiteMode.userAgentOverride ?? NSNull(),
+                "platformOverride": settings.websiteMode.platformOverride ?? NSNull(),
+                "appVersionOverride": settings.websiteMode.appVersionOverride ?? NSNull(),
+                "oscpuOverride": settings.websiteMode.oscpuOverride ?? NSNull(),
+                "buildIDOverride": settings.websiteMode.buildIDOverride ?? NSNull(),
                 "userAgentMode": settings.websiteMode.userAgentMode,
                 "viewportMode": settings.websiteMode.viewportMode,
                 "pageZoom": settings.pageZoom.scale,
@@ -118,6 +135,10 @@ public class GeckoSession {
         return pictureInPictureHandler.displayLayer
     }
     
+    public func notifyScreenOrientationChanged(to orientation: UIInterfaceOrientation) {
+        window?.updateScreenOrientation(orientation.rawValue)
+    }
+    
     // MARK: - Session Handlers
     
     lazy var sessionHandlers: [GeckoSessionHandlerCommon] = [
@@ -172,6 +193,10 @@ public class GeckoSession {
             "useTrackingProtection": false,
             "userAgentMode": sessionSettings.websiteMode.userAgentMode,
             "userAgentOverride": sessionSettings.websiteMode.userAgentOverride,
+            "platformOverride": sessionSettings.websiteMode.platformOverride,
+            "appVersionOverride": sessionSettings.websiteMode.appVersionOverride,
+            "oscpuOverride": sessionSettings.websiteMode.oscpuOverride,
+            "buildIDOverride": sessionSettings.websiteMode.buildIDOverride,
             "viewportMode": sessionSettings.websiteMode.viewportMode,
             "pageZoom": sessionSettings.pageZoom.scale,
             "displayMode": 0,
@@ -255,11 +280,11 @@ public class GeckoSession {
             ])
     }
     
-    public func reload() {
+    public func reload(flags: Int = GeckoSessionLoadFlags.none) {
         dispatcher.dispatch(
             type: "GeckoView:Reload",
             message: [
-                "flags": 0
+                "flags": flags
             ])
     }
     
@@ -281,6 +306,56 @@ public class GeckoSession {
             message: [
                 "userInteraction": userInteraction
             ])
+    }
+    
+    public func exitFullScreen() {
+        dispatcher.dispatch(type: "GeckoViewContent:ExitFullScreen")
+    }
+    
+    // MARK: - Find in Page
+    
+    @MainActor
+    public func findInPage(
+        _ searchString: String? = nil,
+        backwards: Bool = false
+    ) async throws -> GeckoFindInPageResult {
+        var message: [String: Any?] = [:]
+        if let searchString {
+            message["searchString"] = searchString
+        }
+        if backwards {
+            message["backwards"] = true
+        }
+        let response = try await dispatcher.query(type: "GeckoView:FindInPage", message: message)
+        let payload: [String: Any?]
+        if let values = response as? [String: Any] {
+            payload = values.mapValues { $0 }
+        } else if let values = response as? [String: Any?] {
+            payload = values
+        } else {
+            throw GeckoHandlerError("Invalid find-in-page response")
+        }
+        return GeckoFindInPageResult(
+            found: PayloadValue.bool(payload["found"]) ?? false,
+            current: PayloadValue.int(payload["current"]) ?? 0,
+            total: PayloadValue.int(payload["total"]) ?? 0
+        )
+    }
+    
+    public func setFindInPageMatchHighlighting(_ enabled: Bool) {
+        dispatcher.dispatch(
+            type: "GeckoView:DisplayMatches",
+            message: [
+                "highlightAll": enabled,
+                "dimPage": true,
+                "drawOutline": false,
+            ]
+        )
+    }
+    
+    public func clearFindInPageMatches() {
+        dispatcher.dispatch(type: "GeckoView:ClearMatches")
+        setFindInPageMatchHighlighting(false)
     }
     
     public func scrollTo(_ position: CGPoint, animated: Bool = true) {
@@ -305,6 +380,7 @@ public class GeckoSession {
         dispatcher.dispatch(type: "GeckoView:SetFocused", message: ["focused": focused])
     }
     
+    // Keyboard
     public func focusedInputBottomRatio() async -> CGFloat? {
         let response = try? await dispatcher.query(type: "GeckoView:GetFocusedInputMetrics")
         guard let values = response as? [AnyHashable: Any],
@@ -313,6 +389,15 @@ public class GeckoSession {
         }
         
         return PayloadValue.cgFloat(bottomRatioValue)
+    }
+    
+    @discardableResult
+    public func focusForHardwareKeyboard() -> Bool {
+        return window?.focusForHardwareKeyboard() ?? false
+    }
+    
+    public func isInHardwareKeyboardMode() -> Bool {
+        return window?.isInHardwareKeyboardMode() ?? false
     }
     
     // MARK: - Selection Actions
@@ -326,4 +411,14 @@ public class GeckoSession {
             ]
         )
     }
+    
+    // MARK: - Toolbar
+    public func setDynamicToolbarMaxHeight(_ height: CGFloat) {
+        window?.setDynamicToolbarMaxHeight(max(0, height))
+    }
+    
+    public func setContentBottomOffset(_ offset: CGFloat) {
+        window?.setFixedBottomOffset(offset)
+    }
 }
+

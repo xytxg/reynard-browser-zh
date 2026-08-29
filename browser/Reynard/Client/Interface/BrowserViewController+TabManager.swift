@@ -12,10 +12,13 @@ extension BrowserViewController: TabManagerDelegate {
     func tabManagerDidChangeTabs(_ tabManager: TabManager) {
         if let selectedTab = tabManager.selectedTab {
             if !contentView.isDisplaying(session: selectedTab.session) {
-                contentView.setSession(selectedTab.session)
+                contentView.setTab(
+                    selectedTab,
+                    pageBackgroundColor: sessionManager.pageBackgroundColor(for: selectedTab.session)
+                )
             }
         } else {
-            contentView.setSession(nil)
+            contentView.setTab(nil)
         }
         refreshAddressBar()
         
@@ -23,8 +26,9 @@ extension BrowserViewController: TabManagerDelegate {
             tabOverview.setMode(TabOverview.Mode(tabMode: tabManager.selectedTabMode), animated: false)
         }
         tabOverview.applyPendingTabChanges()
+        let animateTabBarVisibility = tabBar.visibility != targetTabBarVisibility
         tabBar.reloadTabs()
-        updateBrowserLayout(animated: false)
+        updateBrowserLayout(animated: animateTabBarVisibility)
         homepageOverlayCoordinator.updatePresentation(animated: false)
         tabBar.updateLayout()
     }
@@ -34,6 +38,7 @@ extension BrowserViewController: TabManagerDelegate {
             return
         }
         
+        toolbarController.reset()
         contentView.showPageError(for: tab.url)
         captureThumbnail(
             forTabAt: tabManager.selectedTabIndex,
@@ -46,10 +51,16 @@ extension BrowserViewController: TabManagerDelegate {
     }
     
     func tabManager(_ tabManager: TabManager, didSelectTabAt index: Int, previousIndex: Int?) {
+        toolbarController.unlock(for: .pageNavigation)
+        toolbarController.reset()
         tabBar.setPendingExpansion(at: nil)
         
         guard let selectedTab = tabManager.activeTabs[safe: index] else {
             return
+        }
+        
+        if selectedTab.state.loadingState.isLoading {
+            toolbarController.lock(for: .pageNavigation)
         }
         
         browserChrome.setAddressBarLoadingProgress(
@@ -60,28 +71,41 @@ extension BrowserViewController: TabManagerDelegate {
         browserChrome.updatePageZoomLevel(selectedTab.session.settings.pageZoom.level)
         updateNavigationButtons()
         
-        contentView.setSession(selectedTab.session)
+        contentView.setTab(
+            selectedTab,
+            pageBackgroundColor: sessionManager.pageBackgroundColor(for: selectedTab.session)
+        )
         addonCoordinator.handleTabSelectionChange(selectedIndex: index, previousIndex: previousIndex)
         
         if !tabOverview.isPresented && !tabOverview.isTransitionRunning {
             tabOverview.setMode(TabOverview.Mode(tabMode: tabManager.selectedTabMode), animated: false)
             tabOverview.reloadTabs()
         }
+        let animateTabBarVisibility = tabBar.visibility != targetTabBarVisibility
         tabBar.reloadTabs()
         homepageOverlayCoordinator.updatePresentation(animated: false)
-        updateBrowserLayout(animated: false)
+        updateBrowserLayout(animated: animateTabBarVisibility)
         
         if isShowingFullscreenMedia,
            fullscreenSession !== selectedTab.session {
-            applyFullscreenState(false, for: fullscreenSession)
+            applyFullscreenState(false, for: fullscreenSession, mediaIsPlaying: false)
         }
     }
     
     func tabManager(_ tabManager: TabManager, didReplaceSelectedSession previousSession: GeckoSession, with replacementSession: GeckoSession) {
         if contentView.isDisplaying(session: previousSession) {
-            contentView.setSession(replacementSession)
+            contentView.setTab(
+                tabManager.selectedTab,
+                pageBackgroundColor: tabManager.selectedTab.map {
+                    sessionManager.pageBackgroundColor(for: $0.session)
+                }
+            )
         }
         addonCoordinator.handleSelectedTabSessionReplacement(from: previousSession, to: replacementSession)
+    }
+    
+    func tabManager(_ tabManager: TabManager, didRequestContentKeyboardFocusFor session: GeckoSession) {
+        requestContentKeyboardFocus(for: session)
     }
     
     func tabManager(_ tabManager: TabManager, captureHistoryThumbnailForTabAt index: Int, mode: TabMode, url: String) {
@@ -96,7 +120,14 @@ extension BrowserViewController: TabManagerDelegate {
         if element.type == .image,
            let source = element.srcUri?.trimmingCharacters(in: .whitespacesAndNewlines),
            let url = URL(string: source) {
-            contextMenuCoordinator.present(at: point, target: .image(url), allowsPreview: !element.isMouseInput)
+            let linkURL = element.linkUri
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .flatMap { URL(string: $0) }
+            contextMenuCoordinator.present(
+                at: point,
+                target: .image(url, linkURL: linkURL),
+                allowsPreview: !element.isMouseInput
+            )
             return
         }
         
@@ -108,11 +139,19 @@ extension BrowserViewController: TabManagerDelegate {
         contextMenuCoordinator.present(at: point, target: .link(url), allowsPreview: !element.isMouseInput)
     }
     
-    func tabManager(_ tabManager: TabManager, didChangeFullscreen fullScreen: Bool, for session: GeckoSession) {
+    func tabManager(_ tabManager: TabManager, didChangeFullscreen fullScreen: Bool, mediaIsPlaying: Bool, for session: GeckoSession) {
         guard tabManager.selectedTab?.session === session else {
             return
         }
-        applyFullscreenState(fullScreen, for: session)
+        applyFullscreenState(fullScreen, for: session, mediaIsPlaying: mediaIsPlaying)
+    }
+    
+    func tabManager(_ tabManager: TabManager, didChangeMediaPlayback isPlaying: Bool, for session: GeckoSession) {
+        guard isShowingFullscreenMedia,
+              fullscreenSession === session else {
+            return
+        }
+        UIApplication.shared.isIdleTimerDisabled = isPlaying
     }
     
     func tabManager(_ tabManager: TabManager, didUpdateTabAt index: Int, reason: TabManagerUpdateReason) {
@@ -132,6 +171,8 @@ extension BrowserViewController: TabManagerDelegate {
             
         case .location:
             if index == tabManager.selectedTabIndex {
+                contentView.resetScrollTracking()
+                toolbarController.reset()
                 let tab = tabManager.activeTabs[index]
                 contentView.noteHistoryLocationChange()
                 refreshAddressBar()
@@ -159,6 +200,13 @@ extension BrowserViewController: TabManagerDelegate {
                     isLoading: tab.state.loadingState.isLoading
                 )
                 
+                if tab.state.loadingState.isLoading {
+                    contentView.resetScrollTracking()
+                    toolbarController.lock(for: .pageNavigation)
+                } else {
+                    toolbarController.unlock(for: .pageNavigation)
+                }
+                
                 if !tab.state.loadingState.isLoading {
                     contentView.finishHistoryLoad()
                     DispatchQueue.main.async { [weak self] in
@@ -176,6 +224,13 @@ extension BrowserViewController: TabManagerDelegate {
             tabOverview.isPresented
             ? tabOverview.refreshTab(at: index, mode: tabManager.selectedTabMode)
             : tabOverview.reloadTabs()
+            
+        case .pageBackgroundColor:
+            guard index == tabManager.selectedTabIndex else {
+                return
+            }
+            let tab = tabManager.activeTabs[index]
+            contentView.setPageBackgroundColor(sessionManager.pageBackgroundColor(for: tab.session))
         }
     }
     
@@ -206,10 +261,10 @@ extension BrowserViewController: TabManagerDelegate {
     }
     
     func tabManager(_ tabManager: TabManager, shouldStartExternalResponse response: ExternalResponseInfo, for session: GeckoSession) async -> Bool {
-        if addonCoordinator.handleExternalResponse(response) {
-            return true
+        if addonCoordinator.canHandleExternalResponse(response) {
+            return await addonCoordinator.confirmExternalResponse(response)
         }
-        guard let download = DownloadStore.shared.pendingDownload(from: response) else {
+        guard let download = DownloadStore.shared.pendingDownload(from: response, session: session) else {
             return false
         }
         return await downloadsCoordinator.confirm(download)
@@ -273,7 +328,7 @@ extension BrowserViewController {
         
         let targetTabID = targetTab.id
         if homepageOverlayCoordinator.needsHomepageThumbnail(for: targetTab) {
-            homepageOverlayCoordinator.captureHomepageThumbnail(targetTab, size: contentView.bounds.size) { [weak self] thumbnail in
+            homepageOverlayCoordinator.captureHomepageThumbnail(targetTab) { [weak self] thumbnail in
                 guard let self,
                       let thumbnail,
                       (mode == .private ? self.tabManager.privateTabs : self.tabManager.regularTabs)[safe: index]?.id == targetTabID else {

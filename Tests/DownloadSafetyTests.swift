@@ -27,6 +27,8 @@ private struct DownloadSafetyTests {
     static func main() throws {
         try testPartialCleanupRetainsOlderEntries()
         try testFullCleanupRemovesEveryCompletedEntry()
+        try testCleanupKeepsActiveAndPausedDownloads()
+        try testProgressWithUntrustedLengths()
         try testManifestEncodingAndRecovery()
         try testFileNameSanitization()
         try testFileNameLengthPreservesExtension()
@@ -77,6 +79,13 @@ private struct DownloadSafetyTests {
         )
         try expect(recovery.entries == entries, "Corrupt manifest did not recover from its backup")
         try expect(recovery.source == .backup, "Manifest recovery reported the wrong source")
+
+        let missingPrimary = DownloadManifestRecovery.recover(
+            primaryData: nil,
+            backupData: encoded,
+            decode: { try? JSONDecoder().decode([ManifestEntry].self, from: $0) }
+        )
+        try expect(missingPrimary.entries == entries, "Missing primary manifest discarded the backup")
     }
 
     private static func testFileNameSanitization() throws {
@@ -156,6 +165,13 @@ private struct DownloadSafetyTests {
         )
         try expect(
             DownloadFileSafety.capturedTemporaryFileURL(
+                forPath: directory.appendingPathComponent("reynard-download-webextension-123").path,
+                temporaryDirectoryURL: directory
+            ) != nil,
+            "A WebExtension download could not pass the shared temporary-path validation"
+        )
+        try expect(
+            DownloadFileSafety.capturedTemporaryFileURL(
                 forPath: directory.appendingPathComponent("unrelated.tmp").path,
                 temporaryDirectoryURL: directory
             ) == nil,
@@ -168,5 +184,37 @@ private struct DownloadSafetyTests {
             ) == nil,
             "A captured-download path outside the temporary directory was accepted"
         )
+    }
+
+    private static func testCleanupKeepsActiveAndPausedDownloads() throws {
+        let entries = [
+            DownloadEntry(name: "completed", addedAt: .distantFuture),
+            DownloadEntry(name: "active", addedAt: .distantFuture),
+            DownloadEntry(name: "paused", addedAt: .distantFuture),
+            DownloadEntry(name: "older", addedAt: .distantPast),
+        ]
+        let cutoffs: [Date?] = [nil, Date(timeIntervalSince1970: 2_000)]
+        for cutoff in cutoffs {
+            let result = DownloadCleanupPolicy.partition(
+                entries, since: cutoff, addedAt: { $0.addedAt },
+                isActive: { ["active", "paused"].contains($0.name) }
+            )
+            try expect(result.retained.contains { $0.name == "active" }, "Cleanup removed an active download")
+            try expect(result.retained.contains { $0.name == "paused" }, "Cleanup removed a paused download")
+            try expect(result.removed.contains { $0.name == "completed" }, "Cleanup retained a matching completed download")
+        }
+    }
+
+    private static func testProgressWithUntrustedLengths() throws {
+        try expect(DownloadProgressSafety.aggregateProgress([(Int64.max, Int64.max), (Int64.max, Int64.max)]) == 1,
+                   "Large Content-Length values overflowed aggregate progress")
+        try expect(DownloadProgressSafety.aggregateProgress([(100, 50), (100, 50)]) == 0.5,
+                   "Known transfer sizes produced incorrect progress")
+        try expect(DownloadProgressSafety.aggregateProgress([(nil, 50), (100, 50)]) == 0,
+                   "Unknown transfer sizes reported determinate progress")
+        try expect(DownloadProgressSafety.aggregateProgress([(100, -50)]) == 0,
+                   "Negative received bytes produced invalid progress")
+        try expect(DownloadProgressSafety.aggregateProgress([]) == 0,
+                   "No transfers produced nonzero progress")
     }
 }

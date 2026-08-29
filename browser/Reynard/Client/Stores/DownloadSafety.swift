@@ -5,23 +5,34 @@
 
 import Foundation
 
+enum DownloadProgressSafety {
+    static func aggregateProgress(_ transfers: [(Int64?, Int64)]) -> Float {
+        guard transfers.allSatisfy({ ($0.0 ?? 0) > 0 }) else { return 0 }
+        // Content-Length is remote input. Summing it as Int64 can overflow with
+        // just two malicious responses, even before any large file is received.
+        let expected = transfers.reduce(0.0) { $0 + Double($1.0 ?? 0) }
+        guard expected > 0 else { return 0 }
+        let received = transfers.reduce(0.0) {
+            $0 + Double(min(max($1.1, 0), $1.0 ?? 0))
+        }
+        return Float(min(max(received / expected, 0), 1))
+    }
+}
+
 enum DownloadCleanupPolicy {
     static func partition<Entry>(
         _ entries: [Entry],
         since startDate: Date?,
-        addedAt: (Entry) -> Date
+        addedAt: (Entry) -> Date,
+        isActive: (Entry) -> Bool = { _ in false }
     ) -> (removed: [Entry], retained: [Entry]) {
-        guard let startDate else {
-            return (entries, [])
-        }
-
         var removed: [Entry] = []
         var retained: [Entry] = []
         removed.reserveCapacity(entries.count)
         retained.reserveCapacity(entries.count)
 
         for entry in entries {
-            if addedAt(entry) >= startDate {
+            if !isActive(entry), startDate.map({ addedAt(entry) >= $0 }) ?? true {
                 removed.append(entry)
             } else {
                 retained.append(entry)

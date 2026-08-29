@@ -23,6 +23,8 @@ extension BrowserViewController: TabBarDataSource, TabOverviewDataSource, TabOve
     }
     
     func selectTab(at index: Int, mode: TabMode) {
+        browserChrome.dismissActionBar(animated: false)
+        toolbarController.reset()
         if mode == tabManager.selectedTabMode,
            index != tabManager.selectedTabIndex {
             if tabOverview.isPresented || tabOverview.isTransitionRunning {
@@ -39,6 +41,7 @@ extension BrowserViewController: TabBarDataSource, TabOverviewDataSource, TabOve
     }
     
     func closeTab(at index: Int, mode: TabMode) {
+        toolbarController.reset()
         if (tabOverview.isPresented || tabOverview.isTransitionRunning),
            tabOverview.mode == .regularTabs,
            mode == .regular,
@@ -54,6 +57,7 @@ extension BrowserViewController: TabBarDataSource, TabOverviewDataSource, TabOve
     }
     
     func moveTab(from sourceIndex: Int, to destinationIndex: Int, mode: TabMode) {
+        toolbarController.reset()
         tabManager.moveTab(from: sourceIndex, to: destinationIndex, mode: mode)
     }
     
@@ -75,6 +79,10 @@ extension BrowserViewController: TabBarDataSource, TabOverviewDataSource, TabOve
     
     func tabOverviewDidRequestClearTabs(_ tabOverview: TabOverview) {
         clearTabsForCurrentOverviewMode()
+    }
+    
+    func tabOverviewDidRequestClearTabsOlderThan(_ tabOverview: TabOverview, age: TabOverviewClearTabsMenu.Age) {
+        clearTabsOlderThan(age)
     }
     
     func tabOverviewDidRequestNewTab(_ tabOverview: TabOverview) {
@@ -111,14 +119,26 @@ extension BrowserViewController: TabBarDataSource, TabOverviewDataSource, TabOve
         updateBrowserLayout(animated: animated, duration: duration)
     }
     
+    func prepareTabOverviewPresentation() {
+        homepageOverlayCoordinator.updatePresentation(animated: false)
+        view.layoutIfNeeded()
+    }
+    
+    func tabOverviewDidFinishDismissal() {
+        toolbarController.unlock(for: .tabOverview)
+        requestContentKeyboardFocus()
+    }
+    
     func setTabOverviewVisible(_ visible: Bool, animated: Bool) {
         if visible {
+            toolbarController.lock(for: .tabOverview)
             if browserChrome.performAfterTransition({ [weak self] in
                 self?.setTabOverviewVisible(true, animated: animated)
             }) {
                 return
             }
             
+            browserChrome.dismissActionBar(animated: false)
             dismissAddressBarEditingAndOverlays()
             contentView.resetFocusedInputRelocation()
             homepageOverlayCoordinator.tabOverviewWillPresent()
@@ -185,6 +205,30 @@ extension BrowserViewController: TabBarDataSource, TabOverviewDataSource, TabOve
         tabManager.removeAllTabs(mode: .regular)
         tabOverview.prepareNextTabChangesWithoutAnimation()
         createTabFromOverview(mode: .regular)
+    }
+    
+    private func clearTabsOlderThan(_ age: TabOverviewClearTabsMenu.Age) {
+        guard let cutoffDate = age.cutoffDate() else {
+            return
+        }
+        
+        tabBar.setPendingExpansion(at: nil)
+        let mode = tabOverview.mode.tabMode
+        let tabs = mode == .private ? tabManager.privateTabs : tabManager.regularTabs
+        let oldTabIDs = TabManagementStore.shared.tabIDs(olderThan: cutoffDate, isPrivate: mode == .private)
+        let oldTabIndices = tabs.indices.filter { oldTabIDs.contains(tabs[$0].id) }
+        guard !oldTabIndices.isEmpty else {
+            return
+        }
+        
+        if oldTabIndices.count == tabs.count {
+            clearTabsForCurrentOverviewMode()
+            return
+        }
+        
+        oldTabIndices.reversed().forEach { index in
+            tabManager.removeTab(at: index, mode: mode)
+        }
     }
     
     func createTabFromOverview(mode: TabMode) {

@@ -9,16 +9,12 @@ import GeckoView
 import UIKit
 
 extension BrowserViewController: ContextMenuCoordinatorHost {
-    var contextMenuPresenter: UIViewController {
-        return self
-    }
-    
     var contextMenuSourceView: ContentView {
         return contentView
     }
     
     var contextMenuTabActions: ContextMenuTabActions {
-        return ContextMenuTabActions(tabManager: tabManager)
+        return ContextMenuTabActions(tabManager: tabManager, sessionManager: sessionManager)
     }
     
     var contextMenuSelectedTabIsPrivate: Bool {
@@ -45,7 +41,7 @@ extension BrowserViewController: ContextMenuCoordinatorHost {
         case .currentTab:
             tabManager.browse(to: url.absoluteString)
             return
-        case .newTab:
+        case .newTab, .backgroundTab:
             mode = tabManager.selectedTabMode
             target = .afterSelected
         case .newPrivateTab:
@@ -53,13 +49,17 @@ extension BrowserViewController: ContextMenuCoordinatorHost {
             target = tabManager.selectedTabMode == .private ? .afterSelected : .end
         }
         
-        let tabIndex = tabManager.createTab(selecting: false, target: target, mode: mode)
+        let tabIndex = tabManager.createTab(selecting: disposition != .backgroundTab, target: target, mode: mode)
         let tabs = mode == .private ? tabManager.privateTabs : tabManager.regularTabs
         guard let tab = tabs[safe: tabIndex] else {
             return
         }
         
         tabManager.browse(to: url.absoluteString, in: tab)
+        guard disposition != .backgroundTab else {
+            return
+        }
+        
         captureThumbnail(forTabAt: tabManager.selectedTabIndex, mode: tabManager.selectedTabMode) { [weak self] _ in
             guard let self else {
                 return
@@ -72,12 +72,17 @@ extension BrowserViewController: ContextMenuCoordinatorHost {
         }
     }
     
-    func contextMenuShareLink(_ url: URL) {
-        presentShareSheet(url: url.absoluteString)
+    func contextMenuPresentShareSheet(items: [Any], sourceView: UIView, sourceRect: CGRect) {
+        presentShareSheet(
+            items: items,
+            sourceView: sourceView,
+            sourceRect: sourceRect
+        )
     }
     
     func contextMenuRestoreInteraction(for session: GeckoSession) {
         contentView.restoreInteraction(for: session)
         sessionManager.activate(session)
+        requestContentKeyboardFocus(for: session)
     }
 }

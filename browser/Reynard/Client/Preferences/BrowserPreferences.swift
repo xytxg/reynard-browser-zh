@@ -56,11 +56,17 @@ final class BrowserPreferences {
             // Compatibility
             key("CompatibilitySettings", "androidUserAgentDomains"): [],
             key("CompatibilitySettings", "useAndroidUserAgent"): true,
+            key("CompatibilitySettings", "customUserAgent"): "",
+            key("CompatibilitySettings", "customPlatform"): "",
+            key("CompatibilitySettings", "customAppVersion"): "",
+            key("CompatibilitySettings", "customOscpu"): "",
+            key("CompatibilitySettings", "customBuildID"): "",
             
             // Browsing
             key("BrowsingSettings", "requestDesktopWebsite"): UIDevice.current.userInterfaceIdiom == .pad,
             key("BrowsingSettings", "showLinkPreviews"): true,
             key("BrowsingSettings", "showImagePreviews"): true,
+            key("BrowsingSettings", "openLinksInExternalApps"): true,
             key("BrowsingSettings", "defaultPageZoomLevel"): PageZoomLevels.defaultLevel,
             
             // New Tab
@@ -79,6 +85,7 @@ final class BrowserPreferences {
             key("HomepageSettings", "recentlyClosedTabLimit"): 10,
             key("HomepageSettings", "showsRecommendations"): true,
             key("HomepageSettings", "showsNewUpdates"): true,
+            key("HomepageSettings", "showsWallpaper"): false,
             key("HomepageSettings", "donationRecommendationMultiplier"): 1,
             
             // Appearance
@@ -86,6 +93,10 @@ final class BrowserPreferences {
             key("AppearanceSettings", "addressBarPosition"): BrowserChromePosition.bottom.rawValue,
             key("AppearanceSettings", "showsFullWebsiteAddress"): false,
             key("AppearanceSettings", "showsLandscapeTabBar"): true,
+            key("AppearanceSettings", "pullToRefreshEnabled"): true,
+            key("AppearanceSettings", "scrollToHideToolbarEnabled"): true,
+            key("AppearanceSettings", "swipeAddressBarSidewaysEnabled"): true,
+            key("AppearanceSettings", "swipeAddressBarUpEnabled"): true,
             
             // Languages
             key("LanguageSettings", "websiteLanguages"): (try? JSONEncoder().encode(WebsiteLanguageCatalog.defaultLanguageCodes())) ?? Data(),
@@ -279,6 +290,15 @@ final class BrowserPreferences {
             }
             set {
                 prefs.set(newValue, forSetting: "BrowsingSettings", key: "showImagePreviews")
+            }
+        }
+        
+        static var openLinksInExternalApps: Bool {
+            get {
+                return prefs.bool(forSetting: "BrowsingSettings", key: "openLinksInExternalApps")
+            }
+            set {
+                prefs.set(newValue, forSetting: "BrowsingSettings", key: "openLinksInExternalApps")
             }
         }
         
@@ -594,6 +614,16 @@ final class BrowserPreferences {
             }
         }
         
+        static var showsWallpaper: Bool {
+            get {
+                return prefs.bool(forSetting: "HomepageSettings", key: "showsWallpaper")
+            }
+            set {
+                prefs.set(newValue, forSetting: "HomepageSettings", key: "showsWallpaper")
+                NotificationCenter.default.post(name: .homepageSettingsDidChange, object: nil)
+            }
+        }
+        
         static var donationRecommendationShowTime: Date {
             get {
                 return Date(timeIntervalSince1970: prefs.double(forSetting: "HomepageSettings", key: "donationRecommendationShowTime"))
@@ -752,6 +782,51 @@ final class BrowserPreferences {
                 prefs.set(newValue, forSetting: "CompatibilitySettings", key: "useAndroidUserAgent")
             }
         }
+        
+        static var customUserAgent: String {
+            get {
+                return prefs.string(forSetting: "CompatibilitySettings", key: "customUserAgent") ?? ""
+            }
+            set {
+                prefs.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forSetting: "CompatibilitySettings", key: "customUserAgent")
+            }
+        }
+        
+        static var customPlatform: String {
+            get {
+                return prefs.string(forSetting: "CompatibilitySettings", key: "customPlatform") ?? ""
+            }
+            set {
+                prefs.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forSetting: "CompatibilitySettings", key: "customPlatform")
+            }
+        }
+        
+        static var customAppVersion: String {
+            get {
+                return prefs.string(forSetting: "CompatibilitySettings", key: "customAppVersion") ?? ""
+            }
+            set {
+                prefs.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forSetting: "CompatibilitySettings", key: "customAppVersion")
+            }
+        }
+        
+        static var customOscpu: String {
+            get {
+                return prefs.string(forSetting: "CompatibilitySettings", key: "customOscpu") ?? ""
+            }
+            set {
+                prefs.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forSetting: "CompatibilitySettings", key: "customOscpu")
+            }
+        }
+        
+        static var customBuildID: String {
+            get {
+                return prefs.string(forSetting: "CompatibilitySettings", key: "customBuildID") ?? ""
+            }
+            set {
+                prefs.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forSetting: "CompatibilitySettings", key: "customBuildID")
+            }
+        }
     }
     
     // MARK: - Appearance
@@ -794,6 +869,46 @@ final class BrowserPreferences {
             set {
                 prefs.set(newValue, forSetting: "AppearanceSettings", key: "showsFullWebsiteAddress")
                 NotificationCenter.default.post(name: .showFullWebsiteAddressDidChange, object: nil)
+            }
+        }
+        
+        static var pullToRefreshEnabled: Bool {
+            get {
+                prefs.bool(forSetting: "AppearanceSettings", key: "pullToRefreshEnabled")
+            }
+            set {
+                prefs.set(newValue, forSetting: "AppearanceSettings", key: "pullToRefreshEnabled")
+                NotificationCenter.default.post(name: .appearanceGestureSettingsDidChange, object: nil)
+            }
+        }
+        
+        static var scrollToHideToolbarEnabled: Bool {
+            get {
+                prefs.bool(forSetting: "AppearanceSettings", key: "scrollToHideToolbarEnabled")
+            }
+            set {
+                prefs.set(newValue, forSetting: "AppearanceSettings", key: "scrollToHideToolbarEnabled")
+                NotificationCenter.default.post(name: .appearanceGestureSettingsDidChange, object: nil)
+            }
+        }
+        
+        static var swipeAddressBarSidewaysEnabled: Bool {
+            get {
+                prefs.bool(forSetting: "AppearanceSettings", key: "swipeAddressBarSidewaysEnabled")
+            }
+            set {
+                prefs.set(newValue, forSetting: "AppearanceSettings", key: "swipeAddressBarSidewaysEnabled")
+                NotificationCenter.default.post(name: .appearanceGestureSettingsDidChange, object: nil)
+            }
+        }
+        
+        static var swipeAddressBarUpEnabled: Bool {
+            get {
+                prefs.bool(forSetting: "AppearanceSettings", key: "swipeAddressBarUpEnabled")
+            }
+            set {
+                prefs.set(newValue, forSetting: "AppearanceSettings", key: "swipeAddressBarUpEnabled")
+                NotificationCenter.default.post(name: .appearanceGestureSettingsDidChange, object: nil)
             }
         }
         

@@ -131,38 +131,21 @@ final class DownloadItemCell: UITableViewCell {
         accessibilityLabel = item.fileName
         defer { accessibilityValue = statusLabel.text }
         let isDeleted = item.state == .completed && !item.fileExists
-        contentView.alpha = isDeleted ? 0.45 : 1
-        fileNameLabel.textColor = isDeleted ? .secondaryLabel : .label
+        let isUnavailable = isDeleted || item.state == .cancelled || item.state == .failed
+        contentView.alpha = isUnavailable ? 0.45 : 1
+        fileNameLabel.textColor = isUnavailable ? .secondaryLabel : .label
         statusLabel.textColor = .secondaryLabel
         
         switch item.state {
         case .downloading:
+            configureDownloading(item)
+            
+        case .paused:
             representedFileURL = nil
             representedDownloadID = item.id
-            let downloadedText = Self.formattedByteCount(item.downloadedBytes)
-            let sizeText = item.totalBytes.map { Self.formattedByteCount($0) }
-            let speedText: String?
-            if item.bytesPerSecond > 0 {
-                speedText = String(format: NSLocalizedString("%@/sec", comment: "Download speed"), Self.formattedByteCount(item.bytesPerSecond))
-            } else {
-                speedText = nil
-            }
-            
-            var detailsText = downloadedText
-            if let sizeText {
-                detailsText += String(format: NSLocalizedString(" of %@", comment: "Total file size"), sizeText)
-            }
-            if let speedText {
-                detailsText += " (\(speedText))"
-            }
-            
-            statusLabel.text = detailsText
-            progressView.isHidden = false
-            if let totalBytes = item.totalBytes, totalBytes > 0 {
-                progressView.progress = min(max(Float(item.downloadedBytes) / Float(totalBytes), 0), 1)
-            } else {
-                progressView.progress = 0
-            }
+            statusLabel.text = NSLocalizedString("Paused", comment: "Download state")
+            progressView.isHidden = true
+            progressView.progress = 0
             let placeholderIcon = Self.iconProvider.genericPlaceholderIcon()
             fileIconView.image = placeholderIcon
             fileIconView.transform = .identity
@@ -214,6 +197,40 @@ final class DownloadItemCell: UITableViewCell {
             fileIconView.tintColor = placeholderIcon == nil ? .label : nil
         }
 
+    }
+    
+    private func configureDownloading(_ item: DownloadItemSnapshot) {
+        representedFileURL = nil
+        representedDownloadID = item.id
+        let downloadedText = Self.formattedByteCount(item.downloadedBytes)
+        let sizeText = item.totalBytes.map { Self.formattedByteCount($0) }
+        
+        let speedText: String?
+        if item.bytesPerSecond > 0 {
+            speedText = String(format: NSLocalizedString("%@/sec", comment: "Download speed"), Self.formattedByteCount(item.bytesPerSecond))
+        } else {
+            speedText = nil
+        }
+        
+        var detailsText = downloadedText
+        if let sizeText {
+            detailsText += String(format: NSLocalizedString(" of %@", comment: "Total file size"), sizeText)
+        }
+        if let speedText {
+            detailsText += " (\(speedText))"
+        }
+        statusLabel.text = detailsText
+        
+        progressView.isHidden = false
+        if let totalBytes = item.totalBytes, totalBytes > 0 {
+            progressView.progress = min(max(Float(item.downloadedBytes) / Float(totalBytes), 0), 1)
+        } else {
+            progressView.progress = 0
+        }
+        let placeholderIcon = Self.iconProvider.genericPlaceholderIcon()
+        fileIconView.image = placeholderIcon
+        fileIconView.transform = .identity
+        fileIconView.tintColor = placeholderIcon == nil ? .label : nil
     }
     
     // MARK: - Formatting

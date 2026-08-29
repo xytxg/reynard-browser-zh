@@ -1,0 +1,81 @@
+"""Packaging regression tests. Tiny synthetic bundles are fixtures, not installable IPAs."""
+import importlib.util
+import io
+import plistlib
+import struct
+import tempfile
+import unittest
+import zipfile
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location(
+    "ipa_validator", Path(__file__).resolve().parents[1] / "tools/release/verify-unsigned-ipa.py"
+)
+validator = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(validator)
+
+
+def macho(signed=False):
+    command = struct.pack("<4I", 0x1D, 16, 48, 8) if signed else b""
+    return struct.pack("<8I", 0xFEEDFACF, 0x0100000C, 0, 2, int(signed), len(command), 0, 0) + command
+
+
+class UnsignedIPATests(unittest.TestCase):
+    def fixture(self):
+        root = "Payload/Reynard.app/"
+        info = {"CFBundleIdentifier": "test.Reynard", "CFBundleExecutable": "Reynard",
+                "CFBundleVersion": "42", "CFBundleShortVersionString": "0.10.1", "MinimumOSVersion": "13.0"}
+        entries = {root + "Info.plist": plistlib.dumps(info), root + "Reynard": macho(), root + "Frameworks/XUL": macho()}
+        for name in ("PlugIns/OpenIn.appex", "PlugIns/Reynard Helper.appex", "Frameworks/GeckoView.framework"):
+            child = dict(info, CFBundleIdentifier="test.Reynard.child", CFBundleExecutable="Executable")
+            entries[root + name + "/Info.plist"] = plistlib.dumps(child)
+            entries[root + name + "/Executable"] = macho()
+        for catalog in ("Localizable", "AddonLocalizable", "SettingsLocalizable", "InfoPlist"):
+            entries[root + "zh-Hans.lproj/" + catalog + ".strings"] = plistlib.dumps({"Pause": "暂停", "Resume": "继续下载"})
+        return entries
+
+    def verify_entries(self, entries):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "fixture.zip"
+            with zipfile.ZipFile(path, "w") as archive:
+                for name, data in entries.items():
+                    archive.writestr(name, data)
+            return validator.verify(path)
+
+    def test_unsigned_header(self):
+        self.assertEqual(validator.check_macho(io.BytesIO(macho())), {0x0100000C})
+
+    def test_signed_header_rejected(self):
+        with self.assertRaisesRegex(ValueError, "LC_CODE_SIGNATURE"):
+            validator.check_macho(io.BytesIO(macho(signed=True)))
+
+    def test_complete_fixture(self):
+        self.assertEqual(self.verify_entries(self.fixture())["mach_o_files"], 5)
+
+    def test_missing_extension_rejected(self):
+        entries = self.fixture()
+        del entries["Payload/Reynard.app/PlugIns/OpenIn.appex/Executable"]
+        with self.assertRaisesRegex(ValueError, "arm64 binary"):
+            self.verify_entries(entries)
+
+    def test_nested_signature_rejected(self):
+        entries = self.fixture()
+        entries["Payload/Reynard.app/Frameworks/XUL"] = macho(signed=True)
+        with self.assertRaisesRegex(ValueError, "LC_CODE_SIGNATURE"):
+            self.verify_entries(entries)
+
+    def test_wrong_language_rejected(self):
+        entries = self.fixture()
+        entries["Payload/Reynard.app/zh-Hans.lproj/Localizable.strings"] = plistlib.dumps({"Pause": "Pause"})
+        with self.assertRaisesRegex(ValueError, "Chinese download controls"):
+            self.verify_entries(entries)
+
+    def test_provisioning_profile_rejected(self):
+        entries = self.fixture()
+        entries["Payload/Reynard.app/embedded.mobileprovision"] = b"profile"
+        with self.assertRaisesRegex(ValueError, "Signing metadata"):
+            self.verify_entries(entries)
+
+
+if __name__ == "__main__":
+    unittest.main()
