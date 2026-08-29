@@ -70,6 +70,24 @@ const downloadStore = read("browser/Reynard/Client/Stores/DownloadStore.swift");
 requireText(downloadStore, "DownloadCleanupPolicy.partition", "date-based download cleanup does not use the tested policy");
 rejectText(downloadStore, "self.persistedDownloads.removeAll()", "download cleanup still contains the original unconditional clear");
 
+const addonCoordinator = read("browser/Reynard/Client/Interface/Addons/AddonCoordinator.swift");
+const browserTabManager = read("browser/Reynard/Client/Interface/BrowserViewController+TabManager.swift");
+requireText(
+  addonCoordinator,
+  "func confirmExternalResponse(_ response: ExternalResponseInfo) async -> Bool",
+  "add-on package downloads are not confirmed before installation"
+);
+requireText(
+  browserTabManager,
+  "return await addonCoordinator.confirmExternalResponse(response)",
+  "the external-response delegate does not call the add-on confirmation API"
+);
+rejectText(
+  browserTabManager,
+  "addonCoordinator.handleExternalResponse(response)",
+  "the external-response delegate calls the removed add-on coordinator API"
+);
+
 const autofillHandler = read("browser/GeckoView/Session/GeckoAutofillHandler.swift");
 rejectText(
   autofillHandler,
