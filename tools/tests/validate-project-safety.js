@@ -24,6 +24,9 @@ function rejectText(value, fragment, message) {
 const workflow = read(".github/workflows/build-unsigned-ipa.yml");
 requireText(workflow, "tools/development/build-gecko.sh", "IPA workflow does not build Gecko from source");
 requireText(workflow, "tools/release/build-unsigned-app.sh", "IPA workflow does not build Reynard.app from source");
+requireText(workflow, "runs-on: xcode-27", "IPA workflow does not compile against the iOS 27 SDK");
+requireText(workflow, 'test "$minimum_os" = "15.0"', "iOS 27 compatibility job does not enforce iOS 15");
+requireText(workflow, "xcrun vtool -show-build", "iOS 27 compatibility job does not inspect Mach-O load commands");
 rejectText(workflow, "releases/download", "IPA workflow downloads a release binary");
 rejectText(workflow, "source.ipa", "IPA workflow accepts a prebuilt IPA as its source");
 for (const match of workflow.matchAll(/uses:\s+[^@\s]+@([^\s#]+)/g)) {
@@ -35,6 +38,17 @@ for (const match of workflow.matchAll(/uses:\s+[^@\s]+@([^\s#]+)/g)) {
 const unsignedBuild = read("tools/release/build-unsigned-app.sh");
 requireText(unsignedBuild, "CODE_SIGNING_ALLOWED=NO", "unsigned app build does not disable signing");
 requireText(unsignedBuild, "AD_HOC_CODE_SIGNING_ALLOWED=NO", "unsigned app build allows ad-hoc signing");
+
+const buildConfiguration = read("browser/Configuration/Reynard.xcconfig");
+requireText(
+  buildConfiguration,
+  "IPHONEOS_DEPLOYMENT_TARGET = 15.0",
+  "Xcode deployment target is not iOS 15"
+);
+const geckoBuild = read("tools/development/build-gecko.sh");
+requireText(geckoBuild, "--enable-ios-target=15.0", "Gecko deployment target is not iOS 15");
+const ideviceBuild = read("tools/development/build-idevice.sh");
+requireText(ideviceBuild, 'DEPLOYMENT_TARGET="15.0"', "idevice deployment target is not iOS 15");
 
 const unsignedPackage = read("tools/release/create-unsigned-ipa.sh");
 requireText(
@@ -247,7 +261,7 @@ const pictureInPictureCoordinator = read(
 requireText(
   pictureInPictureCoordinator,
   "@available(iOS 15.0, *)",
-  "picture-in-picture coordinator is not guarded for iOS 13 and 14"
+  "picture-in-picture coordinator availability contract is missing"
 );
 requireText(
   pictureInPictureCoordinator,
@@ -369,6 +383,46 @@ requireText(jitEnabler, "NSFilePosixPermissions: @0700", "the temporary JIT help
 const eventDispatcher = read("browser/GeckoView/Events/EventDispatcher.swift");
 rejectText(eventDispatcher, "message as!", "malformed Gecko event payloads can still force-cast crash");
 
+const privateGlassPath = path.join(
+  root,
+  "browser/Reynard/Client/Extensions/UIGlassEffect+Private.swift"
+);
+if (fs.existsSync(privateGlassPath)) {
+  throw new Error("Liquid Glass still relies on private UIKit runtime objects");
+}
+const glassSources = [
+  "browser/Reynard/Client/Interface/Chrome/Toolbar/TopToolbar.swift",
+  "browser/Reynard/Client/Interface/Chrome/Toolbar/BottomToolbar.swift",
+  "browser/Reynard/Client/Interface/Chrome/ChromeOverlayContentView.swift",
+].map(read).join("\n");
+requireText(glassSources, "UIGlassEffect(style: .regular)", "native Liquid Glass is not enabled");
+requireText(glassSources, "cornerConfiguration = .fixed", "glass overlay shape is not configured publicly");
+rejectText(glassSources, "nonAdaptive", "Liquid Glass still bypasses system adaptation");
+const tabOverviewGlass = [
+  "browser/Reynard/Client/Interface/TabOverview/TabOverviewToolbar/TabOverviewTopToolbar.swift",
+  "browser/Reynard/Client/Interface/TabOverview/TabOverviewToolbar/TabOverviewBottomToolbar.swift",
+].map(read).join("\n");
+requireText(
+  tabOverviewGlass,
+  "hidesSharedBackground = false",
+  "tab overview actions do not share a native glass background"
+);
+
+const filePicker = read("browser/Reynard/Client/Interface/ContentView/WebContent/FilePicker/FilePicker.swift");
+requireText(
+  filePicker,
+  "nonisolated static let imageCompressionQuality",
+  "file-picker compression settings can trigger strict-concurrency diagnostics"
+);
+const filePickerStaging = read(
+  "browser/Reynard/Client/Interface/ContentView/WebContent/FilePicker/FilePickerStaging.swift"
+);
+requireText(
+  filePickerStaging,
+  "private nonisolated static func preferredMediaFileName",
+  "file-provider callbacks cross the main actor for media filenames"
+);
+
 const userDataMigration = read("browser/Reynard/Client/Startup/UserDataMigration.swift");
 requireText(
   userDataMigration,
@@ -376,5 +430,20 @@ requireText(
   "legacy migration can overwrite the active Application Support store"
 );
 rejectText(userDataMigration, 'fatalError("AppData migration failed")', "legacy migration still crashes on file errors");
+
+const ios15AvailabilityPatch = read("patches/zz-compat/iOS15RuntimeAvailability.patch");
+for (const [fragment, message] of [
+  ["__builtin_available(macos 10.13, iOS 17.0, *)", "VideoToolbox decoder APIs are not guarded for iOS 15"],
+  ["__builtin_available(macos 10.13, iOS 17.4, *)", "VideoToolbox encoder APIs are not guarded for iOS 15"],
+  ["__builtin_available(macos 13.0, iOS 16.0, *)", "constant-bitrate APIs are not guarded for iOS 15"],
+  ["@available(iOS 16.0, *)", "extended dynamic-range APIs are not guarded for iOS 15"],
+]) {
+  requireText(ios15AvailabilityPatch, fragment, message);
+}
+rejectText(
+  ios15AvailabilityPatch,
+  "\n+  if ([aScreen respondsToSelector:@selector(potentialEDRHeadroom)",
+  "selector probing does not satisfy iOS availability checking for EDR APIs"
+);
 
 console.log("Project safety validation passed");

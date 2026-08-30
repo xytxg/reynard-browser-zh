@@ -75,13 +75,17 @@ final class ChromeOverlayContentView: UIView {
     private let backgroundView: UIVisualEffectView = {
         let effect: UIVisualEffect
         if #available(iOS 26.0, *) {
-            effect = UIGlassEffect.nonAdaptive(style: .regular)
+            effect = UIGlassEffect(style: .regular)
         } else {
             effect = UIBlurEffect(style: .systemMaterial)
         }
         let view = UIVisualEffectView(effect: effect)
         view.translatesAutoresizingMaskIntoConstraints = false
-        view.contentView.backgroundColor = UIColor.systemBackground.withAlphaComponent(UX.backgroundAlpha)
+        if #available(iOS 26.0, *) {
+            view.cornerConfiguration = .fixed(UX.modernCornerRadius)
+        } else {
+            view.contentView.backgroundColor = UIColor.systemBackground.withAlphaComponent(UX.backgroundAlpha)
+        }
         view.layer.cornerCurve = .continuous
         view.layer.masksToBounds = true
         return view

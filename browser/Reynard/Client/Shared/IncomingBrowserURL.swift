@@ -8,7 +8,7 @@
 import Foundation
 
 enum IncomingBrowserURL {
-    static func resolve(_ incomingURL: URL) -> URL? {
+    nonisolated static func resolve(_ incomingURL: URL) -> URL? {
         if URLUtils.isWebURL(incomingURL) {
             return incomingURL
         }
@@ -24,7 +24,7 @@ enum IncomingBrowserURL {
         return wrappedURL
     }
 
-    static func firstResolvedURL(in incomingURLs: [URL]) -> URL? {
+    nonisolated static func firstResolvedURL(in incomingURLs: [URL]) -> URL? {
         return incomingURLs
             .compactMap(resolve)
             .sorted { $0.absoluteString < $1.absoluteString }

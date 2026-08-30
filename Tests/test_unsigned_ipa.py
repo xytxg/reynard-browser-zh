@@ -15,16 +15,27 @@ validator = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(validator)
 
 
-def macho(signed=False):
-    command = struct.pack("<4I", 0x1D, 16, 48, 8) if signed else b""
-    return struct.pack("<8I", 0xFEEDFACF, 0x0100000C, 0, 2, int(signed), len(command), 0, 0) + command
+def packed_version(version):
+    major, minor, patch = version
+    return (major << 16) | (minor << 8) | patch
+
+
+def macho(signed=False, minimum_ios=(15, 0, 0), sdk=(27, 0, 0)):
+    build_version = struct.pack(
+        "<6I", 0x32, 24, 2, packed_version(minimum_ios), packed_version(sdk), 0
+    )
+    signature = struct.pack("<4I", 0x1D, 16, 48, 8) if signed else b""
+    commands = build_version + signature
+    return struct.pack(
+        "<8I", 0xFEEDFACF, 0x0100000C, 0, 2, 1 + int(signed), len(commands), 0, 0
+    ) + commands
 
 
 class UnsignedIPATests(unittest.TestCase):
     def fixture(self):
         root = "Payload/Reynard.app/"
         info = {"CFBundleIdentifier": "test.Reynard", "CFBundleExecutable": "Reynard",
-                "CFBundleVersion": "42", "CFBundleShortVersionString": "0.10.1", "MinimumOSVersion": "13.0",
+                "CFBundleVersion": "42", "CFBundleShortVersionString": "0.11.0", "MinimumOSVersion": "15.0",
                 "CFBundleURLTypes": [{"CFBundleURLSchemes": ["reynard", "http", "https"]}]}
         entries = {root + "Info.plist": plistlib.dumps(info), root + "Reynard": macho(), root + "Frameworks/XUL": macho()}
         for name in ("PlugIns/OpenIn.appex", "PlugIns/Reynard Helper.appex", "Frameworks/GeckoView.framework"):
@@ -44,7 +55,12 @@ class UnsignedIPATests(unittest.TestCase):
             return validator.verify(path)
 
     def test_unsigned_header(self):
-        self.assertEqual(validator.check_macho(io.BytesIO(macho())), {0x0100000C})
+        minimum_versions = []
+        self.assertEqual(
+            validator.check_macho(io.BytesIO(macho()), minimum_ios_versions=minimum_versions),
+            {0x0100000C},
+        )
+        self.assertEqual(minimum_versions, [(15, 0, 0)])
 
     def test_signed_header_rejected(self):
         with self.assertRaisesRegex(ValueError, "LC_CODE_SIGNATURE"):
@@ -66,6 +82,21 @@ class UnsignedIPATests(unittest.TestCase):
         entries = self.fixture()
         del entries["Payload/Reynard.app/PlugIns/OpenIn.appex/Executable"]
         with self.assertRaisesRegex(ValueError, "arm64 binary"):
+            self.verify_entries(entries)
+
+    def test_newer_binary_deployment_target_rejected(self):
+        entries = self.fixture()
+        entries["Payload/Reynard.app/Reynard"] = macho(minimum_ios=(16, 0, 0))
+        with self.assertRaisesRegex(ValueError, "newer than iOS 15"):
+            self.verify_entries(entries)
+
+    def test_manifest_deployment_target_rejected(self):
+        entries = self.fixture()
+        info_path = "Payload/Reynard.app/Info.plist"
+        info = plistlib.loads(entries[info_path])
+        info["MinimumOSVersion"] = "13.0"
+        entries[info_path] = plistlib.dumps(info)
+        with self.assertRaisesRegex(ValueError, "must be iOS 15.0"):
             self.verify_entries(entries)
 
     def test_nested_signature_rejected(self):

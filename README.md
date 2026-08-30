@@ -2,12 +2,15 @@
 
 # Reynard Browser
 
-Reynard is a **Gecko-based** web browser for iOS 13+.
+Reynard is a **Gecko-based** web browser for iOS 15+.
 
 > [!NOTE]
 > This repository is the Simplified Chinese maintenance build. It preserves the upstream Gecko architecture
 > and publishes verified unsigned IPA source builds on this repository's
 > [Releases](https://github.com/xytxg/reynard-browser-zh/releases) page.
+
+Current builds target iOS 15 or later. They compile in CI against the iOS 27 SDK and use UIKit's public
+Liquid Glass APIs on iOS 26/27, with system material blur on iOS 15–25.
 
 Unlike other browsers on iOS that are forced to use Apple's **WebKit** engine (including Safari and all third-party browsers), Reynard uses **Gecko**. This is the same engine that powers the Firefox browser on desktop and Android devices.
 
@@ -17,7 +20,7 @@ This project is mainly for users on older iOS versions who are stuck with an out
 
 The latest Simplified Chinese source builds are available on this repository's [Releases](https://github.com/xytxg/reynard-browser-zh/releases) page. These IPA files are unsigned and must be signed with a compatible sideloading method before installation. Please note that this project is still in an early experimental state, so expect bugs and missing features.
 
-### TrollStore (iOS 14 - 16.6.1, 17.0)
+### TrollStore (iOS 15 - 16.6.1, 17.0)
 
 For the best experience, I'd recommend sideloading Reynard via [TrollStore](https://github.com/opa334/TrollStore) using the `Reynard-TrollStore.tipa` build. This gives you automatic JIT enablement, better performance, and automatic app updates. For automatic app updates, make sure that the **URL Scheme Enabled** option is turned on in TrollStore.
 
@@ -46,15 +49,15 @@ Apple treats `com.apple.developer.web-browser` as a managed entitlement. An unsi
 > - Sideloading methods that use a distribution certificate for signing are **not supported**.⁠
 > - Other sideloading methods are **untested**, and **no support will be provided** for issues arising from them.
 
-### Jailbroken (iOS 13)
+### Jailbroken (iOS 15+)
 
 Sideload the `Reynard-Jailbroken.ipa` build using [Filza File Manager](https://www.tigisoftware.com/default/?page_id=78) with [AppSync Unified](https://github.com/akemin-dayo/AppSync) on a **jailbroken device**. You will also benefit from automatic JIT enablement and better performance.
 
 ## Preview
 
-### iOS 14 (iPhone 6S Plus, 14.1)
+### Historical iOS 14 preview (iPhone 6S Plus, 14.1)
 
-These sites are known to break or render incorrectly on iOS 14. The screenshots below compare how they load in Safari versus Reynard.
+These screenshots were made with an older Reynard build. Current builds require iOS 15 or later.
 
 <table>
   <tr>

@@ -133,7 +133,8 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
             return
         }
         
-        applyGeckoPreferences()
+        RuntimePreferences.apply() // Gecko prefs
+        
         configureBrowserInterface()
         observeNotifications()
         contextMenuCoordinator.configure()
@@ -249,17 +250,6 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
         }
     }
     
-    // MARK: - Preferences
-    
-    private func applyGeckoPreferences() {
-        // HTTPS-only mode
-        HTTPSOnlyModePolicyController.applyHTTPSOnlyMode()
-        
-        // Tracking Protection
-        TrackingProtectionPolicyController.applyEnhancedTrackingProtection()
-        TrackingProtectionPolicyController.applyGlobalPrivacyControl()
-    }
-    
     // MARK: - Browser Layout
     
     private func configureBrowserInterface() {
@@ -312,12 +302,12 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
         }
         browserChrome.onBack = { [weak self] in
             self?.toolbarController.reset()
-            self?.captureOutgoingHistoryThumbnail()
+            self?.prepareThumbnailForNavigation()
             self?.tabManager.goBack()
         }
         browserChrome.onForward = { [weak self] in
             self?.toolbarController.reset()
-            self?.captureOutgoingHistoryThumbnail()
+            self?.prepareThumbnailForNavigation()
             self?.tabManager.goForward()
         }
         browserChrome.configureNavigationMenus(
@@ -341,7 +331,7 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
                 }
                 
                 self.toolbarController.reset()
-                self.captureOutgoingHistoryThumbnail()
+                self.prepareThumbnailForNavigation()
                 switch direction {
                 case .back:
                     self.tabManager.goBack(to: index)

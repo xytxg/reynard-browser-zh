@@ -25,6 +25,10 @@ for arg in "$@"; do
 	esac
 done
 
+if [ "$USE_SCCACHE" = true ]; then
+	SCCACHE_BIN="${SCCACHE_PATH:-$(command -v sccache)}"
+fi
+
 cd "$ROOT_DIR"
 
 if [ ! -d "$FIREFOX_DIR" ]; then
@@ -59,7 +63,7 @@ trap 'exit 143' TERM
 {
 	echo "ac_add_options --enable-application=mobile/ios"
 	echo "ac_add_options --target=$TARGET"
-	echo "ac_add_options --enable-ios-target=13.0"
+	echo "ac_add_options --enable-ios-target=15.0"
 	echo "ac_add_options --enable-webrtc"
 	echo "ac_add_options --enable-optimize"
 	echo "ac_add_options --enable-release"
@@ -69,7 +73,8 @@ trap 'exit 143' TERM
 	echo "ac_add_options --disable-tests"
 	echo "ac_add_options --enable-bootstrap"
 	if [ "$USE_SCCACHE" = true ]; then
-		echo "ac_add_options --with-ccache=sccache"
+		echo "mk_add_options 'export RUSTC_WRAPPER=$SCCACHE_BIN'"
+		echo "ac_add_options --with-ccache=$SCCACHE_BIN"
 	fi
 	if [ "$DISABLE_JEMALLOC" = true ]; then
 		echo "ac_add_options --disable-jemalloc"

@@ -284,7 +284,7 @@ extension FilePicker {
     }
     
     @available(iOS 14.0, *)
-    private static func preferredMediaFileName(sourceURL: URL?, typeIdentifier: String) -> String {
+    private nonisolated static func preferredMediaFileName(sourceURL: URL?, typeIdentifier: String) -> String {
         if let sourceURL {
             let name = sourceURL.lastPathComponent
             if !name.isEmpty {

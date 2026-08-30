@@ -129,7 +129,7 @@ extension FilePicker {
         )?.takeRetainedValue() as String?
     }
     
-    static func typeConforms(_ typeIdentifier: String, to parentIdentifier: String) -> Bool {
+    nonisolated static func typeConforms(_ typeIdentifier: String, to parentIdentifier: String) -> Bool {
         if #available(iOS 14.0, *) {
             guard let type = UTType(typeIdentifier),
                   let parentType = UTType(parentIdentifier) else {

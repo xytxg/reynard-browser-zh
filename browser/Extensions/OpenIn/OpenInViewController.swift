@@ -95,7 +95,7 @@ final class OpenInViewController: UIViewController {
         (cls as AnyObject).responds(to: defaultSelector),
         let workspace = (cls as AnyObject).perform(defaultSelector)?.takeUnretainedValue(),
         workspace.responds(to: openSelector) {
-            workspace.perform(openSelector, with: url, with: nil as NSDictionary?)
+            _ = workspace.perform(openSelector, with: url, with: nil as NSDictionary?)
             extensionContext?.completeRequest(returningItems: nil)
             return
         }
@@ -104,7 +104,7 @@ final class OpenInViewController: UIViewController {
         var responder: UIResponder? = self
         while let r = responder {
             if r is UIApplication, r.responds(to: selector) {
-                r.perform(selector, with: url)
+                _ = r.perform(selector, with: url)
                 extensionContext?.completeRequest(returningItems: nil)
                 return
             }

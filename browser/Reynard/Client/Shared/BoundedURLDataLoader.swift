@@ -67,7 +67,7 @@ final class BoundedURLDataLoader: NSObject {
         task?.cancel()
     }
 
-    private func finish(_ result: Result<Data, Error>) {
+    private func finish(_ result: Result<LoadedResponse, Error>) {
         guard let completion else {
             return
         }

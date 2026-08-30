@@ -15,7 +15,17 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def check_macho(stream, offset=0):
+def unpack_apple_version(value):
+    return value >> 16, (value >> 8) & 0xFF, value & 0xFF
+
+
+def parse_version(value):
+    components = [int(part) for part in str(value).split(".")]
+    require(1 <= len(components) <= 3, "Invalid iOS deployment version")
+    return tuple((components + [0, 0])[:3])
+
+
+def check_macho(stream, offset=0, minimum_ios_versions=None):
     stream.seek(offset)
     magic = stream.read(4)
     if magic in (b"\xca\xfe\xba\xbe", b"\xca\xfe\xba\xbf"):
@@ -27,7 +37,9 @@ def check_macho(stream, offset=0):
         for record in records:
             child_offset = struct.unpack_from(">Q" if wide else ">I", record, 8)[0]
             require(child_offset > 0, "Invalid universal binary slice offset")
-            architectures.update(check_macho(stream, offset + child_offset))
+            architectures.update(
+                check_macho(stream, offset + child_offset, minimum_ios_versions)
+            )
         return architectures
     if magic not in (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe"):
         return set()
@@ -42,6 +54,16 @@ def check_macho(stream, offset=0):
         command, length = struct.unpack_from("<II", commands, cursor)
         require(length >= 8 and cursor + length <= len(commands), "Invalid Mach-O command size")
         require(command != 0x1D, "LC_CODE_SIGNATURE remains in an unsigned binary")
+        if minimum_ios_versions is not None and command == 0x25:
+            require(length >= 16, "Invalid LC_VERSION_MIN_IPHONEOS command")
+            minimum_ios_versions.append(
+                unpack_apple_version(struct.unpack_from("<I", commands, cursor + 8)[0])
+            )
+        elif minimum_ios_versions is not None and command == 0x32:
+            require(length >= 24, "Invalid LC_BUILD_VERSION command")
+            platform, minimum = struct.unpack_from("<II", commands, cursor + 8)
+            if platform == 2:  # PLATFORM_IOS; simulator slices are not accepted here.
+                minimum_ios_versions.append(unpack_apple_version(minimum))
         cursor += length
     require(cursor == size, "Mach-O command count/size mismatch")
     return {cpu}
@@ -63,7 +85,10 @@ def verify(path):
 
         app = plistlib.loads(archive.read(root + "Info.plist"))
         require(re.fullmatch(r"\d+(?:\.\d+){0,2}", str(app["CFBundleVersion"])), "Build number is not numeric")
-        require(int(app["MinimumOSVersion"].split(".")[0]) <= 13, "iOS 13 compatibility was lost")
+        require(
+            parse_version(app["MinimumOSVersion"]) == (15, 0, 0),
+            "App deployment target must be iOS 15.0",
+        )
         registered_schemes = {
             scheme.lower()
             for url_type in app.get("CFBundleURLTypes", [])
@@ -86,21 +111,31 @@ def verify(path):
         expected_binaries.append(root + "Frameworks/XUL")
 
         checked = {}
+        minimum_ios_by_binary = {}
         for item in archive.infolist():
             if not item.is_dir():
+                minimum_ios_versions = []
                 with archive.open(item) as stream:
-                    architectures = check_macho(stream)
+                    architectures = check_macho(stream, minimum_ios_versions=minimum_ios_versions)
                 if architectures:
                     checked[item.filename] = architectures
+                    minimum_ios_by_binary[item.filename] = minimum_ios_versions
         for name in expected_binaries:
             require(0x0100000C in checked.get(name, set()), "Required arm64 binary is absent: " + name)
+            versions = minimum_ios_by_binary.get(name, [])
+            require(versions, "Required iOS deployment load command is absent: " + name)
+            require(max(versions) <= (15, 0, 0), "A required binary requires newer than iOS 15: " + name)
 
         chinese = plistlib.loads(archive.read(root + "zh-Hans.lproj/Localizable.strings"))
         require(chinese.get("Pause") == "暂停" and chinese.get("Resume") == "继续下载", "Chinese download controls are missing")
         for catalog in ("AddonLocalizable", "SettingsLocalizable", "InfoPlist"):
             require(root + f"zh-Hans.lproj/{catalog}.strings" in names, "Chinese catalog missing: " + catalog)
+        maximum_binary_minimum = max(
+            version for name in expected_binaries for version in minimum_ios_by_binary[name]
+        )
         return {"version": app["CFBundleShortVersionString"], "build": app["CFBundleVersion"],
                 "minimum_ios": app["MinimumOSVersion"], "mach_o_files": len(checked),
+                "mach_o_minimum_ios": ".".join(map(str, maximum_binary_minimum)),
                 "signing": "unsigned", "chinese": "verified"}
 
 

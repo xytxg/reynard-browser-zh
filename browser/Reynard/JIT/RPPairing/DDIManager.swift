@@ -142,12 +142,6 @@ final class DDIManager: NSObject {
         let item = active.plan.items[active.currentIndex]
         
         do {
-            guard let response = task.response as? HTTPURLResponse,
-                  response.statusCode == 200,
-                  response.url == item.remoteURL,
-                  isValidFile(at: location, for: item) else {
-                throw DDIError.invalidDownload
-            }
             try fileManager.createDirectory(
                 at: item.destinationURL.deletingLastPathComponent(),
                 withIntermediateDirectories: true
@@ -177,6 +171,13 @@ final class DDIManager: NSObject {
         let item = active.plan.items[active.currentIndex]
         
         do {
+            guard let response = task.response as? HTTPURLResponse,
+                  response.statusCode == 200,
+                  response.url == item.remoteURL,
+                  isValidFile(at: location, for: item) else {
+                throw DDIError.invalidDownload
+            }
+
             try fileManager.createDirectory(
                 at: item.destinationURL.deletingLastPathComponent(),
                 withIntermediateDirectories: true
