@@ -14,19 +14,31 @@ extension UIGlassEffect {
     static func nonAdaptive(style: Style) -> UIGlassEffect {
         let effect = UIGlassEffect(style: style)
         let glassSelector = Selector(("glass"))
+        guard effect.responds(to: glassSelector) else {
+            return effect
+        }
         typealias GlassGetter = @convention(c) (AnyObject, Selector) -> Unmanaged<AnyObject>
         let getGlass = unsafeBitCast(effect.method(for: glassSelector), to: GlassGetter.self)
         let glass = getGlass(effect, glassSelector).takeUnretainedValue()
-        
+
         let adaptiveSelector = Selector(("setAdaptive:"))
+        guard (glass as? NSObject)?.responds(to: adaptiveSelector) == true else {
+            return effect
+        }
         typealias SetAdaptive = @convention(c) (AnyObject, Selector, Bool) -> Void
         let setAdaptive = unsafeBitCast(glass.method(for: adaptiveSelector), to: SetAdaptive.self)
         setAdaptive(glass, adaptiveSelector, false)
-        
+
         let factorySelector = Selector(("effectWithGlass:"))
-        let factoryMethod = class_getClassMethod(UIGlassEffect.self, factorySelector)!
+        guard let factoryMethod = class_getClassMethod(UIGlassEffect.self, factorySelector) else {
+            return effect
+        }
         typealias GlassEffectFactory = @convention(c) (AnyObject, Selector, AnyObject) -> Unmanaged<AnyObject>
         let makeGlassEffect = unsafeBitCast(method_getImplementation(factoryMethod), to: GlassEffectFactory.self)
-        return makeGlassEffect(UIGlassEffect.self, factorySelector, glass).takeUnretainedValue() as! UIGlassEffect
+        return makeGlassEffect(
+            UIGlassEffect.self,
+            factorySelector,
+            glass
+        ).takeUnretainedValue() as? UIGlassEffect ?? effect
     }
 }

@@ -73,15 +73,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
     
     private func handleIncomingURLContexts(_ urlContexts: Set<UIOpenURLContext>) {
-        guard let incomingURL = urlContexts.first?.url else {
+        guard let resolvedURL = IncomingBrowserURL.firstResolvedURL(
+            in: urlContexts.map(\.url)
+        ) else {
             return
         }
-        handleIncomingURL(incomingURL)
+        openIncomingBrowserURL(resolvedURL)
     }
     
-    private func handleIncomingURL(_ incomingURL: URL) {
-        guard let browserViewController = window?.rootViewController as? BrowserViewController,
-              let resolvedURL = resolvedBrowserURL(from: incomingURL) else {
+    private func openIncomingBrowserURL(_ resolvedURL: URL) {
+        guard let browserViewController = window?.rootViewController as? BrowserViewController else {
             return
         }
         
@@ -90,23 +91,5 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             browserViewController.sidebarCoordinator.loadContentIfNeeded()
             browserViewController.sidebarCoordinator.openExternalURL(resolvedURL)
         }
-    }
-    
-    private func resolvedBrowserURL(from incomingURL: URL) -> URL? {
-        guard let scheme = incomingURL.scheme?.lowercased() else {
-            return nil
-        }
-        
-        if scheme == "http" || scheme == "https" {
-            return incomingURL
-        }
-        
-        guard scheme == "reynard",
-              let components = URLComponents(url: incomingURL, resolvingAgainstBaseURL: false),
-              let encodedURL = components.queryItems?.first(where: { $0.name == "url" })?.value else {
-            return nil
-        }
-        
-        return URL(string: encodedURL)
     }
 }

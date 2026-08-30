@@ -93,18 +93,25 @@
         if (result != 0 && result != EACCES && result != ENOENT && result != ENOEXEC && result != 126 && result != 127) {
             // keep existing behavior for non-permission failures
         } else if (result == EACCES || result == ENOENT || result == ENOEXEC || result == 126 || result == 127) {
-            NSString *tempPath = [NSTemporaryDirectory() stringByAppendingPathComponent:helperName];
+            NSString *tempDirectory = [NSTemporaryDirectory() stringByAppendingPathComponent:
+                [NSString stringWithFormat:@"reynard-jit-%@", NSUUID.UUID.UUIDString]];
+            NSString *tempPath = [tempDirectory stringByAppendingPathComponent:helperName];
             NSError *copyError = nil;
-            [fileManager removeItemAtPath:tempPath error:nil];
-            if ([fileManager copyItemAtPath:jitHelper toPath:tempPath error:&copyError]) {
-                chmod(tempPath.UTF8String, 0755);
+            NSDictionary *directoryAttributes = @{NSFilePosixPermissions: @0700};
+            BOOL createdDirectory = [fileManager createDirectoryAtPath:tempDirectory
+                                           withIntermediateDirectories:NO
+                                                            attributes:directoryAttributes
+                                                                 error:&copyError];
+            if (createdDirectory && [fileManager copyItemAtPath:jitHelper toPath:tempPath error:&copyError]) {
+                chmod(tempPath.UTF8String, 0700);
                 if ([fileManager isExecutableFileAtPath:tempPath]) {
-                    logger([NSString stringWithFormat:@"Retrying %@ from temp path %@", helperName, tempPath]);
+                    logger([NSString stringWithFormat:@"Retrying %@ from a protected temporary directory", helperName]);
                     result = spawnRoot(tempPath, @[[NSString stringWithFormat:@"%d", pid]]);
                 }
             } else {
                 logger([NSString stringWithFormat:@"Failed to copy %@ to temp path: %@", helperName, copyError.localizedDescription ?: @"unknown"]);
             }
+            [fileManager removeItemAtPath:tempDirectory error:nil];
         }
         if (result >= 128) {
             if (error) *error = MakeError(TSPtraceHelperTerminated);

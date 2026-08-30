@@ -41,6 +41,41 @@ GitHub Actions 产物没有 Apple 开发证书、分发证书或 Provisioning Pr
 扩展丢失会导致打开文件、Gecko 进程或其他浏览器能力失效。LiveContainer 受其进程和应用扩展
 模型限制，不属于受支持方案；使用分发证书重签也存在 entitlement 和扩展兼容限制。
 
+## 默认浏览器与外部链接
+
+Reynard 已注册 `http`、`https` URL Scheme，并同时处理冷启动和运行中的外部链接。收到链接后会
+直接在普通/私密浏览模式当前所选模式中打开网页；`reynard://` 包装链接只允许最终目标为有效的
+HTTP/HTTPS 地址，不允许借此打开本地文件或脚本协议。应用内可进入
+**设置 → 通用 → 默认浏览器**：iOS 18.3 及以上会直接打开“默认 App”设置，iOS 14–18.2
+会打开 Reynard 的应用设置。
+
+能否出现在系统“浏览器 App”列表，最终取决于安装签名中是否真的含有 Apple 管理的
+`com.apple.developer.web-browser` 权限：
+
+- 源码的标准 entitlement 已声明该权限，使用获 Apple 批准且包含该权限的 Provisioning Profile
+  签名后可供系统识别；申请和要求见 Apple 的
+  [默认浏览器准备说明](https://developer.apple.com/documentation/xcode/preparing-your-app-to-be-the-default-browser)与
+  [entitlement 参考](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.web-browser)。
+- 本仓库发布的未签名 IPA 没有任何签名 entitlement；重新签名时必须由签名环境注入获准权限。
+- AltStore、SideStore 或普通个人开发证书不能自行创造 Apple 管理权限。此类签名仍可通过分享菜单、
+  `reynard://` 或其他明确交付方式打开链接，但 Reynard 不会出现在系统默认浏览器列表中。
+- 使用 TrollStore/越狱签名时，可通过 `Reynard.private.entitlements` 保留相应声明；系统是否接受仍取决于
+  iOS 版本和安装方式，不能仅靠修改 `Info.plist` 保证。
+
+若设置行显示“需要兼容签名”，表示当前实际安装的 App 签名里没有该权限；这不是界面开关能够绕过的限制。
+
+## 检测和下载更新
+
+进入 **设置 → App 更新 → 检测更新**，Reynard 会请求本仓库公开的 GitHub Releases API，
+同时识别正式版和更新的 `main` 构建。更新器只接受
+`github.com/xytxg/reynard-browser-zh/releases/download/` 下、名称符合 Reynard 规则的 IPA；下载前
+读取 Release 附带的 `.sha256`，下载后同时核对文件大小和 SHA-256，通过后才会打开共享菜单。
+
+普通 iOS App 无权静默安装或覆盖自身，未签名 IPA 也不能直接执行。因此 AltStore、SideStore、
+个人证书等安装方式会在校验完成后打开共享菜单，需要手动选择原签名工具重新签名安装。若当前通过
+TrollStore 安装，且对应 Release 另附 `.tipa`，更新按钮会优先唤起 TrollStore；只有未签名 IPA 时
+仍会走“校验后分享”。这项限制来自 iOS 代码签名模型，不能通过浏览器代码绕过。
+
 ## 在 GitHub Actions 从源码构建
 
 1. 打开本仓库的 **Actions** 页面。

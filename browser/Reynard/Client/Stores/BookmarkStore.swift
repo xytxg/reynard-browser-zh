@@ -99,9 +99,11 @@ final class BookmarkStore {
     init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
         
-        guard let applicationSupportDirectoryURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            fatalError("Application Support directory is unavailable")
-        }
+        let applicationSupportDirectoryURL = fileManager.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first ?? fileManager.temporaryDirectory
+            .appendingPathComponent("ReynardRecovery", isDirectory: true)
         
         let directoryURL = applicationSupportDirectoryURL
             .appendingPathComponent("AppData", isDirectory: true)

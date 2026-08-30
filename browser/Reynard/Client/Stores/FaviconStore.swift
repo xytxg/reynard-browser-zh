@@ -26,6 +26,8 @@ final class FaviconStore {
     private static let maxImageBytes = 2 * 1024 * 1024
     private static let maxImagePixelCount = 16 * 1024 * 1024
     private static let maxImageDimension = 8 * 1024
+    private static let maxDeclaredCandidateCount = 64
+    private static let maxFetchedCandidateCount = 48
     private static let maxRedirectDepth = 3
     private static let minimumTouchIconSideLength = 57
     private static let transparencySampleSideLength = 32
@@ -86,13 +88,6 @@ final class FaviconStore {
     private var database: OpaquePointer?
     private let sqliteTransient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
     
-    private lazy var session: URLSession = {
-        let configuration = URLSessionConfiguration.default
-        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-        configuration.timeoutIntervalForRequest = 5
-        configuration.timeoutIntervalForResource = 10
-        return URLSession(configuration: configuration)
-    }()
     private lazy var metadataUserAgent: String = {
         let version = ProcessInfo.processInfo.operatingSystemVersion
         let operatingSystemVersion = "\(version.majorVersion)_\(version.minorVersion)"
@@ -101,15 +96,15 @@ final class FaviconStore {
         return "Mozilla/5.0 (\(device) \(operatingSystemVersion) like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/\(safariVersion) Mobile/15E148 Safari/604.1"
     }()
     
-    private lazy var linkTagExpression = try! NSRegularExpression(
+    private lazy var linkTagExpression = try? NSRegularExpression(
         pattern: "(?is)<link\\b[^>]*>",
         options: []
     )
-    private lazy var metaTagExpression = try! NSRegularExpression(
+    private lazy var metaTagExpression = try? NSRegularExpression(
         pattern: "(?is)<meta\\b[^>]*>",
         options: []
     )
-    private lazy var attributeExpression = try! NSRegularExpression(
+    private lazy var attributeExpression = try? NSRegularExpression(
         pattern: "(?is)([A-Za-z_:][-A-Za-z0-9_:.]*)\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s>]+))",
         options: []
     )
@@ -493,7 +488,7 @@ final class FaviconStore {
     
     private func fetchAndCacheFirstCandidate(_ candidates: [FetchCandidate], for pageURL: URL) async -> UIImage? {
         var seenCandidateURLs = Set<String>()
-        for candidate in candidates {
+        for candidate in candidates.prefix(Self.maxFetchedCandidateCount) {
             guard !Task.isCancelled else {
                 return nil
             }
@@ -972,7 +967,10 @@ final class FaviconStore {
         request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
         request.setValue(metadataUserAgent, forHTTPHeaderField: "User-Agent")
         
-        guard let (data, response) = await data(for: request),
+        guard let (data, response) = await data(
+            for: request,
+            maximumByteCount: Self.maxHTMLBytes
+        ),
               data.count <= Self.maxHTMLBytes else {
             return nil
         }
@@ -1002,7 +1000,10 @@ final class FaviconStore {
         request.httpMethod = "GET"
         request.setValue("image/*,*/*;q=0.8", forHTTPHeaderField: "Accept")
         
-        guard let (data, response) = await data(for: request),
+        guard let (data, response) = await data(
+            for: request,
+            maximumByteCount: Self.maxImageBytes
+        ),
               data.count <= Self.maxImageBytes,
               let image = decodedImage(from: data) else {
             return nil
@@ -1016,7 +1017,10 @@ final class FaviconStore {
         request.httpMethod = "GET"
         request.setValue("application/manifest+json,application/json", forHTTPHeaderField: "Accept")
         
-        guard let (data, response) = await data(for: request),
+        guard let (data, response) = await data(
+            for: request,
+            maximumByteCount: Self.maxHTMLBytes
+        ),
               data.count <= Self.maxHTMLBytes,
               let manifest = try? JSONSerialization.jsonObject(with: data) else {
             return []
@@ -1032,7 +1036,8 @@ final class FaviconStore {
             return []
         }
         
-        let candidates = icons.enumerated().compactMap { documentOrder, icon -> ManifestIcon? in
+        let candidates = icons.prefix(Self.maxDeclaredCandidateCount).enumerated().compactMap {
+            documentOrder, icon -> ManifestIcon? in
             guard let source = icon["src"] as? String,
                   let url = URL(string: source, relativeTo: baseURL)?.absoluteURL else {
                 return nil
@@ -1093,37 +1098,47 @@ final class FaviconStore {
         return UIImage(data: data)
     }
     
-    private func data(for request: URLRequest) async -> (Data, URLResponse)? {
+    private func data(
+        for request: URLRequest,
+        maximumByteCount: Int
+    ) async -> (Data, URLResponse)? {
         guard let requestedURL = request.url,
               URLUtils.isWebURL(requestedURL) else {
             return nil
         }
         
         return await withCheckedContinuation { continuation in
-            let task = session.dataTask(with: request) { data, response, error in
-                guard error == nil,
-                      let data,
-                      let response,
-                      URLUtils.isWebURL(response.url ?? requestedURL) else {
-                    continuation.resume(returning: nil)
-                    return
+            let loader = BoundedURLDataLoader(
+                maximumByteCount: maximumByteCount,
+                timeoutIntervalForRequest: 5,
+                timeoutIntervalForResource: 10,
+                responseValidator: { response in
+                    guard (200...299).contains(response.statusCode),
+                          let finalURL = response.url else {
+                        return false
+                    }
+                    return URLUtils.isWebURL(finalURL)
+                },
+                completion: { result in
+                    guard let loadedResponse = try? result.get() else {
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                    continuation.resume(
+                        returning: (loadedResponse.data, loadedResponse.response)
+                    )
                 }
-                
-                if let httpResponse = response as? HTTPURLResponse,
-                   !(200...299).contains(httpResponse.statusCode) {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                
-                continuation.resume(returning: (data, response))
-            }
-            task.resume()
+            )
+            loader.start(with: request)
         }
     }
     
     // MARK: - HTML Parsing
     
     private func manifestURL(in html: String, baseURL: URL) -> URL? {
+        guard let linkTagExpression else {
+            return nil
+        }
         let nsHTML = html as NSString
         let matches = linkTagExpression.matches(in: html, range: NSRange(location: 0, length: nsHTML.length))
         
@@ -1145,11 +1160,14 @@ final class FaviconStore {
     }
     
     private func iconCandidates(in html: String, baseURL: URL) -> [IconCandidate] {
+        guard let linkTagExpression else {
+            return []
+        }
         let nsHTML = html as NSString
         let matches = linkTagExpression.matches(in: html, range: NSRange(location: 0, length: nsHTML.length))
         var candidates: [IconCandidate] = []
         
-        for (documentOrder, match) in matches.enumerated() {
+        for (documentOrder, match) in matches.prefix(Self.maxDeclaredCandidateCount).enumerated() {
             let tag = nsHTML.substring(with: match.range)
             let attributes = attributes(in: tag)
             let relTokens = Set((attributes["rel"]?.lowercased() ?? "").split(whereSeparator: \.isWhitespace).map(String.init))
@@ -1267,6 +1285,9 @@ final class FaviconStore {
     }
     
     private func attributes(in tag: String) -> [String: String] {
+        guard let attributeExpression else {
+            return [:]
+        }
         let nsTag = tag as NSString
         let matches = attributeExpression.matches(in: tag, range: NSRange(location: 0, length: nsTag.length))
         var result: [String: String] = [:]
@@ -1295,6 +1316,9 @@ final class FaviconStore {
     }
     
     private func metaRefreshRedirectURL(in html: String, baseURL: URL) -> URL? {
+        guard let metaTagExpression else {
+            return nil
+        }
         let nsHTML = html as NSString
         let matches = metaTagExpression.matches(in: html, range: NSRange(location: 0, length: nsHTML.length))
         

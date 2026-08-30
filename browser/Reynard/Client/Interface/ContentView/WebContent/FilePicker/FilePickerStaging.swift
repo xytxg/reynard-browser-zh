@@ -27,6 +27,14 @@ extension FilePicker {
     
     nonisolated static func stageFolder(from url: URL, in directory: URL) throws -> SelectionResult {
         try prepareDirectory(directory)
+
+        let sourceValues = try url.resourceValues(
+            forKeys: [.isDirectoryKey, .isSymbolicLinkKey]
+        )
+        guard sourceValues.isDirectory == true,
+              sourceValues.isSymbolicLink != true else {
+            throw CocoaError(.fileReadInvalidFileName)
+        }
         
         let rootName = sanitizeFileName(url.lastPathComponent.isEmpty ? "Folder" : url.lastPathComponent)
         let destinationURL = directory.appendingPathComponent(rootName, isDirectory: true)
@@ -40,18 +48,37 @@ extension FilePicker {
         
         let enumerator = FileManager.default.enumerator(
             at: destinationURL,
-            includingPropertiesForKeys: [.isRegularFileKey, .contentModificationDateKey],
+            includingPropertiesForKeys: [
+                .isRegularFileKey,
+                .isSymbolicLinkKey,
+                .contentModificationDateKey,
+            ],
             options: [.skipsHiddenFiles]
         )
         
         var entries: [FolderEntry] = []
         while let fileURL = enumerator?.nextObject() as? URL {
-            let resourceValues = try fileURL.resourceValues(forKeys: [.isRegularFileKey, .contentModificationDateKey])
+            let resourceValues = try fileURL.resourceValues(
+                forKeys: [
+                    .isRegularFileKey,
+                    .isSymbolicLinkKey,
+                    .contentModificationDateKey,
+                ]
+            )
+            if resourceValues.isSymbolicLink == true {
+                enumerator?.skipDescendants()
+                try FileManager.default.removeItem(at: fileURL)
+                continue
+            }
             guard resourceValues.isRegularFile == true else {
                 continue
             }
-            
-            let relativeComponent = fileURL.path.replacingOccurrences(of: destinationURL.path + "/", with: "")
+
+            let destinationPrefix = destinationURL.path + "/"
+            guard fileURL.path.hasPrefix(destinationPrefix) else {
+                continue
+            }
+            let relativeComponent = String(fileURL.path.dropFirst(destinationPrefix.count))
             entries.append(
                 FolderEntry(
                     filePath: fileURL.path,
@@ -115,10 +142,18 @@ extension FilePicker {
     }
     
     private nonisolated static func sanitizeFileName(_ name: String) -> String {
-        let invalidCharacters = CharacterSet(charactersIn: "/:\n")
+        let invalidCharacters = CharacterSet(charactersIn: "/:\\\n")
+            .union(.controlCharacters)
         let pieces = name.components(separatedBy: invalidCharacters)
-        let sanitized = pieces.joined(separator: "-").trimmingCharacters(in: .whitespacesAndNewlines)
-        return sanitized.isEmpty ? "File" : sanitized
+        let sanitized = pieces
+            .joined(separator: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !sanitized.isEmpty,
+              sanitized != ".",
+              sanitized != ".." else {
+            return "File"
+        }
+        return String(sanitized.prefix(180))
     }
     
     private nonisolated static func mimeType(for url: URL) -> String {

@@ -5,6 +5,7 @@
 //  Created by Minh Ton on 23/3/26.
 //
 
+import CryptoKit
 import Foundation
 
 final class DDIManager: NSObject {
@@ -13,6 +14,7 @@ final class DDIManager: NSObject {
         case cancelled
         case appSupportDirUnavail
         case invalidRemoteURL
+        case invalidDownload
         
         var errorDescription: String? {
             switch self {
@@ -24,6 +26,8 @@ final class DDIManager: NSObject {
                 return NSLocalizedString("Unable to access the app Application Support directory.", comment: "")
             case .invalidRemoteURL:
                 return NSLocalizedString("Developer Disk Image source URL is invalid.", comment: "")
+            case .invalidDownload:
+                return NSLocalizedString("Developer Disk Image verification failed.", comment: "")
             }
         }
     }
@@ -33,6 +37,8 @@ final class DDIManager: NSObject {
     private struct DownloadItem {
         let remoteURL: URL
         let destinationURL: URL
+        let expectedByteCount: Int64
+        let expectedSHA256: String
     }
     
     private struct DownloadPlan {
@@ -51,8 +57,10 @@ final class DDIManager: NSObject {
     private let fileManager: FileManager
     private let stateQueue = DispatchQueue(label: "com.minh-ton.Reynard.DDIManager.Queue", qos: .userInitiated)
     private lazy var session: URLSession = {
-        let configuration = URLSessionConfiguration.default
+        let configuration = URLSessionConfiguration.ephemeral
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.timeoutIntervalForRequest = 30
+        configuration.timeoutIntervalForResource = 10 * 60
         return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
     }()
     
@@ -68,7 +76,7 @@ final class DDIManager: NSObject {
             return false
         }
         
-        return plan.items.allSatisfy { fileManager.fileExists(atPath: $0.destinationURL.path) }
+        return plan.items.allSatisfy(isValidDownloadedItem)
     }
     
     func ensureRequiredDDIFiles(
@@ -134,6 +142,12 @@ final class DDIManager: NSObject {
         let item = active.plan.items[active.currentIndex]
         
         do {
+            guard let response = task.response as? HTTPURLResponse,
+                  response.statusCode == 200,
+                  response.url == item.remoteURL,
+                  isValidFile(at: location, for: item) else {
+                throw DDIError.invalidDownload
+            }
             try fileManager.createDirectory(
                 at: item.destinationURL.deletingLastPathComponent(),
                 withIntermediateDirectories: true
@@ -197,7 +211,17 @@ final class DDIManager: NSObject {
               task.taskIdentifier == taskIdentifier else {
             return
         }
-        
+
+        let item = active.plan.items[active.currentIndex]
+        guard totalBytesWritten <= item.expectedByteCount else {
+            task.cancel()
+            finishActiveDownloadLocked(
+                result: .failure(DDIError.invalidDownload),
+                shouldCleanup: true
+            )
+            return
+        }
+
         let fileProgress: Double
         if totalBytesExpectedToWrite > 0 {
             fileProgress = min(max(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite), 0), 1)
@@ -278,16 +302,37 @@ final class DDIManager: NSObject {
     
     private func makeDownloadPlan() throws -> DownloadPlan {
         let rootDirectoryURL = try ddiRootDirectoryURL()
-        let baseURLString = "https://github.com/doronz88/DeveloperDiskImage/raw/refs/heads/main/PersonalizedImages/Xcode_iOS_DDI_Personalized"
-        guard let baseURL = URL(string: baseURLString) else {
+        let pinnedRevision = "5423e4e955fbb3a9eef3e1212acfbfc6e7a26236"
+        let baseURLString = "https://raw.githubusercontent.com/doronz88/DeveloperDiskImage/\(pinnedRevision)/PersonalizedImages/Xcode_iOS_DDI_Personalized"
+        guard let baseURL = URL(string: baseURLString),
+              baseURL.scheme == "https",
+              baseURL.host == "raw.githubusercontent.com" else {
             throw DDIError.invalidRemoteURL
         }
         
-        let fileNames = ["BuildManifest.plist", "Image.dmg", "Image.dmg.trustcache"]
-        let items = fileNames.map { fileName in
+        let files: [(name: String, byteCount: Int64, sha256: String)] = [
+            (
+                "BuildManifest.plist",
+                801_505,
+                "8edd4a2f4f4ef1fbd7bfe49785d8badc673d1395d1d94d85b132ca8ab5ecaf54"
+            ),
+            (
+                "Image.dmg",
+                15_733_248,
+                "05fd807da5e19f030fa4941f24800c965c6c77982ab572dd5d1ef778fb69f9ca"
+            ),
+            (
+                "Image.dmg.trustcache",
+                1_895,
+                "36af60889ff5a737874a26daeb8e1a0139ebfebec6ec2e4d8f6a3c1bf1dce35c"
+            ),
+        ]
+        let items = files.map { file in
             DownloadItem(
-                remoteURL: baseURL.appendingPathComponent(fileName),
-                destinationURL: rootDirectoryURL.appendingPathComponent(fileName, isDirectory: false)
+                remoteURL: baseURL.appendingPathComponent(file.name),
+                destinationURL: rootDirectoryURL.appendingPathComponent(file.name, isDirectory: false),
+                expectedByteCount: file.byteCount,
+                expectedSHA256: file.sha256
             )
         }
         
@@ -300,6 +345,33 @@ final class DDIManager: NSObject {
         }
         
         return applicationSupportDirectory.appendingPathComponent("DDI", isDirectory: true)
+    }
+
+    private func isValidDownloadedItem(_ item: DownloadItem) -> Bool {
+        return isValidFile(at: item.destinationURL, for: item)
+    }
+
+    private func isValidFile(at fileURL: URL, for item: DownloadItem) -> Bool {
+        guard let values = try? fileURL.resourceValues(
+            forKeys: [.isRegularFileKey, .fileSizeKey]
+        ),
+        values.isRegularFile == true,
+        values.fileSize == Int(item.expectedByteCount),
+        let fileHandle = try? FileHandle(forReadingFrom: fileURL) else {
+            return false
+        }
+        defer { fileHandle.closeFile() }
+
+        var hasher = SHA256()
+        while true {
+            let data = fileHandle.readData(ofLength: 1024 * 1024)
+            guard !data.isEmpty else {
+                break
+            }
+            hasher.update(data: data)
+        }
+        let digest = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+        return digest == item.expectedSHA256
     }
 }
 

@@ -428,8 +428,14 @@ final class AddonsPreferencesViewController: SettingsTableViewController {
         if fileManager.fileExists(atPath: destinationURL.path) {
             try fileManager.removeItem(at: destinationURL)
         }
-        
-        try fileManager.copyItem(at: packageURL, to: destinationURL)
+
+        do {
+            try fileManager.copyItem(at: packageURL, to: destinationURL)
+            try AddonPackageSafety.validate(fileURL: destinationURL)
+        } catch {
+            try? fileManager.removeItem(at: destinationURL)
+            throw error
+        }
         return destinationURL
     }
     

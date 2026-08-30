@@ -89,7 +89,7 @@ final class AboutSettingsSection {
     private func url(for row: Row) -> URL? {
         switch row {
         case .sourceCode:
-            return URL(string: "https://github.com/minh-ton/reynard-browser")
+            return URL(string: "https://github.com/xytxg/reynard-browser-zh")
         case .supportProject:
             return URL(string: "https://buymeacoffee.com/hnimnot")
         case .githubProfile:

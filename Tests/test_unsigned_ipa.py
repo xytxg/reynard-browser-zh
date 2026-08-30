@@ -24,7 +24,8 @@ class UnsignedIPATests(unittest.TestCase):
     def fixture(self):
         root = "Payload/Reynard.app/"
         info = {"CFBundleIdentifier": "test.Reynard", "CFBundleExecutable": "Reynard",
-                "CFBundleVersion": "42", "CFBundleShortVersionString": "0.10.1", "MinimumOSVersion": "13.0"}
+                "CFBundleVersion": "42", "CFBundleShortVersionString": "0.10.1", "MinimumOSVersion": "13.0",
+                "CFBundleURLTypes": [{"CFBundleURLSchemes": ["reynard", "http", "https"]}]}
         entries = {root + "Info.plist": plistlib.dumps(info), root + "Reynard": macho(), root + "Frameworks/XUL": macho()}
         for name in ("PlugIns/OpenIn.appex", "PlugIns/Reynard Helper.appex", "Frameworks/GeckoView.framework"):
             child = dict(info, CFBundleIdentifier="test.Reynard.child", CFBundleExecutable="Executable")
@@ -51,6 +52,15 @@ class UnsignedIPATests(unittest.TestCase):
 
     def test_complete_fixture(self):
         self.assertEqual(self.verify_entries(self.fixture())["mach_o_files"], 5)
+
+    def test_missing_browser_url_scheme_rejected(self):
+        entries = self.fixture()
+        info_path = "Payload/Reynard.app/Info.plist"
+        info = plistlib.loads(entries[info_path])
+        info["CFBundleURLTypes"] = [{"CFBundleURLSchemes": ["reynard"]}]
+        entries[info_path] = plistlib.dumps(info)
+        with self.assertRaisesRegex(ValueError, "HTTP/HTTPS URL schemes"):
+            self.verify_entries(entries)
 
     def test_missing_extension_rejected(self):
         entries = self.fixture()

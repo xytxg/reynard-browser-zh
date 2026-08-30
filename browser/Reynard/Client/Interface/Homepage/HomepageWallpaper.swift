@@ -28,9 +28,11 @@ enum HomepageWallpaper {
     }
     
     private static var imageURL: URL {
-        guard let applicationSupportDirectoryURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            fatalError("Application Support directory is unavailable")
-        }
+        let applicationSupportDirectoryURL = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first ?? FileManager.default.temporaryDirectory
+            .appendingPathComponent("ReynardRecovery", isDirectory: true)
         return applicationSupportDirectoryURL
             .appendingPathComponent("AppData", isDirectory: true)
             .appendingPathComponent("Homepage", isDirectory: true)

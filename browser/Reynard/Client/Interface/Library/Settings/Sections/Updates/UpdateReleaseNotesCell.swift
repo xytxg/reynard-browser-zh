@@ -141,41 +141,25 @@ final class UpdateReleaseNotesCell: UITableViewCell {
     }
     
     private func currentUpdateInfo() -> UpdateInfo {
-        var appName = NSLocalizedString("Reynard Browser", comment: "")
-        var latestVersionString = BrowserUpdates.shared.latestVersion
-        var sizeString = ""
-        
-        if let updateFeedData = BrowserUpdates.shared.sourceData,
-           let updateFeed = try? JSONSerialization.jsonObject(with: updateFeedData) as? [String: Any],
-           let appEntries = updateFeed["apps"] as? [[String: Any]],
-           let appEntry = appEntries.first {
-            if let name = appEntry["name"] as? String {
-                appName = name
-            }
-            if let versions = appEntry["versions"] as? [[String: Any]],
-               let latestEntry = versions.first {
-                if let version = latestEntry["version"] as? String {
-                    latestVersionString = version
-                }
-                if let size = latestEntry["size"] as? Int {
-                    sizeString = String(format: "%.1f MB", Double(size) / (1024 * 1024))
-                }
-            }
+        guard let release = BrowserUpdates.shared.latestRelease else {
+            return UpdateInfo(
+                appName: NSLocalizedString("Reynard Browser", comment: ""),
+                version: "—",
+                size: ""
+            )
         }
-        
-        return UpdateInfo(appName: appName, version: latestVersionString, size: sizeString)
+        return UpdateInfo(
+            appName: NSLocalizedString("Reynard Browser", comment: ""),
+            version: release.version,
+            size: String(format: "%.1f MB", Double(release.package.size) / (1024 * 1024))
+        )
     }
     
     // MARK: - Release Notes
     
     private func processReleaseNotes() -> NSAttributedString {
-        guard let updateFeedData = BrowserUpdates.shared.sourceData,
-              let updateFeed = try? JSONSerialization.jsonObject(with: updateFeedData) as? [String: Any],
-              let appEntries = updateFeed["apps"] as? [[String: Any]],
-              let appEntry = appEntries.first,
-              let versions = appEntry["versions"] as? [[String: Any]],
-              let latestEntry = versions.first,
-              let description = latestEntry["localizedDescription"] as? String else {
+        guard let description = BrowserUpdates.shared.latestRelease?.releaseNotes,
+              !description.isEmpty else {
             return NSAttributedString(
                 string: NSLocalizedString("No release notes available.", comment: ""),
                 attributes: [.font: UIFont.preferredFont(forTextStyle: .footnote)]

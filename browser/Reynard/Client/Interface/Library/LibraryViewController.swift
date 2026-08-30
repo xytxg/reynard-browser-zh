@@ -104,13 +104,11 @@ final class LibraryViewController: UITabBarController, UITabBarControllerDelegat
     private func observeAppUpdateBadge() {
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(markSettingsUpdateAvailable),
-            name: .appUpdateAvailable,
+            selector: #selector(syncSettingsUpdateBadge),
+            name: .appUpdateStateDidChange,
             object: nil
         )
-        if BrowserUpdates.shared.hasUpdate {
-            markSettingsUpdateAvailable()
-        }
+        syncSettingsUpdateBadge()
     }
     
     private func makeViewControllers() -> [UIViewController] {
@@ -186,10 +184,11 @@ final class LibraryViewController: UITabBarController, UITabBarControllerDelegat
     
     // MARK: - Badges
     
-    @objc private func markSettingsUpdateAvailable() {
-        viewControllers?.first { viewController in
+    @objc private func syncSettingsUpdateBadge() {
+        let settingsItem = viewControllers?.first { viewController in
             viewController.tabBarItem.tag == LibrarySection.settings.rawValue
-        }?.tabBarItem.badgeValue = ""
+        }?.tabBarItem
+        settingsItem?.badgeValue = BrowserUpdates.shared.hasUpdate ? "" : nil
     }
 }
 

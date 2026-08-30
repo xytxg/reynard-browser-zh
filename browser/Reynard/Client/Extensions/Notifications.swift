@@ -14,7 +14,7 @@ extension Notification.Name {
     static let appearanceGestureSettingsDidChange = Notification.Name("Appearance.GestureSettingsDidChange")
     static let newTabDisplayOptionDidChange = Notification.Name("Browsing.NewTabDisplayOptionDidChange")
     static let homepageSettingsDidChange = Notification.Name("Homepage.SettingsDidChange")
-    static let appUpdateAvailable = Notification.Name("Settings.AppUpdateAvailable")
+    static let appUpdateStateDidChange = Notification.Name("Settings.AppUpdateStateDidChange")
     static let bookmarkStoreDidChange = Notification.Name("BookmarkStore.DidChange")
     static let downloadStoreDidChange = Notification.Name("DownloadStore.DidChange")
     static let downloadStoreDidStartDownload = Notification.Name("DownloadStore.DidStartDownload")

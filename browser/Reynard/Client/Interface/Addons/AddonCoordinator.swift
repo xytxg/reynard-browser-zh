@@ -145,6 +145,7 @@ final class AddonCoordinator: NSObject, AddonEmbedderDelegate {
             }
             
             do {
+                try AddonPackageSafety.validate(fileURL: packageFileURL)
                 _ = try await AddonRuntime.shared.install(
                     url: packageFileURL.absoluteString,
                     installMethod: .manager
@@ -489,7 +490,9 @@ final class AddonCoordinator: NSObject, AddonEmbedderDelegate {
     
     private func shouldInterceptAMOInstall(_ response: ExternalResponseInfo) -> Bool {
         guard let url = URL(string: response.url),
-              url.host?.lowercased() == "addons.mozilla.org" else {
+              url.scheme?.lowercased() == "https",
+              url.host?.lowercased() == "addons.mozilla.org",
+              url.port == nil || url.port == 443 else {
             return false
         }
         

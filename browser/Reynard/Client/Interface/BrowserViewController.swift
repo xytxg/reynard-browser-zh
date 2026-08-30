@@ -799,7 +799,7 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(applyUpdateMenuButtonBadge),
-            name: .appUpdateAvailable,
+            name: .appUpdateStateDidChange,
             object: nil
         )
         NotificationCenter.default.addObserver(

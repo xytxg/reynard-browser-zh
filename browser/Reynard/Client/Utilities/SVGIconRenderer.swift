@@ -8,6 +8,7 @@
 import UIKit
 
 enum SVGIconRenderer {
+    private static let maximumDataSize = 2 * 1024 * 1024
     private typealias SVGDocumentRef = UnsafeMutableRawPointer
     private typealias CreateDocumentFunction = @convention(c) (CFData, CFDictionary?) -> SVGDocumentRef?
     private typealias ReleaseDocumentFunction = @convention(c) (SVGDocumentRef) -> Void
@@ -21,7 +22,15 @@ enum SVGIconRenderer {
     private static let getCanvasSize = symbol(named: "CGSVGDocumentGetCanvasSize", as: GetCanvasSizeFunction.self)
     
     static func render(data: Data, size: CGSize) -> UIImage? {
-        guard let createDocument,
+        guard data.count <= maximumDataSize,
+              size.width.isFinite,
+              size.height.isFinite,
+              size.width > 0,
+              size.height > 0,
+              size.width <= 2048,
+              size.height <= 2048,
+              isSafeSVGDocument(data),
+              let createDocument,
               let releaseDocument,
               let drawDocument else {
             return nil
@@ -50,13 +59,19 @@ enum SVGIconRenderer {
         }
         
         let canvasSize = getCanvasSize(document)
-        guard canvasSize.width > 0, canvasSize.height > 0 else {
+        guard canvasSize.width.isFinite,
+              canvasSize.height.isFinite,
+              canvasSize.width > 0,
+              canvasSize.height > 0 else {
             context.translateBy(x: 0, y: size.height)
             context.scaleBy(x: 1, y: -1)
             return
         }
         
         let scale = min(size.width / canvasSize.width, size.height / canvasSize.height)
+        guard scale.isFinite, scale > 0 else {
+            return
+        }
         let scaledSize = CGSize(width: canvasSize.width * scale, height: canvasSize.height * scale)
         let origin = CGPoint(x: (size.width - scaledSize.width) / 2, y: (size.height - scaledSize.height) / 2)
         context.translateBy(x: origin.x, y: origin.y + scaledSize.height)
@@ -69,5 +84,30 @@ enum SVGIconRenderer {
             return nil
         }
         return unsafeBitCast(symbol, to: type)
+    }
+
+    private static func isSafeSVGDocument(_ data: Data) -> Bool {
+        guard let source = String(data: data, encoding: .utf8) else {
+            return false
+        }
+        let lowered = source.lowercased()
+        let forbiddenFragments = [
+            "<!doctype",
+            "<!entity",
+            "<script",
+            "<foreignobject",
+            "javascript:",
+        ]
+        guard !forbiddenFragments.contains(where: lowered.contains) else {
+            return false
+        }
+
+        let externalReferencePatterns = [
+            #"(?:href|xlink:href)\s*=\s*[\"']\s*(?:https?:|file:|//|javascript:)"#,
+            #"url\(\s*[\"']?\s*(?:https?:|file:|//|javascript:)"#,
+        ]
+        return !externalReferencePatterns.contains { pattern in
+            lowered.range(of: pattern, options: .regularExpression) != nil
+        }
     }
 }

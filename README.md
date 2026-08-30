@@ -31,6 +31,16 @@ You should use [AltStore](https://altstore.io/) or [SideStore](https://sidestore
 
 Download the latest unsigned Chinese build from this repository's Releases page, then let AltStore or SideStore sign it while preserving App Extensions. The legacy upstream AltSource is not used for these Chinese maintenance builds.
 
+### Default browser and external links
+
+Reynard registers the `http` and `https` URL schemes, validates incoming links, and provides a **Settings → General → Default Browser** shortcut to the relevant iOS settings page. Cold-start and already-running link delivery both open the requested page in Reynard.
+
+Apple treats `com.apple.developer.web-browser` as a managed entitlement. An unsigned IPA cannot carry signing entitlements, and a free AltStore/SideStore or personal provisioning profile cannot add this entitlement. Reynard only appears in the system browser list after it is signed with an Apple-approved profile containing the entitlement, or in a compatible system environment that preserves it. See Apple's [default-browser preparation guide](https://developer.apple.com/documentation/xcode/preparing-your-app-to-be-the-default-browser) and [entitlement reference](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.web-browser).
+
+### Updates
+
+**Settings → App Updates → Check for Updates** checks this repository's public GitHub Releases, including newer verified `main` builds. Reynard only accepts package links from this repository and verifies the downloaded IPA against its release SHA-256 file before presenting the share sheet. Because the IPA is unsigned, normal iOS installations must still hand it to AltStore, SideStore, or another compatible signer; iOS does not let a normally sandboxed app silently replace itself with an unsigned package. A TrollStore install can open TrollStore directly when a matching `.tipa` asset is attached to the release.
+
 > [!IMPORTANT]
 > - **LiveContainer is not supported** due to its own limitations.
 > - Sideloading methods that use a distribution certificate for signing are **not supported**.⁠

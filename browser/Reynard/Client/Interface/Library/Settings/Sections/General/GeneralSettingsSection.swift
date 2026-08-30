@@ -9,6 +9,7 @@ import UIKit
 
 struct GeneralSettingsSection {
     enum Row: CaseIterable {
+        case defaultBrowser
         case addons
         case browsing
         case search
@@ -29,6 +30,15 @@ struct GeneralSettingsSection {
         }
         
         switch Row.allCases[index] {
+        case .defaultBrowser:
+            return SettingsViewUtils.disclosureCell(
+                title: NSLocalizedString(
+                    "Default Browser",
+                    tableName: "SettingsLocalizable",
+                    comment: ""
+                ),
+                subtitle: DefaultBrowserSettings.statusText
+            )
         case .addons:
             return SettingsViewUtils.disclosureCell(title: NSLocalizedString("Add-ons", comment: ""))
         case .browsing:
@@ -55,6 +65,9 @@ struct GeneralSettingsSection {
         
         let destination: UIViewController
         switch Row.allCases[index] {
+        case .defaultBrowser:
+            DefaultBrowserSettings.open()
+            return
         case .addons:
             destination = AddonsPreferencesViewController()
         case .browsing:

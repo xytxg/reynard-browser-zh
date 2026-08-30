@@ -64,6 +64,16 @@ def verify(path):
         app = plistlib.loads(archive.read(root + "Info.plist"))
         require(re.fullmatch(r"\d+(?:\.\d+){0,2}", str(app["CFBundleVersion"])), "Build number is not numeric")
         require(int(app["MinimumOSVersion"].split(".")[0]) <= 13, "iOS 13 compatibility was lost")
+        registered_schemes = {
+            scheme.lower()
+            for url_type in app.get("CFBundleURLTypes", [])
+            for scheme in url_type.get("CFBundleURLSchemes", [])
+            if isinstance(scheme, str)
+        }
+        require(
+            {"http", "https"}.issubset(registered_schemes),
+            "HTTP/HTTPS URL schemes required for default-browser delivery are missing",
+        )
         expected_binaries = []
         for bundle in (root, root + "PlugIns/OpenIn.appex/", root + "PlugIns/Reynard Helper.appex/", root + "Frameworks/GeckoView.framework/"):
             info = plistlib.loads(archive.read(bundle + "Info.plist"))

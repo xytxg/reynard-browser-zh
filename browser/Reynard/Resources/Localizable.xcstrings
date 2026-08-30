@@ -1,6 +1,296 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "App Updates" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App 更新"
+          }
+        }
+      }
+    },
+    "Check for Updates" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检测更新"
+          }
+        }
+      }
+    },
+    "Checking for Updates…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在检测更新…"
+          }
+        }
+      }
+    },
+    "Couldn’t Check for Updates" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法检测更新"
+          }
+        }
+      }
+    },
+    "Download Update" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载更新"
+          }
+        }
+      }
+    },
+    "GitHub returned an invalid package download response." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub 返回的安装包下载响应无效。"
+          }
+        }
+      }
+    },
+    "GitHub returned an invalid update response." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub 返回的更新响应无效。"
+          }
+        }
+      }
+    },
+    "GitHub returned HTTP %d while checking for updates." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检测更新时 GitHub 返回 HTTP %d。"
+          }
+        }
+      }
+    },
+    "GitHub returned HTTP %d while downloading the update." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载更新时 GitHub 返回 HTTP %d。"
+          }
+        }
+      }
+    },
+    "No compatible Reynard IPA was found in recent releases." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近的 Release 中没有找到兼容的 Reynard IPA。"
+          }
+        }
+      }
+    },
+    "No TrollStore package is attached to this release. The verified unsigned IPA can still be downloaded and shared." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Release 未附带 TrollStore 安装包，仍可下载并分享已校验的未签名 IPA。"
+          }
+        }
+      }
+    },
+    "Reynard %@ is available to download." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reynard %@ 已可下载。"
+          }
+        }
+      }
+    },
+    "Reynard Is Up to Date" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reynard 已是最新版"
+          }
+        }
+      }
+    },
+    "The downloaded IPA is unsigned. Choose AltStore, SideStore, or another compatible signing app in the share sheet to install it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载的 IPA 未签名，请在共享菜单中选择 AltStore、SideStore 或其他兼容签名 App 进行安装。"
+          }
+        }
+      }
+    },
+    "The downloaded update failed SHA-256 verification." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载的更新未通过 SHA-256 校验。"
+          }
+        }
+      }
+    },
+    "The downloaded update has an unexpected file size." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载的更新文件大小与预期不符。"
+          }
+        }
+      }
+    },
+    "The IPA will be verified with its SHA-256 checksum. When the download finishes, choose the app that you use to sign Reynard in the share sheet." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IPA 将使用 SHA-256 进行校验。下载完成后，请在共享菜单中选择你用于签名 Reynard 的 App。"
+          }
+        }
+      }
+    },
+    "The update checksum from GitHub is invalid." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub 返回的更新校验值无效。"
+          }
+        }
+      }
+    },
+    "The update could not be saved in the app's Documents folder." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法将更新保存到 App 的“文稿”文件夹。"
+          }
+        }
+      }
+    },
+    "The update information from GitHub could not be read." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取 GitHub 返回的更新信息。"
+          }
+        }
+      }
+    },
+    "The update request could not be created." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法创建更新请求。"
+          }
+        }
+      }
+    },
+    "The update response was unexpectedly large." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新响应大小异常。"
+          }
+        }
+      }
+    },
+    "The selected add-on package is invalid or too large." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选扩展包无效或文件过大。"
+          }
+        }
+      }
+    },
+    "The pairing file could not be saved." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存配对文件。"
+          }
+        }
+      }
+    },
+    "The pairing file is invalid or too large." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配对文件无效或文件过大。"
+          }
+        }
+      }
+    },
+    "This release does not include a SHA-256 checksum for its IPA." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Release 未包含 IPA 的 SHA-256 校验文件。"
+          }
+        }
+      }
+    },
+    "Update Download Failed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新下载失败"
+          }
+        }
+      }
+    },
+    "Update Verification Unavailable" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法校验更新"
+          }
+        }
+      }
+    },
+    "Version %@ (%@) is the latest available build." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "版本 %@（%@）已是当前可用的最新构建。"
+          }
+        }
+      }
+    },
     " of %@" : {
       "comment" : "Total file size",
       "localizations" : {
@@ -5498,6 +5788,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "“开发者磁盘映像”源 URL 无效。"
+          }
+        }
+      }
+    },
+    "Developer Disk Image verification failed." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developer Disk Image verification failed."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开发者磁盘映像校验失败。"
           }
         }
       }

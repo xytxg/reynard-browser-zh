@@ -33,7 +33,7 @@ final class SearchViewModel {
     private let topDomainCompletion: TopDomainCompletion
     private var searchCompletion: SearchCompletion
     private var requestID = 0
-    private var completionTask: URLSessionDataTask?
+    private var completionTask: BoundedURLDataLoader?
     private var results = SearchResults.empty
     
     init(

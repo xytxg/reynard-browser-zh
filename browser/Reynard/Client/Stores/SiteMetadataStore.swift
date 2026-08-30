@@ -33,6 +33,7 @@ final class SiteMetadataStore {
     private static let imageFilePrefix = "img-"
     private static let maxHTMLBytes = 768 * 1024
     private static let maxImageBytes = 4 * 1024 * 1024
+    private static let maxImagePixelSize = 2048
     private static let maxRedirectDepth = 3
     
     private struct StorageURLs {
@@ -57,19 +58,11 @@ final class SiteMetadataStore {
     private var records: [String: SiteMetadataRecord] = [:]
     private var activeRequests: [String: Task<SiteMetadataSnapshot?, Never>] = [:]
     
-    private lazy var session: URLSession = {
-        let configuration = URLSessionConfiguration.default
-        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-        configuration.timeoutIntervalForRequest = 8
-        configuration.timeoutIntervalForResource = 15
-        return URLSession(configuration: configuration)
-    }()
-    
-    private lazy var metaTagExpression = try! NSRegularExpression(
+    private lazy var metaTagExpression = try? NSRegularExpression(
         pattern: "(?is)<meta\\b[^>]*>",
         options: []
     )
-    private lazy var attributeExpression = try! NSRegularExpression(
+    private lazy var attributeExpression = try? NSRegularExpression(
         pattern: "(?is)([A-Za-z_:][-A-Za-z0-9_:.]*)\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s>]+))",
         options: []
     )
@@ -79,9 +72,11 @@ final class SiteMetadataStore {
     init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
         
-        guard let applicationSupportDirectoryURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            fatalError("Application Support directory is unavailable")
-        }
+        let applicationSupportDirectoryURL = fileManager.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first ?? fileManager.temporaryDirectory
+            .appendingPathComponent("ReynardRecovery", isDirectory: true)
         
         let directoryURL = applicationSupportDirectoryURL
             .appendingPathComponent("AppData", isDirectory: true)
@@ -242,8 +237,20 @@ final class SiteMetadataStore {
     }
     
     private func loadImageLocked(for imageKey: String) -> UIImage? {
-        guard let data = try? Data(contentsOf: imageFileURL(for: imageKey)),
-              let image = UIImage(data: data) else {
+        let imageURL = imageFileURL(for: imageKey)
+        guard let values = try? imageURL.resourceValues(
+            forKeys: [.isRegularFileKey, .fileSizeKey]
+        ),
+        values.isRegularFile == true,
+        let fileSize = values.fileSize,
+        fileSize > 0,
+        fileSize <= Self.maxImageBytes,
+        let data = try? Data(contentsOf: imageURL, options: [.mappedIfSafe]),
+        let prepared = ImageUtils.prepareJPEGImage(
+            from: data,
+            maximumPixelSize: Self.maxImagePixelSize
+        ),
+        let image = UIImage(data: prepared.data) else {
             return nil
         }
         
@@ -295,7 +302,10 @@ final class SiteMetadataStore {
         request.httpMethod = "GET"
         request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
         
-        guard let (data, response) = await data(for: request),
+        guard let (data, response) = await data(
+            for: request,
+            maximumByteCount: Self.maxHTMLBytes
+        ),
               data.count <= Self.maxHTMLBytes else {
             return nil
         }
@@ -325,40 +335,63 @@ final class SiteMetadataStore {
         request.httpMethod = "GET"
         request.setValue("image/*,*/*;q=0.8", forHTTPHeaderField: "Accept")
         
-        guard let (data, response) = await data(for: request),
+        guard let (data, response) = await data(
+            for: request,
+            maximumByteCount: Self.maxImageBytes
+        ),
               data.count <= Self.maxImageBytes,
-              let image = UIImage(data: data) else {
+              let prepared = ImageUtils.prepareJPEGImage(
+                from: data,
+                maximumPixelSize: Self.maxImagePixelSize
+              ),
+              let image = UIImage(data: prepared.data) else {
             return nil
         }
         
-        return RemoteImage(image: image, data: data, url: response.url ?? url)
+        return RemoteImage(image: image, data: prepared.data, url: response.url ?? url)
     }
     
-    private func data(for request: URLRequest) async -> (Data, URLResponse)? {
-        await withCheckedContinuation { continuation in
-            let task = session.dataTask(with: request) { data, response, error in
-                guard error == nil,
-                      let data,
-                      let response else {
-                    continuation.resume(returning: nil)
-                    return
+    private func data(
+        for request: URLRequest,
+        maximumByteCount: Int
+    ) async -> (Data, URLResponse)? {
+        guard let requestedURL = request.url,
+              URLUtils.isWebURL(requestedURL) else {
+            return nil
+        }
+
+        return await withCheckedContinuation { continuation in
+            let loader = BoundedURLDataLoader(
+                maximumByteCount: maximumByteCount,
+                timeoutIntervalForRequest: 8,
+                timeoutIntervalForResource: 15,
+                responseValidator: { response in
+                    guard (200...299).contains(response.statusCode),
+                          let finalURL = response.url else {
+                        return false
+                    }
+                    return URLUtils.isWebURL(finalURL)
+                },
+                completion: { result in
+                    guard let loadedResponse = try? result.get() else {
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                    continuation.resume(
+                        returning: (loadedResponse.data, loadedResponse.response)
+                    )
                 }
-                
-                if let httpResponse = response as? HTTPURLResponse,
-                   !(200...299).contains(httpResponse.statusCode) {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                
-                continuation.resume(returning: (data, response))
-            }
-            task.resume()
+            )
+            loader.start(with: request)
         }
     }
     
     // MARK: - HTML Parsing
     
     private func openGraphMetadata(in html: String) -> [String: String] {
+        guard let metaTagExpression else {
+            return [:]
+        }
         let nsHTML = html as NSString
         let matches = metaTagExpression.matches(in: html, range: NSRange(location: 0, length: nsHTML.length))
         var result: [String: String] = [:]
@@ -381,6 +414,9 @@ final class SiteMetadataStore {
     }
     
     private func attributes(in tag: String) -> [String: String] {
+        guard let attributeExpression else {
+            return [:]
+        }
         let nsTag = tag as NSString
         let matches = attributeExpression.matches(in: tag, range: NSRange(location: 0, length: nsTag.length))
         var result: [String: String] = [:]
@@ -409,6 +445,9 @@ final class SiteMetadataStore {
     }
     
     private func metaRefreshRedirectURL(in html: String, baseURL: URL) -> URL? {
+        guard let metaTagExpression else {
+            return nil
+        }
         let nsHTML = html as NSString
         let matches = metaTagExpression.matches(in: html, range: NSRange(location: 0, length: nsHTML.length))
         
