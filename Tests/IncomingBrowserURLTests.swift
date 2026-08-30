@@ -45,10 +45,16 @@ private struct IncomingBrowserURLTests {
         ]
         let wrappedURL = components.url!
         let resolvedURL = IncomingBrowserURL.resolve(wrappedURL)
+        let resolvedComponents = resolvedURL.flatMap {
+            URLComponents(url: $0, resolvingAgainstBaseURL: false)
+        }
 
         try expect(resolvedURL?.scheme == "https", "A wrapped HTTPS URL was rejected")
         try expect(resolvedURL?.host == "example.com", "A wrapped HTTPS URL resolved to the wrong host")
-        try expect(resolvedURL?.query == "q=中文", "A wrapped HTTPS URL lost its query")
+        try expect(
+            resolvedComponents?.queryItems?.first(where: { $0.name == "q" })?.value == "中文",
+            "A wrapped HTTPS URL lost its query"
+        )
     }
 
     private static func testUnsafeSchemesAreRejected() throws {
