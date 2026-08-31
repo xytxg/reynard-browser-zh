@@ -73,7 +73,7 @@ final class ToolbarButtonMenus {
             let action = UIAction(title: actionTitle) { [onSelect, direction] _ in
                 onSelect(direction, index)
             }
-            if #available(iOS 15.0, *) {
+            if #available(iOS 16.0, *) {
                 action.subtitle = url
             }
             return action
@@ -134,7 +134,7 @@ final class ToolbarButtonMenus {
                 onSelect(item.id)
             }
             
-            if #available(iOS 15.0, *),
+            if #available(iOS 16.0, *),
                let value = item.url?.trimmingCharacters(in: .whitespacesAndNewlines),
                !value.isEmpty {
                 action.subtitle = displayURL(for: value)
