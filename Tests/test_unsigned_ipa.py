@@ -37,7 +37,11 @@ class UnsignedIPATests(unittest.TestCase):
         info = {"CFBundleIdentifier": "test.Reynard", "CFBundleExecutable": "Reynard",
                 "CFBundleVersion": "42", "CFBundleShortVersionString": "0.11.0", "MinimumOSVersion": "15.0",
                 "CFBundleURLTypes": [{"CFBundleURLSchemes": ["reynard", "http", "https"]}]}
-        entries = {root + "Info.plist": plistlib.dumps(info), root + "Reynard": macho(), root + "Frameworks/XUL": macho()}
+        entries = {
+            root + "Info.plist": plistlib.dumps(info),
+            root + "Reynard": macho(),
+            root + "Frameworks/XUL.dylib": macho(),
+        }
         for name in ("PlugIns/OpenIn.appex", "PlugIns/Reynard Helper.appex", "Frameworks/GeckoView.framework"):
             child = dict(info, CFBundleIdentifier="test.Reynard.child", CFBundleExecutable="Executable")
             entries[root + name + "/Info.plist"] = plistlib.dumps(child)
@@ -101,8 +105,16 @@ class UnsignedIPATests(unittest.TestCase):
 
     def test_nested_signature_rejected(self):
         entries = self.fixture()
-        entries["Payload/Reynard.app/Frameworks/XUL"] = macho(signed=True)
+        entries["Payload/Reynard.app/Frameworks/XUL.dylib"] = macho(signed=True)
         with self.assertRaisesRegex(ValueError, "LC_CODE_SIGNATURE"):
+            self.verify_entries(entries)
+
+    def test_extensionless_xul_rejected(self):
+        entries = self.fixture()
+        entries["Payload/Reynard.app/Frameworks/XUL"] = entries.pop(
+            "Payload/Reynard.app/Frameworks/XUL.dylib"
+        )
+        with self.assertRaisesRegex(ValueError, "Extensionless XUL"):
             self.verify_entries(entries)
 
     def test_wrong_language_rejected(self):

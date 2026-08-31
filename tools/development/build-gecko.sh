@@ -11,6 +11,19 @@ USE_SCCACHE=false
 AUTO_CLOBBER=false
 DISABLE_JEMALLOC=false
 
+# Availability checks emitted by Clang call into compiler-rt. Gecko's iOS
+# build uses ld64.lld directly, which does not always add this archive the way
+# the Clang driver does. Add it explicitly so deployment-target guards keep
+# working when the SDK is newer than the minimum supported iOS version.
+CLANG_PATH="$(xcrun --sdk iphoneos --find clang)"
+CLANG_RESOURCE_DIR="$("$CLANG_PATH" --print-resource-dir)"
+COMPILER_RT_IOS="$CLANG_RESOURCE_DIR/lib/darwin/libclang_rt.ios.a"
+if [ ! -f "$COMPILER_RT_IOS" ]; then
+	echo "Missing iOS compiler runtime: $COMPILER_RT_IOS"
+	exit 1
+fi
+export LDFLAGS="${LDFLAGS:+$LDFLAGS }$COMPILER_RT_IOS"
+
 for arg in "$@"; do
 	case "$arg" in
 		--use-sccache)

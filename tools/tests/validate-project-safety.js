@@ -47,6 +47,11 @@ requireText(
 );
 const geckoBuild = read("tools/development/build-gecko.sh");
 requireText(geckoBuild, "--enable-ios-target=15.0", "Gecko deployment target is not iOS 15");
+requireText(
+  geckoBuild,
+  "libclang_rt.ios.a",
+  "Gecko does not link the compiler runtime required by iOS availability guards"
+);
 const ideviceBuild = read("tools/development/build-idevice.sh");
 requireText(ideviceBuild, 'DEPLOYMENT_TARGET="15.0"', "idevice deployment target is not iOS 15");
 
@@ -60,6 +65,11 @@ requireText(
   unsignedPackage,
   "embedded.mobileprovision",
   "unsigned IPA packaging does not reject provisioning profiles"
+);
+requireText(
+  unsignedPackage,
+  "@rpath/XUL.dylib",
+  "unsigned IPA packaging does not normalize XUL for recursive signing tools"
 );
 
 const infoPlist = read("browser/Reynard/Resources/Info.plist");
@@ -382,31 +392,6 @@ requireText(jitEnabler, "NSFilePosixPermissions: @0700", "the temporary JIT help
 
 const eventDispatcher = read("browser/GeckoView/Events/EventDispatcher.swift");
 rejectText(eventDispatcher, "message as!", "malformed Gecko event payloads can still force-cast crash");
-
-const privateGlassPath = path.join(
-  root,
-  "browser/Reynard/Client/Extensions/UIGlassEffect+Private.swift"
-);
-if (fs.existsSync(privateGlassPath)) {
-  throw new Error("Liquid Glass still relies on private UIKit runtime objects");
-}
-const glassSources = [
-  "browser/Reynard/Client/Interface/Chrome/Toolbar/TopToolbar.swift",
-  "browser/Reynard/Client/Interface/Chrome/Toolbar/BottomToolbar.swift",
-  "browser/Reynard/Client/Interface/Chrome/ChromeOverlayContentView.swift",
-].map(read).join("\n");
-requireText(glassSources, "UIGlassEffect(style: .regular)", "native Liquid Glass is not enabled");
-requireText(glassSources, "cornerConfiguration = .fixed", "glass overlay shape is not configured publicly");
-rejectText(glassSources, "nonAdaptive", "Liquid Glass still bypasses system adaptation");
-const tabOverviewGlass = [
-  "browser/Reynard/Client/Interface/TabOverview/TabOverviewToolbar/TabOverviewTopToolbar.swift",
-  "browser/Reynard/Client/Interface/TabOverview/TabOverviewToolbar/TabOverviewBottomToolbar.swift",
-].map(read).join("\n");
-requireText(
-  tabOverviewGlass,
-  "hidesSharedBackground = false",
-  "tab overview actions do not share a native glass background"
-);
 
 const filePicker = read("browser/Reynard/Client/Interface/ContentView/WebContent/FilePicker/FilePicker.swift");
 requireText(

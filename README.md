@@ -9,16 +9,13 @@ Reynard is a **Gecko-based** web browser for iOS 15+.
 > and publishes verified unsigned IPA source builds on this repository's
 > [Releases](https://github.com/xytxg/reynard-browser-zh/releases) page.
 
-Current builds target iOS 15 or later. They compile in CI against the iOS 27 SDK and use UIKit's public
-Liquid Glass APIs on iOS 26/27, with system material blur on iOS 15–25.
-
 Unlike other browsers on iOS that are forced to use Apple's **WebKit** engine (including Safari and all third-party browsers), Reynard uses **Gecko**. This is the same engine that powers the Firefox browser on desktop and Android devices.
 
 This project is mainly for users on older iOS versions who are stuck with an outdated version of WebKit. Because WebKit is bundled with the OS, these devices cannot receive engine updates and often fail to load modern websites. By using Gecko, which is kept up to date independently, Reynard allows these sites to work again. Users on newer iOS versions can also use the browser if they want an alternative to WebKit, including Firefox add-ons and other Gecko-exclusive features.
 
 ## Installation
 
-The latest Simplified Chinese source builds are available on this repository's [Releases](https://github.com/xytxg/reynard-browser-zh/releases) page. These IPA files are unsigned and must be signed with a compatible sideloading method before installation. Please note that this project is still in an early experimental state, so expect bugs and missing features.
+The latest Simplified Chinese source builds are available on this repository's [Releases](https://github.com/xytxg/reynard-browser-zh/releases) page. These IPA files are unsigned and must be signed with a compatible sideloading method before installation. iOS 27 validates engine libraries before `main()` runs, so packaging normalizes the extensionless upstream `XUL` binary to `XUL.dylib` and rewrites its load commands for recursive signing tools. Please note that this project is still in an early experimental state, so expect bugs and missing features.
 
 ### TrollStore (iOS 15 - 16.6.1, 17.0)
 

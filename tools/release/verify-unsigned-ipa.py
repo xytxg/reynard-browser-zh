@@ -108,7 +108,8 @@ def verify(path):
             if ".appex/" in bundle:
                 require(info["CFBundleIdentifier"].startswith(app["CFBundleIdentifier"] + "."), "Extension bundle ID mismatch")
                 require(info["CFBundleVersion"] == app["CFBundleVersion"], "Extension build number mismatch")
-        expected_binaries.append(root + "Frameworks/XUL")
+        require(root + "Frameworks/XUL" not in names, "Extensionless XUL library remains in IPA")
+        expected_binaries.append(root + "Frameworks/XUL.dylib")
 
         checked = {}
         minimum_ios_by_binary = {}

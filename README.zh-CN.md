@@ -10,19 +10,14 @@ Reynard 是面向 iOS 15 及更高版本的 Gecko 浏览器。本分支保留原
 
 ## 上游同步状态
 
-当前维护代码已合并原作者仓库截至 `d5f40af263560b494aeb7e8e1af3be7c4298df77`
-（2026-08-30）的 0.11.1 更新，Gecko 为 `FIREFOX_154_0_1_RELEASE`，固定源码提交为
+当前维护代码已合并原作者仓库截至 `0bfe06fda73842ff8f01a7e371854ee89f5e045a`
+（2026-08-30）的 0.11.0 更新，Gecko 为 `FIREFOX_154_0_1_RELEASE`，固定源码提交为
 `9cd094dbc3eac5df87a24e7a871e52880cb8cd42`。在上游代码基础上保留中文分支的下载安全、
 私密会话保护、iOS 15 最低版本、iOS 27 SDK 编译验证与未签名 IPA 构建。
 
 本轮包括下载暂停/继续、关闭来源标签后下载卡住、键盘焦点/Shift 键、底部工具栏、
 崩溃后工具栏恢复、合成器布局崩溃及多进程扩展清理。另修复下载重启恢复、清理任务保护、
-扩展下载临时路径、下载错误提示漏译和文件夹上传提示无法命中翻译的问题。0.11.1 继续修复
-扩展完成队列饥饿、Fission 预启动进程过多和 iPad 键盘快捷栏反复出现的问题。
-
-在 iOS 26/27 上，顶部与底部工具栏、页面浮层和标签页操作栏使用 UIKit 官方 Liquid Glass
-接口，并保留系统的动态明暗与内容自适应；不再修改 `UIGlassEffect` 私有对象。iOS 15–25
-继续使用系统材质模糊作为降级效果。
+扩展下载临时路径、下载错误提示漏译和文件夹上传提示无法命中翻译的问题。
 
 具体基线见 `.github/upstream-sync.json`，改动和验证记录见
 `docs/UPDATE_REPORT_2026-08-28.md`。文档中的“已合并代码”不代表 IPA 已构建成功；
@@ -97,7 +92,7 @@ TrollStore 安装，且对应 Release 另附 `.tipa`，更新按钮会优先唤�
 4. 使用真实 `Reynard` Scheme 构建 `Reynard.app`，并设置
    `CODE_SIGNING_ALLOWED=NO`、`CODE_SIGNING_REQUIRED=NO` 和
    `AD_HOC_CODE_SIGNING_ALLOWED=NO`。
-5. 检查主程序、`Info.plist`、两个应用扩展、GeckoView、XUL 和 Frameworks 后，生成标准
+5. 检查主程序、`Info.plist`、两个应用扩展、GeckoView、`XUL.dylib` 和 Frameworks 后，生成标准
    `Payload/Reynard.app` IPA。
 
 打包会检查 Mach-O 的 arm64 架构、残留签名、主应用与扩展构建号、中文资源和 ZIP 完整性。
@@ -111,6 +106,10 @@ IPA 文件名格式为 `Reynard-<版本>-<提交短 SHA>-unsigned.ipa`。推送�
 PR 标题中加入 `[build ipa]`，但 PR 构建不会创建发行版，以防未合并代码取得发布权限。
 旧的上游 AltStore 元数据刷新工作流只允许手动运行，不会再被每个中文构建发行版触发，也不会
 干扰 IPA 的自动发布状态。
+
+iOS 27 会在应用代码运行前严格校验 XUL 动态库签名。打包脚本会把上游无扩展名的 `XUL`
+规范化为 `XUL.dylib` 并重写加载路径，方便 SideStore、AltStore、E-Sign 等工具递归重签名。
+IPA 本身仍然未签名；安装工具必须使用同一证书重新签署主程序、扩展、GeckoView 和所有 dylib。
 
 ## 本地源码构建
 
