@@ -27,6 +27,11 @@ requireText(workflow, "tools/release/build-unsigned-app.sh", "IPA workflow does 
 requireText(workflow, "runs-on: xcode-27", "IPA workflow does not compile against the iOS 27 SDK");
 requireText(workflow, 'test "$minimum_os" = "15.0"', "iOS 27 compatibility job does not enforce iOS 15");
 requireText(workflow, "xcrun vtool -show-build", "iOS 27 compatibility job does not inspect Mach-O load commands");
+requireText(
+  workflow,
+  "firefox/toolkit/mozapps/extensions/default-theme",
+  "iOS 27 compatibility inputs omit the Gecko default theme required by AddGecko.sh"
+);
 rejectText(workflow, "releases/download", "IPA workflow downloads a release binary");
 rejectText(workflow, "source.ipa", "IPA workflow accepts a prebuilt IPA as its source");
 for (const match of workflow.matchAll(/uses:\s+[^@\s]+@([^\s#]+)/g)) {

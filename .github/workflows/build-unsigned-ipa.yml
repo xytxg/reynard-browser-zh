@@ -208,10 +208,15 @@ jobs:
           compat_input="$RUNNER_TEMP/reynard-ios27-input"
           gecko_dist="engine/firefox/obj-aarch64-apple-ios/dist"
           rm -rf "$compat_input"
-          mkdir -p "$compat_input/gecko/bin" "$compat_input/gecko/include"
+          mkdir -p "$compat_input/gecko/bin" "$compat_input/gecko/include" \
+            "$compat_input/firefox/toolkit/mozapps/extensions/default-theme"
           for directory in bin include; do
             rsync -aL "$gecko_dist/$directory/" "$compat_input/gecko/$directory/"
           done
+          rsync -aL \
+            "engine/firefox/toolkit/mozapps/extensions/default-theme/" \
+            "$compat_input/firefox/toolkit/mozapps/extensions/default-theme/"
+          test -n "$(find "$compat_input/firefox/toolkit/mozapps/extensions/default-theme" -type f -print -quit)"
           install -m 0644 browser/Reynard/JIT/RPPairing/libidevice_ffi.a \
             "$compat_input/libidevice_ffi.a"
           du -sh "$compat_input" | tee dist/logs/ios27-input.log
@@ -378,12 +383,16 @@ jobs:
           set -euo pipefail
           compat_input="$RUNNER_TEMP/reynard-ios27-input"
           gecko_dist="engine/firefox/obj-aarch64-apple-ios/dist"
-          mkdir -p "$gecko_dist" browser/Reynard/JIT/RPPairing
+          default_theme="engine/firefox/toolkit/mozapps/extensions/default-theme"
+          mkdir -p "$gecko_dist" "$default_theme" browser/Reynard/JIT/RPPairing
           rsync -a "$compat_input/gecko/" "$gecko_dist/"
+          rsync -a "$compat_input/firefox/toolkit/mozapps/extensions/default-theme/" \
+            "$default_theme/"
           install -m 0644 "$compat_input/libidevice_ffi.a" \
             browser/Reynard/JIT/RPPairing/libidevice_ffi.a
           test -s "$gecko_dist/bin/XUL"
           test -d "$gecko_dist/include/GeckoView"
+          test -n "$(find "$default_theme" -type f -print -quit)"
 
       - name: Verify Xcode 27 toolchain
         run: |
