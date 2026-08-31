@@ -48,7 +48,7 @@ final class BottomToolbar: UIView {
     private let backgroundView: UIVisualEffectView = {
         let effect: UIVisualEffect
         if #available(iOS 26.0, *) {
-            effect = UIGlassEffect.nonAdaptive(style: .regular)
+            effect = UIGlassEffect(style: .regular)
         } else {
             effect = UIBlurEffect(style: .systemChromeMaterial)
         }

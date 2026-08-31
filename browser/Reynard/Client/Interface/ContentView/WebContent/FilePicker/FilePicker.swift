@@ -10,7 +10,7 @@ import UIKit
 @MainActor
 final class FilePicker: NSObject {
     enum UX {
-        static let imageCompressionQuality: CGFloat = 0.92
+        nonisolated static let imageCompressionQuality: CGFloat = 0.92
     }
     
     enum Mode: String, Sendable {

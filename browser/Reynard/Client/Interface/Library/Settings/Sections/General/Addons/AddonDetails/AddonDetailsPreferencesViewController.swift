@@ -472,7 +472,7 @@ final class AddonDetailsPreferencesViewController: SettingsTableViewController {
             do {
                 try await AddonRuntime.shared.uninstall(addon)
                 await MainActor.run {
-                    self.navigationController?.popViewController(animated: true)
+                    _ = self.navigationController?.popViewController(animated: true)
                 }
             } catch {
                 await MainActor.run {

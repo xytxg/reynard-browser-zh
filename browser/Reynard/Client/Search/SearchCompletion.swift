@@ -8,6 +8,11 @@
 import Foundation
 
 final class SearchCompletion {
+    private static let maximumResponseSize = 512 * 1024
+    private static let maximumQueryLength = 256
+    private static let maximumSuggestionLength = 256
+    private static let maximumSuggestionCount = 20
+
     enum Provider: String, CaseIterable {
         case google
         case yahoo
@@ -18,32 +23,54 @@ final class SearchCompletion {
     }
     
     let provider: Provider
-    private let urlSession: URLSession
     
-    init(provider: Provider = .google, urlSession: URLSession = .shared) {
+    init(provider: Provider = .google) {
         self.provider = provider
-        self.urlSession = urlSession
     }
     
     func fetchCompletions(
         for query: String,
         completion: @escaping ([String]) -> Void
-    ) -> URLSessionDataTask? {
-        guard let url = provider.url(for: query) else {
+    ) -> BoundedURLDataLoader? {
+        let boundedQuery = String(query.prefix(Self.maximumQueryLength))
+        guard let url = provider.url(for: boundedQuery),
+              let expectedHost = url.host?.lowercased() else {
             completion([])
             return nil
         }
         
-        let task = urlSession.dataTask(with: url) { data, response, error in
-            if let error = error as NSError?,
-               error.domain == NSURLErrorDomain,
-               error.code == NSURLErrorCancelled {
-                return
+        let task = BoundedURLDataLoader(
+            maximumByteCount: Self.maximumResponseSize,
+            timeoutIntervalForRequest: 8,
+            timeoutIntervalForResource: 12,
+            responseValidator: { response in
+                guard (200...299).contains(response.statusCode),
+                      let finalURL = response.url else {
+                    return false
+                }
+                return finalURL.scheme?.lowercased() == "https" &&
+                finalURL.host?.lowercased() == expectedHost
+            },
+            completion: { result in
+                guard let loadedResponse = try? result.get() else {
+                    if case .failure(let error) = result {
+                        let nsError = error as NSError
+                        if nsError.domain == NSURLErrorDomain,
+                           nsError.code == NSURLErrorCancelled {
+                            return
+                        }
+                    }
+                    completion([])
+                    return
+                }
+
+                completion(Self.parse(
+                    data: loadedResponse.data,
+                    response: loadedResponse.response
+                ))
             }
-            
-            completion(Self.parse(data: data, response: response))
-        }
-        task.resume()
+        )
+        task.start(with: URLRequest(url: url))
         return task
     }
 }
@@ -115,13 +142,16 @@ private extension SearchCompletion {
             return []
         }
         
-        return suggestions.compactMap { value in
+        return suggestions.prefix(maximumSuggestionCount).compactMap { value in
             guard let suggestion = value as? String else {
                 return nil
             }
             
             let trimmed = suggestion.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? nil : trimmed
+            guard !trimmed.isEmpty else {
+                return nil
+            }
+            return String(trimmed.prefix(maximumSuggestionLength))
         }
     }
     

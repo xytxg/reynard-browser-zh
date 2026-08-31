@@ -20,7 +20,7 @@ if [[ ! -d "$SOURCE_APP" ]]; then
     exit 66
 fi
 
-for command_name in codesign ditto file python3 zip; do
+for command_name in codesign ditto file install_name_tool otool python3 zip; do
     command -v "$command_name" >/dev/null || {
         echo "$command_name is required."
         exit 69
@@ -46,6 +46,27 @@ for required_path in \
         exit 65
     fi
 done
+
+# XUL used to be shipped as an extensionless dylib. Some on-device signing
+# tools consequently skipped it, and iOS 27's dyld rejected the app before
+# main() with "code signature invalid". Give the library a conventional dylib
+# name and rewrite every client load command before all signatures are stripped.
+XUL_PATH="$APP_PATH/Frameworks/XUL"
+XUL_DYLIB_PATH="$APP_PATH/Frameworks/XUL.dylib"
+mv "$XUL_PATH" "$XUL_DYLIB_PATH"
+install_name_tool -id '@rpath/XUL.dylib' "$XUL_DYLIB_PATH"
+
+while IFS= read -r -d '' candidate; do
+    if file "$candidate" | grep -q 'Mach-O' && \
+        otool -L "$candidate" 2>/dev/null | grep -Fq '@rpath/XUL'; then
+        install_name_tool -change '@rpath/XUL' '@rpath/XUL.dylib' "$candidate"
+    fi
+done < <(find "$APP_PATH" -type f -print0)
+
+if find "$APP_PATH" -type f -print0 | xargs -0 otool -L 2>/dev/null | grep -Fq '@rpath/XUL '; then
+    echo "A stale @rpath/XUL load command remains in the packaged app."
+    exit 70
+fi
 
 if find "$APP_PATH" \( -type d -name '_CodeSignature' -o -type f -name 'embedded.mobileprovision' \) -print -quit | grep -q .; then
     echo "Signing metadata remains in the app bundle."

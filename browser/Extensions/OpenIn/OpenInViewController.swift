@@ -74,7 +74,11 @@ final class OpenInViewController: UIViewController {
     }
     
     private func browserOpenURL(for sharedURL: URL) -> URL? {
-        guard var components = URLComponents(string: "reynard://open") else {
+        guard let scheme = sharedURL.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              let host = sharedURL.host,
+              !host.isEmpty,
+              var components = URLComponents(string: "reynard://open") else {
             return nil
         }
         
@@ -88,9 +92,10 @@ final class OpenInViewController: UIViewController {
         let defaultSelector = NSSelectorFromString("defaultWorkspace")
         let openSelector = NSSelectorFromString("openSensitiveURL:withOptions:")
         if let cls = NSClassFromString("LSApplicationWorkspace"),
+        (cls as AnyObject).responds(to: defaultSelector),
         let workspace = (cls as AnyObject).perform(defaultSelector)?.takeUnretainedValue(),
         workspace.responds(to: openSelector) {
-            workspace.perform(openSelector, with: url, with: nil as NSDictionary?)
+            _ = workspace.perform(openSelector, with: url, with: nil as NSDictionary?)
             extensionContext?.completeRequest(returningItems: nil)
             return
         }
@@ -98,8 +103,8 @@ final class OpenInViewController: UIViewController {
         let selector = NSSelectorFromString("openURL:")
         var responder: UIResponder? = self
         while let r = responder {
-            if r is UIApplication {
-                r.perform(selector, with: url)
+            if r is UIApplication, r.responds(to: selector) {
+                _ = r.perform(selector, with: url)
                 extensionContext?.completeRequest(returningItems: nil)
                 return
             }

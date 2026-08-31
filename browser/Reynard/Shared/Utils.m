@@ -54,20 +54,42 @@ void updateJetsamControl(pid_t pid) {
 }
 
 int spawnRoot(NSString *path, NSArray<NSString *> *args) {
+    if (path.length == 0) return EINVAL;
+
     NSMutableArray<NSString *> *arguments = args.mutableCopy ?: [NSMutableArray new];
     [arguments insertObject:path atIndex:0];
     
     NSUInteger argCount = arguments.count;
     char **argv = calloc(argCount + 1, sizeof(char *));
+    if (!argv) return ENOMEM;
     for (NSUInteger index = 0; index < argCount; index++) {
         argv[index] = strdup(arguments[index].UTF8String);
+        if (!argv[index]) {
+            for (NSUInteger cleanupIndex = 0; cleanupIndex < index; cleanupIndex++) free(argv[cleanupIndex]);
+            free(argv);
+            return ENOMEM;
+        }
     }
     
     posix_spawnattr_t attributes;
-    posix_spawnattr_init(&attributes);
-    posix_spawnattr_set_persona_np(&attributes, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
-    posix_spawnattr_set_persona_uid_np(&attributes, 0);
-    posix_spawnattr_set_persona_gid_np(&attributes, 0);
+    int attributeError = posix_spawnattr_init(&attributes);
+    BOOL attributesInitialized = attributeError == 0;
+    if (attributeError == 0) {
+        attributeError = posix_spawnattr_set_persona_np(
+            &attributes,
+            99,
+            POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE
+        );
+    }
+    if (attributeError == 0) attributeError = posix_spawnattr_set_persona_uid_np(&attributes, 0);
+    if (attributeError == 0) attributeError = posix_spawnattr_set_persona_gid_np(&attributes, 0);
+
+    if (attributeError != 0) {
+        if (attributesInitialized) posix_spawnattr_destroy(&attributes);
+        for (NSUInteger index = 0; index < argCount; index++) free(argv[index]);
+        free(argv);
+        return attributeError;
+    }
     
     pid_t taskPID = 0;
     int spawnError = posix_spawn(&taskPID, path.fileSystemRepresentation, NULL, &attributes, argv, NULL);
@@ -86,5 +108,7 @@ int spawnRoot(NSString *path, NSArray<NSString *> *args) {
         }
     } while (!WIFEXITED(status) && !WIFSIGNALED(status));
     
-    return WEXITSTATUS(status);
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
+    if (WIFSIGNALED(status)) return 128 + WTERMSIG(status);
+    return ECHILD;
 }

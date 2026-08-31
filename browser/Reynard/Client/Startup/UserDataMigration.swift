@@ -32,17 +32,28 @@ final class UserDataMigration {
     
     private init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
-        
-        guard let documentsDirectoryURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            fatalError("Documents directory is unavailable")
+
+        if let documentsDirectoryURL = fileManager.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first {
+            self.documentsDirectoryURL = documentsDirectoryURL
+        } else {
+            NSLog("UserDataMigration: Documents directory is unavailable; legacy migration will be skipped")
+            self.documentsDirectoryURL = fileManager.temporaryDirectory
+                .appendingPathComponent("ReynardRecovery/Documents", isDirectory: true)
         }
-        
-        guard let applicationSupportDirectoryURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            fatalError("Application Support directory is unavailable")
+
+        if let applicationSupportDirectoryURL = fileManager.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first {
+            self.applicationSupportDirectoryURL = applicationSupportDirectoryURL
+        } else {
+            NSLog("UserDataMigration: Application Support is unavailable; using temporary recovery storage")
+            self.applicationSupportDirectoryURL = fileManager.temporaryDirectory
+                .appendingPathComponent("ReynardRecovery/ApplicationSupport", isDirectory: true)
         }
-        
-        self.documentsDirectoryURL = documentsDirectoryURL
-        self.applicationSupportDirectoryURL = applicationSupportDirectoryURL
     }
     
     func run() {
@@ -64,15 +75,17 @@ final class UserDataMigration {
             try removeLegacyStoreFolders(in: sourceURL)
             try fileManager.createDirectory(at: applicationSupportDirectoryURL, withIntermediateDirectories: true)
             if fileManager.fileExists(atPath: destinationURL.path) {
-                try fileManager.removeItem(at: destinationURL)
+                try mergeDirectoryContents(from: sourceURL, into: destinationURL)
+            } else {
+                try fileManager.moveItem(at: sourceURL, to: destinationURL)
             }
-            try fileManager.moveItem(at: sourceURL, to: destinationURL)
         } catch {
-            fatalError("AppData migration failed")
+            NSLog("UserDataMigration: AppData migration failed: %@", error.localizedDescription)
+            return
         }
-        
-        guard !fileManager.fileExists(atPath: sourceURL.path) else {
-            fatalError("AppData migration failed")
+
+        if fileManager.fileExists(atPath: sourceURL.path) {
+            NSLog("UserDataMigration: legacy AppData remains after migration")
         }
     }
     
@@ -87,15 +100,17 @@ final class UserDataMigration {
         do {
             try fileManager.createDirectory(at: applicationSupportDirectoryURL, withIntermediateDirectories: true)
             if fileManager.fileExists(atPath: destinationURL.path) {
-                try fileManager.removeItem(at: destinationURL)
+                try mergeDirectoryContents(from: sourceURL, into: destinationURL)
+            } else {
+                try fileManager.moveItem(at: sourceURL, to: destinationURL)
             }
-            try fileManager.moveItem(at: sourceURL, to: destinationURL)
         } catch {
-            fatalError("DDI migration failed")
+            NSLog("UserDataMigration: DDI migration failed: %@", error.localizedDescription)
+            return
         }
-        
-        guard !fileManager.fileExists(atPath: sourceURL.path) else {
-            fatalError("DDI migration failed")
+
+        if fileManager.fileExists(atPath: sourceURL.path) {
+            NSLog("UserDataMigration: legacy DDI remains after migration")
         }
     }
     
@@ -111,6 +126,44 @@ final class UserDataMigration {
             if fileManager.fileExists(atPath: folderURL.path) {
                 try fileManager.removeItem(at: folderURL)
             }
+        }
+    }
+
+    private func mergeDirectoryContents(from sourceURL: URL, into destinationURL: URL) throws {
+        try fileManager.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+        let sourceItems = try fileManager.contentsOfDirectory(
+            at: sourceURL,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: []
+        )
+
+        for sourceItemURL in sourceItems {
+            let destinationItemURL = destinationURL.appendingPathComponent(
+                sourceItemURL.lastPathComponent,
+                isDirectory: false
+            )
+            guard fileManager.fileExists(atPath: destinationItemURL.path) else {
+                try fileManager.moveItem(at: sourceItemURL, to: destinationItemURL)
+                continue
+            }
+
+            let sourceIsDirectory = try sourceItemURL.resourceValues(
+                forKeys: [.isDirectoryKey]
+            ).isDirectory == true
+            let destinationIsDirectory = try destinationItemURL.resourceValues(
+                forKeys: [.isDirectoryKey]
+            ).isDirectory == true
+            if sourceIsDirectory && destinationIsDirectory {
+                try mergeDirectoryContents(from: sourceItemURL, into: destinationItemURL)
+            } else {
+                // Application Support is the active store. Remove only the stale
+                // duplicate after confirming that an active destination exists.
+                try fileManager.removeItem(at: sourceItemURL)
+            }
+        }
+
+        if (try fileManager.contentsOfDirectory(atPath: sourceURL.path)).isEmpty {
+            try fileManager.removeItem(at: sourceURL)
         }
     }
 }

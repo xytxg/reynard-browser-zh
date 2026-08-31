@@ -14,11 +14,14 @@ final class SettingsViewController: SettingsTableViewController {
         case general
         case privacy
         case about
-        
+
         var text: SettingsSectionText {
             switch self {
             case .updates:
-                return SettingsSectionText(headerTitle: NSLocalizedString("Update Available", comment: ""))
+                let title = BrowserUpdates.shared.hasUpdate ?
+                NSLocalizedString("Update Available", comment: "") :
+                NSLocalizedString("App Updates", comment: "")
+                return SettingsSectionText(headerTitle: title)
             case .jit:
                 return SettingsSectionText(headerTitle: NSLocalizedString("JIT", comment: ""))
             case .general:
@@ -30,67 +33,64 @@ final class SettingsViewController: SettingsTableViewController {
             }
         }
     }
-    
+
     private let updatesSection = UpdatesSettingsSection()
     private let jitSection = JITSettingsSection()
     private let generalSection = GeneralSettingsSection()
     private let privacySection = PrivacySettingsSection()
     private let aboutSection = AboutSettingsSection()
-    
+
     private var allowUpdate: Bool {
         let unsandboxed = getEntitlementValue("com.apple.private.security.no-sandbox")
         return !unsandboxed || updatesSection.installedThroughTrollStore
     }
-    
+
     var displayedSections: [Section] {
         var hiddenSections: Set<Section> = []
         let unsandboxed = getEntitlementValue("com.apple.private.security.no-sandbox")
-        
-        if !BrowserUpdates.shared.hasUpdate {
-            hiddenSections.insert(.updates)
-        }
-        
+
         if unsandboxed {
             hiddenSections.insert(.jit)
         }
-        
+
         return Section.allCases.filter { !hiddenSections.contains($0) }
     }
-    
+
     // MARK: - Lifecycle
-    
+
     init() {
         super.init(style: .insetGrouped)
         configureViewController()
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         observeJITMode()
+        observeAppUpdateState()
         jitSection.refreshDisplayedState()
     }
-    
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         jitSection.refreshDisplayedState()
         tableView.reloadData()
     }
-    
+
     // MARK: - Table Data Source
-    
+
     override func numberOfSections(in tableView: UITableView) -> Int {
         displayedSections.count
     }
-    
+
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         guard displayedSections.indices.contains(section) else {
             return 0
         }
-        
+
         switch displayedSections[section] {
         case .updates:
             return updatesSection.rowCount(allowUpdate: allowUpdate)
@@ -104,12 +104,12 @@ final class SettingsViewController: SettingsTableViewController {
             return aboutSection.rowCount
         }
     }
-    
+
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         guard displayedSections.indices.contains(indexPath.section) else {
             return UITableViewCell()
         }
-        
+
         switch displayedSections[indexPath.section] {
         case .updates:
             return updatesSection.cell(
@@ -136,18 +136,24 @@ final class SettingsViewController: SettingsTableViewController {
             return cell
         }
     }
-    
+
     // MARK: - Table Delegate
-    
+
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         defer { tableView.deselectRow(at: indexPath, animated: true) }
         guard displayedSections.indices.contains(indexPath.section) else {
             return
         }
-        
+
         switch displayedSections[indexPath.section] {
         case .updates:
-            updatesSection.selectRow(at: indexPath.row, allowUpdate: allowUpdate, from: self)
+            updatesSection.selectRow(
+                at: indexPath.row,
+                allowUpdate: allowUpdate,
+                from: self
+            ) { [weak self] in
+                self?.tableView.reloadData()
+            }
         case .jit:
             jitSection.selectRow(at: indexPath.row, from: self)
         case .general:
@@ -158,47 +164,45 @@ final class SettingsViewController: SettingsTableViewController {
             aboutSection.selectRow(at: indexPath.row, from: self)
         }
     }
-    
+
     override func sectionText(for section: Int) -> SettingsSectionText {
         guard displayedSections.indices.contains(section) else {
             return SettingsSectionText()
         }
         return displayedSections[section].text
     }
-    
+
     override func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
         guard displayedSections.indices.contains(section) else {
             return nil
         }
-        
+
         switch displayedSections[section] {
-        case .updates where !allowUpdate:
-            return updatesSection.unsupportedUpdatesFooterView()
-        case .updates where updatesSection.installedThroughTrollStore:
-            return updatesSection.trollStoreFooterView()
+        case .updates:
+            return updatesSection.footerView(allowUpdate: allowUpdate)
         case .jit:
             return jitSection.footerView()
         default:
             return nil
         }
     }
-    
+
     override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         guard displayedSections.indices.contains(indexPath.section),
               displayedSections[indexPath.section] == .updates else {
             return UITableView.automaticDimension
         }
-        
+
         return updatesSection.rowHeight(at: indexPath.row, allowUpdate: allowUpdate, in: tableView)
     }
-    
+
     // MARK: - View Setup
-    
+
     private func configureViewController() {
         title = NSLocalizedString("Settings", comment: "")
         jitSection.attach(to: self)
     }
-    
+
     private func observeJITMode() {
         NotificationCenter.default.addObserver(
             self,
@@ -207,25 +211,38 @@ final class SettingsViewController: SettingsTableViewController {
             object: nil
         )
     }
-    
+
+    private func observeAppUpdateState() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(syncAppUpdateState(_:)),
+            name: .appUpdateStateDidChange,
+            object: nil
+        )
+    }
+
     @objc private func syncJITModeBanner(_ notification: Notification) {
         jitSection.refreshDisplayedState()
         tableView.reloadData()
     }
-    
+
+    @objc private func syncAppUpdateState(_ notification: Notification) {
+        tableView.reloadData()
+    }
+
     @objc private func revealExperimentalFeatures(_ gestureRecognizer: UITapGestureRecognizer) {
         guard gestureRecognizer.state == .ended,
               aboutSection.revealExperimentalFeatures(),
               let section = displayedSections.firstIndex(of: .about) else {
             return
         }
-        
+
         tableView.insertRows(
             at: [IndexPath(row: 0, section: section)],
             with: .automatic
         )
     }
-    
+
 }
 
 // MARK: - UIDocumentPickerDelegate
@@ -235,7 +252,7 @@ extension SettingsViewController: UIDocumentPickerDelegate {
         guard let url = urls.first else {
             return
         }
-        
+
         jitSection.savePairingFile(from: url)
     }
 }

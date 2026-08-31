@@ -1,6 +1,6 @@
 # Reynard Browser 简体中文说明
 
-Reynard 是面向 iOS 13 及更高版本的 Gecko 浏览器。本分支保留原有 Gecko、JIT、应用扩展、
+Reynard 是面向 iOS 15 及更高版本的 Gecko 浏览器。本分支保留原有 Gecko、JIT、应用扩展、
 标签页和侧载架构，并加入简体中文（`zh-Hans`）、下载安全修复、私密会话保护和源码构建
 未签名 IPA 的 GitHub Actions 流程。
 
@@ -10,10 +10,10 @@ Reynard 是面向 iOS 13 及更高版本的 Gecko 浏览器。本分支保留原
 
 ## 上游同步状态
 
-当前维护代码已合并原作者仓库截至 `7d897d596266c0048d48eb755646b8c58ad19fab`
-（2026-08-27）的更新，Gecko 为 `FIREFOX_154_0_1_RELEASE`，固定源码提交为
-`9cd094dbc3eac5df87a24e7a871e52880cb8cd42`。从此前记录的 `1ac2ddf` 基线进行三方合并，
-保留中文分支的下载安全、私密会话保护、旧系统兼容与未签名 IPA 构建。
+当前维护代码已合并原作者仓库截至 `0bfe06fda73842ff8f01a7e371854ee89f5e045a`
+（2026-08-30）的 0.11.0 更新，Gecko 为 `FIREFOX_154_0_1_RELEASE`，固定源码提交为
+`9cd094dbc3eac5df87a24e7a871e52880cb8cd42`。在上游代码基础上保留中文分支的下载安全、
+私密会话保护、iOS 15 最低版本、iOS 27 SDK 编译验证与未签名 IPA 构建。
 
 本轮包括下载暂停/继续、关闭来源标签后下载卡住、键盘焦点/Shift 键、底部工具栏、
 崩溃后工具栏恢复、合成器布局崩溃及多进程扩展清理。另修复下载重启恢复、清理任务保护、
@@ -41,6 +41,41 @@ GitHub Actions 产物没有 Apple 开发证书、分发证书或 Provisioning Pr
 扩展丢失会导致打开文件、Gecko 进程或其他浏览器能力失效。LiveContainer 受其进程和应用扩展
 模型限制，不属于受支持方案；使用分发证书重签也存在 entitlement 和扩展兼容限制。
 
+## 默认浏览器与外部链接
+
+Reynard 已注册 `http`、`https` URL Scheme，并同时处理冷启动和运行中的外部链接。收到链接后会
+直接在普通/私密浏览模式当前所选模式中打开网页；`reynard://` 包装链接只允许最终目标为有效的
+HTTP/HTTPS 地址，不允许借此打开本地文件或脚本协议。应用内可进入
+**设置 → 通用 → 默认浏览器**：iOS 18.3 及以上会直接打开“默认 App”设置，iOS 15–18.2
+会打开 Reynard 的应用设置。
+
+能否出现在系统“浏览器 App”列表，最终取决于安装签名中是否真的含有 Apple 管理的
+`com.apple.developer.web-browser` 权限：
+
+- 源码的标准 entitlement 已声明该权限，使用获 Apple 批准且包含该权限的 Provisioning Profile
+  签名后可供系统识别；申请和要求见 Apple 的
+  [默认浏览器准备说明](https://developer.apple.com/documentation/xcode/preparing-your-app-to-be-the-default-browser)与
+  [entitlement 参考](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.web-browser)。
+- 本仓库发布的未签名 IPA 没有任何签名 entitlement；重新签名时必须由签名环境注入获准权限。
+- AltStore、SideStore 或普通个人开发证书不能自行创造 Apple 管理权限。此类签名仍可通过分享菜单、
+  `reynard://` 或其他明确交付方式打开链接，但 Reynard 不会出现在系统默认浏览器列表中。
+- 使用 TrollStore/越狱签名时，可通过 `Reynard.private.entitlements` 保留相应声明；系统是否接受仍取决于
+  iOS 版本和安装方式，不能仅靠修改 `Info.plist` 保证。
+
+若设置行显示“需要兼容签名”，表示当前实际安装的 App 签名里没有该权限；这不是界面开关能够绕过的限制。
+
+## 检测和下载更新
+
+进入 **设置 → App 更新 → 检测更新**，Reynard 会请求本仓库公开的 GitHub Releases API，
+同时识别正式版和更新的 `main` 构建。更新器只接受
+`github.com/xytxg/reynard-browser-zh/releases/download/` 下、名称符合 Reynard 规则的 IPA；下载前
+读取 Release 附带的 `.sha256`，下载后同时核对文件大小和 SHA-256，通过后才会打开共享菜单。
+
+普通 iOS App 无权静默安装或覆盖自身，未签名 IPA 也不能直接执行。因此 AltStore、SideStore、
+个人证书等安装方式会在校验完成后打开共享菜单，需要手动选择原签名工具重新签名安装。若当前通过
+TrollStore 安装，且对应 Release 另附 `.tipa`，更新按钮会优先唤起 TrollStore；只有未签名 IPA 时
+仍会走“校验后分享”。这项限制来自 iOS 代码签名模型，不能通过浏览器代码绕过。
+
 ## 在 GitHub Actions 从源码构建
 
 1. 打开本仓库的 **Actions** 页面。
@@ -57,11 +92,12 @@ GitHub Actions 产物没有 Apple 开发证书、分发证书或 Provisioning Pr
 4. 使用真实 `Reynard` Scheme 构建 `Reynard.app`，并设置
    `CODE_SIGNING_ALLOWED=NO`、`CODE_SIGNING_REQUIRED=NO` 和
    `AD_HOC_CODE_SIGNING_ALLOWED=NO`。
-5. 检查主程序、`Info.plist`、两个应用扩展、GeckoView、XUL 和 Frameworks 后，生成标准
+5. 检查主程序、`Info.plist`、两个应用扩展、GeckoView、`XUL.dylib` 和 Frameworks 后，生成标准
    `Payload/Reynard.app` IPA。
 
 打包会检查 Mach-O 的 arm64 架构、残留签名、主应用与扩展构建号、中文资源和 ZIP 完整性。
-`CFBundleVersion` 使用数字构建号，源码短 SHA 保留在产物文件名和构建日志中。
+`CFBundleVersion` 使用数字构建号，源码短 SHA 保留在产物文件名和构建日志中。正式构建最低
+系统版本固定为 iOS 15.0，并另用 Xcode 27 / iOS 27 SDK 编译和检查 Mach-O 链接版本。
 
 IPA 文件名格式为 `Reynard-<版本>-<提交短 SHA>-unsigned.ipa`。推送到 `main` 或手动运行时，
 成功产物通常创建 `build-<运行编号>` 预发行版；推送 `v*` 标签时创建同名正式 Release。
@@ -70,6 +106,10 @@ IPA 文件名格式为 `Reynard-<版本>-<提交短 SHA>-unsigned.ipa`。推送�
 PR 标题中加入 `[build ipa]`，但 PR 构建不会创建发行版，以防未合并代码取得发布权限。
 旧的上游 AltStore 元数据刷新工作流只允许手动运行，不会再被每个中文构建发行版触发，也不会
 干扰 IPA 的自动发布状态。
+
+iOS 27 会在应用代码运行前严格校验 XUL 动态库签名。打包脚本会把上游无扩展名的 `XUL`
+规范化为 `XUL.dylib` 并重写加载路径，方便 SideStore、AltStore、E-Sign 等工具递归重签名。
+IPA 本身仍然未签名；安装工具必须使用同一证书重新签署主程序、扩展、GeckoView 和所有 dylib。
 
 ## 本地源码构建
 

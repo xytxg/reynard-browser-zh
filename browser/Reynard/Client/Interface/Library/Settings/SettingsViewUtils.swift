@@ -33,6 +33,15 @@ enum SettingsViewUtils {
         return cell
     }
     
+    static func disclosureCell(title: String, subtitle: String) -> UITableViewCell {
+        let cell = SettingsTableViewCell(style: .subtitle, reuseIdentifier: nil)
+        cell.textLabel?.text = title
+        cell.detailTextLabel?.text = subtitle
+        cell.detailTextLabel?.textColor = .secondaryLabel
+        cell.accessoryType = .disclosureIndicator
+        return cell
+    }
+
     static func actionCell(title: String, tintColor: UIColor?) -> UITableViewCell {
         let cell = SettingsTableViewCell(style: .default, reuseIdentifier: nil)
         cell.textLabel?.text = title

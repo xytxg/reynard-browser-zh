@@ -17,7 +17,7 @@ elif [[ "${REQUIRE_SWIFT:-0}" == "1" ]]; then
     echo "Swift compiler is required but was not found."
     exit 69
 else
-    echo "Swift compiler not found; skipping DownloadSafetyTests."
+    echo "Swift compiler not found; skipping pure Swift tests."
     exit 0
 fi
 
@@ -30,3 +30,18 @@ trap 'rm -rf "$TEST_DIR"' EXIT
     -o "$TEST_DIR/DownloadSafetyTests"
 
 "$TEST_DIR/DownloadSafetyTests"
+
+"${SWIFTC[@]}" \
+    "$ROOT_DIR/browser/Reynard/Client/Shared/URLUtils.swift" \
+    "$ROOT_DIR/browser/Reynard/Client/Shared/IncomingBrowserURL.swift" \
+    "$ROOT_DIR/Tests/IncomingBrowserURLTests.swift" \
+    -o "$TEST_DIR/IncomingBrowserURLTests"
+
+"$TEST_DIR/IncomingBrowserURLTests"
+
+"${SWIFTC[@]}" \
+    "$ROOT_DIR/browser/Reynard/Client/Startup/BrowserUpdatePolicy.swift" \
+    "$ROOT_DIR/Tests/BrowserUpdatePolicyTests.swift" \
+    -o "$TEST_DIR/BrowserUpdatePolicyTests"
+
+"$TEST_DIR/BrowserUpdatePolicyTests"

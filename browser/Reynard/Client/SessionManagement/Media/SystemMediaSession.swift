@@ -31,7 +31,8 @@ final class SystemMediaSession: MediaSessionDelegate {
         weak var session: GeckoSession?
         var nowPlayingInfo: [String: Any] = [:]
         var features: MediaSessionFeatures = [.seekForward, .seekBackward, .seekTo]
-        var artworkTask: URLSessionDataTask?
+        var artworkTask: BoundedURLDataLoader?
+        var artworkRequestID: UUID?
         var playbackState = PlaybackState.none
         var positionState: MediaSessionPositionState?
         
@@ -42,6 +43,8 @@ final class SystemMediaSession: MediaSessionDelegate {
     
     private weak var activeSession: GeckoSession?
     private weak var selectedSession: GeckoSession?
+    private static let maximumArtworkDataSize = 8 * 1024 * 1024
+    private static let maximumArtworkPixelSize = 1024
     private let nowPlayingCenter = MPNowPlayingInfoCenter.default()
     private let commandCenter = MPRemoteCommandCenter.shared()
     private var sessionStates: [ObjectIdentifier: SessionState] = [:]
@@ -111,30 +114,56 @@ final class SystemMediaSession: MediaSessionDelegate {
         state.nowPlayingInfo[MPMediaItemPropertyTitle] = metadata.title ?? ""
         state.nowPlayingInfo[MPMediaItemPropertyArtist] = metadata.artist ?? ""
         state.nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = metadata.album ?? ""
-        
+
+        state.artworkTask?.cancel()
+        state.artworkTask = nil
+        state.artworkRequestID = nil
+        state.nowPlayingInfo.removeValue(forKey: MPMediaItemPropertyArtwork)
+
         if activeSession === session {
             nowPlayingCenter.nowPlayingInfo = state.nowPlayingInfo
         }
-        
-        state.artworkTask?.cancel()
-        state.artworkTask = nil
-        
+
         if let artworkURLString = metadata.artworkUrl,
-           let artworkURL = URL(string: artworkURLString) {
-            let task = URLSession.shared.dataTask(with: artworkURL) { [weak self, weak state] data, _, _ in
-                guard let data, let image = UIImage(data: data) else { return }
-                let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-                DispatchQueue.main.async {
-                    guard let self, let state else { return }
-                    state.artworkTask = nil
-                    state.nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
-                    if self.activeSession === state.session {
-                        self.nowPlayingCenter.nowPlayingInfo = state.nowPlayingInfo
+           let artworkURL = URL(string: artworkURLString),
+           URLUtils.isWebURL(artworkURL) {
+            let requestID = UUID()
+            state.artworkRequestID = requestID
+            let task = BoundedURLDataLoader(
+                maximumByteCount: Self.maximumArtworkDataSize,
+                responseValidator: { response in
+                    guard response.statusCode == 200,
+                          let finalURL = response.url else {
+                        return false
+                    }
+                    return URLUtils.isWebURL(finalURL)
+                },
+                completion: { [weak self, weak state] result in
+                    guard let data = try? result.get().data,
+                      let prepared = ImageUtils.prepareJPEGImage(
+                        from: data,
+                        maximumPixelSize: Self.maximumArtworkPixelSize
+                      ),
+                      let image = UIImage(data: prepared.data) else {
+                        return
+                    }
+                    let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+                    DispatchQueue.main.async {
+                        guard let self, let state,
+                              state.artworkRequestID == requestID else {
+                            return
+                        }
+                        state.artworkTask = nil
+                        state.artworkRequestID = nil
+                        state.nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
+                        if self.activeSession === state.session {
+                            self.nowPlayingCenter.nowPlayingInfo = state.nowPlayingInfo
+                        }
                     }
                 }
-            }
-            task.resume()
+            )
             state.artworkTask = task
+            task.start(with: URLRequest(url: artworkURL))
         }
     }
     

@@ -278,7 +278,7 @@ final class DonationRecommendationViewController: UIViewController, HomepageReco
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(appUpdateAvailable),
-            name: .appUpdateAvailable,
+            name: .appUpdateStateDidChange,
             object: nil
         )
     }

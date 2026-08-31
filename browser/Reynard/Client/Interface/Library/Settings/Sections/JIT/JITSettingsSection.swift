@@ -333,24 +333,66 @@ private func allowedPairingDocumentTypeIdentifiers() -> [String] {
     return identifiers
 }
 
+private enum PairingFileImportError: LocalizedError {
+    case invalidFile
+    case unavailableStorage
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidFile:
+            return NSLocalizedString("The pairing file is invalid or too large.", comment: "")
+        case .unavailableStorage:
+            return NSLocalizedString("The pairing file could not be saved.", comment: "")
+        }
+    }
+}
+
 private func installPairingFile(from downloadLocation: URL) throws {
     let fileManager = FileManager.default
-    let destinationURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    guard let documentsURL = fileManager.urls(
+        for: .documentDirectory,
+        in: .userDomainMask
+    ).first else {
+        throw PairingFileImportError.unavailableStorage
+    }
+    let destinationURL = documentsURL
         .appendingPathComponent("pairingFile.plist", isDirectory: false)
     try fileManager.createDirectory(at: destinationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-    
+
+    let hasSecurityScopedAccess = downloadLocation.startAccessingSecurityScopedResource()
+    defer {
+        if hasSecurityScopedAccess {
+            downloadLocation.stopAccessingSecurityScopedResource()
+        }
+    }
+
+    guard let sourceValues = try? downloadLocation.resourceValues(
+        forKeys: [.isRegularFileKey, .fileSizeKey]
+    ),
+    sourceValues.isRegularFile == true,
+    let fileSize = sourceValues.fileSize,
+    fileSize > 0,
+    fileSize <= 4 * 1024 * 1024,
+    let data = try? Data(contentsOf: downloadLocation, options: [.mappedIfSafe]),
+    let propertyList = try? PropertyListSerialization.propertyList(
+        from: data,
+        options: [],
+        format: nil
+    ),
+    let dictionary = propertyList as? [String: Any],
+    !dictionary.isEmpty else {
+        throw PairingFileImportError.invalidFile
+    }
+
     let normalizedSourceURL = downloadLocation.standardizedFileURL
     let normalizedDestinationURL = destinationURL.standardizedFileURL
-    
-    guard normalizedSourceURL != normalizedDestinationURL else {
-        Prefs.JITSettings.isJITEnabled = false
-        return
+
+    if normalizedSourceURL != normalizedDestinationURL {
+        try data.write(to: normalizedDestinationURL, options: .atomic)
     }
-    
-    if fileManager.fileExists(atPath: normalizedDestinationURL.path) {
-        try fileManager.removeItem(at: normalizedDestinationURL)
-    }
-    
-    try fileManager.copyItem(at: normalizedSourceURL, to: normalizedDestinationURL)
+    try fileManager.setAttributes(
+        [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+        ofItemAtPath: normalizedDestinationURL.path
+    )
     Prefs.JITSettings.isJITEnabled = false
 }

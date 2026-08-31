@@ -59,7 +59,7 @@ if [ "$BUILD_TYPE" != "normal" ]; then
 	"$CLANG_PATH" \
 		-arch arm64 \
 		-isysroot "$SDK_PATH" \
-		-miphoneos-version-min=13.0 \
+		-miphoneos-version-min=15.0 \
 		-Os \
 		"$PTRACE_JIT_SRC" \
 		-o "$PTRACE_JIT_OUT"

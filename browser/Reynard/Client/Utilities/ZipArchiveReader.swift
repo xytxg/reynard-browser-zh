@@ -9,19 +9,30 @@ import Foundation
 import zlib
 
 enum ZipArchiveReader {
+    private static let maximumArchiveSize = 128 * 1024 * 1024
+    private static let maximumEntryCount = 4096
+    private static let maximumEntrySize = 8 * 1024 * 1024
+
     static func entryData(in archiveData: Data, path: String) -> Data? {
-        guard let endOfCentralDirectoryOffset = endOfCentralDirectoryOffset(in: archiveData) else {
+        guard !path.isEmpty,
+              archiveData.count <= maximumArchiveSize,
+              let endOfCentralDirectoryOffset = endOfCentralDirectoryOffset(in: archiveData) else {
             return nil
         }
-        
+
         let entryCount = Int(readUInt16(in: archiveData, at: endOfCentralDirectoryOffset + 10))
+        guard entryCount <= maximumEntryCount else {
+            return nil
+        }
         var offset = Int(readUInt32(in: archiveData, at: endOfCentralDirectoryOffset + 16))
-        
+
         for _ in 0..<entryCount {
-            guard readUInt32(in: archiveData, at: offset) == 0x02014B50 else {
+            guard containsBytes(in: archiveData, at: offset, count: 46),
+                  readUInt32(in: archiveData, at: offset) == 0x02014B50 else {
                 return nil
             }
-            
+
+            let generalPurposeFlags = readUInt16(in: archiveData, at: offset + 8)
             let compressionMethod = readUInt16(in: archiveData, at: offset + 10)
             let compressedSize = Int(readUInt32(in: archiveData, at: offset + 20))
             let uncompressedSize = Int(readUInt32(in: archiveData, at: offset + 24))
@@ -31,12 +42,26 @@ enum ZipArchiveReader {
             let localHeaderOffset = Int(readUInt32(in: archiveData, at: offset + 42))
             let nameStart = offset + 46
             let nameEnd = nameStart + fileNameLength
-            
-            guard let fileName = String(data: archiveData.subdata(in: nameStart..<nameEnd), encoding: .utf8) else {
+
+            guard containsBytes(in: archiveData, at: nameStart, count: fileNameLength),
+                  containsBytes(
+                    in: archiveData,
+                    at: nameEnd,
+                    count: extraFieldLength + commentLength
+                  ),
+                  compressedSize <= maximumArchiveSize,
+                  uncompressedSize <= maximumEntrySize,
+                  let fileName = String(
+                    data: archiveData.subdata(in: nameStart..<nameEnd),
+                    encoding: .utf8
+                  ) else {
                 return nil
             }
-            
+
             if fileName == path {
+                guard generalPurposeFlags & 0x1 == 0 else {
+                    return nil
+                }
                 return localEntryData(
                     in: archiveData,
                     localHeaderOffset: localHeaderOffset,
@@ -45,10 +70,10 @@ enum ZipArchiveReader {
                     uncompressedSize: uncompressedSize
                 )
             }
-            
+
             offset = nameEnd + extraFieldLength + commentLength
         }
-        
+
         return nil
     }
     
@@ -59,22 +84,26 @@ enum ZipArchiveReader {
         compressedSize: Int,
         uncompressedSize: Int
     ) -> Data? {
-        guard readUInt32(in: archiveData, at: localHeaderOffset) == 0x04034B50 else {
+        guard containsBytes(in: archiveData, at: localHeaderOffset, count: 30),
+              readUInt32(in: archiveData, at: localHeaderOffset) == 0x04034B50,
+              compressedSize <= maximumArchiveSize,
+              uncompressedSize <= maximumEntrySize else {
             return nil
         }
-        
+
         let fileNameLength = Int(readUInt16(in: archiveData, at: localHeaderOffset + 26))
         let extraFieldLength = Int(readUInt16(in: archiveData, at: localHeaderOffset + 28))
         let dataStart = localHeaderOffset + 30 + fileNameLength + extraFieldLength
         let dataEnd = dataStart + compressedSize
-        guard archiveData.count >= dataEnd else {
+        guard containsBytes(in: archiveData, at: dataStart, count: compressedSize),
+              dataEnd <= archiveData.count else {
             return nil
         }
-        
+
         let compressedData = archiveData.subdata(in: dataStart..<dataEnd)
         switch compressionMethod {
         case 0:
-            return compressedData
+            return compressedSize == uncompressedSize ? compressedData : nil
         case 8:
             return inflate(data: compressedData, expectedSize: uncompressedSize)
         default:
@@ -111,6 +140,12 @@ enum ZipArchiveReader {
     }
     
     private static func inflate(data: Data, expectedSize: Int) -> Data? {
+        guard expectedSize >= 0,
+              expectedSize <= maximumEntrySize,
+              data.count <= maximumArchiveSize else {
+            return nil
+        }
+
         var stream = z_stream()
         var status = data.withUnsafeBytes { inputBuffer -> Int32 in
             guard let baseAddress = inputBuffer.bindMemory(to: Bytef.self).baseAddress else {
@@ -126,10 +161,10 @@ enum ZipArchiveReader {
         }
         defer { inflateEnd(&stream) }
         
-        let chunkSize = max(expectedSize, 32 * 1024)
-        var output = Data()
+        let chunkSize = 32 * 1024
+        var output = Data(capacity: min(expectedSize, maximumEntrySize))
         var buffer = [UInt8](repeating: 0, count: chunkSize)
-        
+
         repeat {
             status = buffer.withUnsafeMutableBytes { outputBuffer -> Int32 in
                 guard let baseAddress = outputBuffer.bindMemory(to: Bytef.self).baseAddress else {
@@ -142,14 +177,27 @@ enum ZipArchiveReader {
             
             let producedCount = buffer.count - Int(stream.avail_out)
             if producedCount > 0 {
+                guard output.count <= maximumEntrySize - producedCount else {
+                    return nil
+                }
                 output.append(contentsOf: buffer.prefix(producedCount))
             }
         } while status == Z_OK
-        
-        guard status == Z_STREAM_END else {
+
+        guard status == Z_STREAM_END,
+              output.count == expectedSize else {
             return nil
         }
-        
+
         return output
+    }
+
+    private static func containsBytes(in data: Data, at offset: Int, count: Int) -> Bool {
+        guard offset >= 0,
+              count >= 0,
+              offset <= data.count else {
+            return false
+        }
+        return count <= data.count - offset
     }
 }

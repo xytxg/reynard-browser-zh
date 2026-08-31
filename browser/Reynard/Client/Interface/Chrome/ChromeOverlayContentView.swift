@@ -75,13 +75,19 @@ final class ChromeOverlayContentView: UIView {
     private let backgroundView: UIVisualEffectView = {
         let effect: UIVisualEffect
         if #available(iOS 26.0, *) {
-            effect = UIGlassEffect.nonAdaptive(style: .regular)
+            effect = UIGlassEffect(style: .regular)
         } else {
             effect = UIBlurEffect(style: .systemMaterial)
         }
         let view = UIVisualEffectView(effect: effect)
         view.translatesAutoresizingMaskIntoConstraints = false
-        view.contentView.backgroundColor = UIColor.systemBackground.withAlphaComponent(UX.backgroundAlpha)
+        if #unavailable(iOS 26.0) {
+            view.contentView.backgroundColor = UIColor.systemBackground.withAlphaComponent(UX.backgroundAlpha)
+        }
+        // Keep this compatible with the stable iOS 26 SDK as well as iOS 27.
+        // UICornerConfiguration.fixed(_:) was added to newer SDK headers, while
+        // CALayer clipping produces the same fixed-radius glass container here.
+        view.layer.cornerRadius = UX.modernCornerRadius
         view.layer.cornerCurve = .continuous
         view.layer.masksToBounds = true
         return view

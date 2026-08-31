@@ -119,14 +119,20 @@ final class TabOverviewTopToolbar: UIView {
         let clearTabsItem = UIBarButtonItem(barButtonSystemItem: .trash, target: nil, action: nil)
         let addTabItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addTabButtonTapped))
         let doneItem = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(doneTapped))
+        let leadingFlexibleSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let trailingFlexibleSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
         clearTabsItem.tintColor = .label
         addTabItem.tintColor = .label
         doneItem.tintColor = .label
+        if #available(iOS 26.0, *) {
+            leadingFlexibleSpace.hidesSharedBackground = false
+            trailingFlexibleSpace.hidesSharedBackground = false
+        }
         toolbar.items = [
             clearTabsItem,
-            UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil),
+            leadingFlexibleSpace,
             addTabItem,
-            UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil),
+            trailingFlexibleSpace,
             doneItem,
         ]
         return toolbar

@@ -46,7 +46,7 @@ final class TopToolbar: UIView {
     private let backgroundView: UIVisualEffectView = {
         let effect: UIVisualEffect
         if #available(iOS 26.0, *) {
-            effect = UIGlassEffect.nonAdaptive(style: .regular)
+            effect = UIGlassEffect(style: .regular)
         } else {
             effect = UIBlurEffect(style: .systemChromeMaterial)
         }
@@ -273,7 +273,8 @@ final class TopToolbar: UIView {
             on: backButton,
             forwardButton: forwardButton,
             itemsProvider: itemsProvider,
-            onSelect: onSelect
+            onSelect: onSelect,
+            isReversed: false
         )
     }
     

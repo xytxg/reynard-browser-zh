@@ -113,10 +113,24 @@ public class GeckoEventDispatcherWrapper: NSObject, SwiftEventDispatcher {
     }
     
     public func dispatch(toSwift type: String!, message: Any!, callback: EventCallback?) {
-        let message = message as! [String: Any?]?
+        guard let type else {
+            callback?.sendError("Missing Gecko event type")
+            return
+        }
+
+        let typedMessage: [String: Any?]?
+        if message == nil {
+            typedMessage = nil
+        } else if let message = message as? [String: Any?] {
+            typedMessage = message
+        } else {
+            callback?.sendError("Invalid Gecko event payload")
+            return
+        }
+
         if let registeredListeners = listeners[type] {
             for listener in registeredListeners {
-                listener.handleMessage(type: type, message: message, callback: callback)
+                listener.handleMessage(type: type, message: typedMessage, callback: callback)
             }
         }
     }
@@ -131,6 +145,9 @@ public class GeckoEventDispatcherWrapper: NSObject, SwiftEventDispatcher {
     }
     
     public func hasListener(_ type: String!) -> Bool {
-        listeners.keys.contains(type)
+        guard let type else {
+            return false
+        }
+        return listeners.keys.contains(type)
     }
 }
