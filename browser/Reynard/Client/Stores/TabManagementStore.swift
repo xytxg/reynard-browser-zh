@@ -220,7 +220,18 @@ final class TabManagementStore {
     }
 
     func flushPendingWrites() {
-        stateQueue.sync {}
+        stateQueue.sync {
+            guard let pendingPersistWorkItem else {
+                return
+            }
+
+            // A barrier alone does not flush work scheduled with asyncAfter.
+            // Execute the latest snapshot now, then invalidate the queued copy
+            // so suspension cannot lose a freshly delivered Gecko session state.
+            pendingPersistWorkItem.perform()
+            persistGeneration += 1
+            self.pendingPersistWorkItem = nil
+        }
     }
     func persistLastOverview(_ lastTabOverview: LastTabOverview) {
         stateQueue.async {

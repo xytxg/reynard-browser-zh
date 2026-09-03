@@ -200,6 +200,25 @@ requireText(
   "purgePersistedHistories(keeping:",
   "orphaned private navigation histories are not purged on startup"
 );
+requireText(
+  tabStore,
+  "pendingPersistWorkItem.perform()",
+  "background session flushing does not execute the delayed tab-state write"
+);
+
+const addressBar = read(
+  "browser/Reynard/Client/Interface/Chrome/AddressBar/AddressBar.swift"
+);
+requireText(
+  addressBar,
+  ".resolvedColor(with: traitCollection)",
+  "address-bar border does not refresh its dynamic color after appearance changes"
+);
+requireText(
+  addressBar,
+  "updateBorderColor()",
+  "address-bar border color refresh hook is missing"
+);
 
 const navigationHistoryStore = read("browser/Reynard/Client/Stores/NavigationHistoryStore.swift");
 requireText(

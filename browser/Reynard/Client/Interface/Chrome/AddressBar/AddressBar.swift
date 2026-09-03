@@ -36,7 +36,6 @@ final class AddressBar: UIView {
         static let addressBarAutocompleteTrailingInset: CGFloat = 30
         static let addressBarTextFontSize: CGFloat = 17
         static let addressBarDismissButtonAnimationDuration: TimeInterval = 0.2
-        static let addressBarBackgroundDarkModeShadowAlpha: CGFloat = 0.3
         static let addressBarBackgroundShadowOpacity: Float = 0.18
         static let addressBarBackgroundShadowRadius: CGFloat = 14
         static let addressBarBackgroundShadowOffset = CGSize(width: 0, height: 2)
@@ -292,7 +291,7 @@ final class AddressBar: UIView {
         guard previousTraitCollection?.userInterfaceStyle != traitCollection.userInterfaceStyle else {
             return
         }
-        
+
         updateBorderColor()
     }
     
@@ -542,17 +541,18 @@ final class AddressBar: UIView {
         translatesAutoresizingMaskIntoConstraints = false
         backgroundColor = .clear
         clipsToBounds = false
-        addressBarBackground.layer.shadowColor = traitCollection.userInterfaceStyle == .dark
-        ? UIColor.white.withAlphaComponent(UX.addressBarBackgroundDarkModeShadowAlpha).cgColor
-        : UIColor.black.cgColor
+        addressBarBackground.layer.shadowColor = UIColor.black.cgColor
         addressBarBackground.layer.shadowOpacity = UX.addressBarBackgroundShadowOpacity
         addressBarBackground.layer.shadowRadius = UX.addressBarBackgroundShadowRadius
         addressBarBackground.layer.shadowOffset = UX.addressBarBackgroundShadowOffset
         addressBarBackground.layer.masksToBounds = false
     }
-    
+
     private func updateBorderColor() {
-        addressBarBorder.layer.borderColor = UIColor.separator.withAlphaComponent(0.2).cgColor
+        addressBarBorder.layer.borderColor = UIColor.separator
+            .withAlphaComponent(0.2)
+            .resolvedColor(with: traitCollection)
+            .cgColor
     }
     
     private func configureHierarchy() {
