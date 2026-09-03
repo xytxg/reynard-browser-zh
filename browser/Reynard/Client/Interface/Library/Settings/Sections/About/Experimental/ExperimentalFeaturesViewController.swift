@@ -28,7 +28,7 @@ final class ExperimentalFeaturesViewController: SettingsTableViewController {
     
     init() {
         super.init(style: .insetGrouped)
-        title = "Experimental Features"
+        title = NSLocalizedString("Experimental Features", comment: "")
     }
     
     required init?(coder: NSCoder) {
@@ -78,7 +78,7 @@ final class ExperimentalFeaturesViewController: SettingsTableViewController {
         switch Row.allCases[indexPath.row] {
         case .videoPictureInPicture:
             return switchCell(
-                title: "Video Picture-in-Picture",
+                title: NSLocalizedString("Video Picture-in-Picture", comment: ""),
                 accessoryView: videoPictureInPictureSwitch
             )
         }
@@ -99,11 +99,14 @@ final class ExperimentalFeaturesViewController: SettingsTableViewController {
     
     private func showRestartAlert() {
         let alert = UIAlertController(
-            title: "Restart Required",
-            message: "The app will now close for the experimental setting to take effect.",
+            title: NSLocalizedString("Restart Required", comment: ""),
+            message: NSLocalizedString(
+                "The app will now close for the experimental setting to take effect.",
+                comment: ""
+            ),
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .default) { _ in
             UIApplication.shared.perform(#selector(NSXPCConnection.suspend))
             DispatchQueue.main.asyncAfter(
                 deadline: .now() + .seconds(UX.restartDelay)

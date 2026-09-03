@@ -1,9 +1,9 @@
 {
   "repository": "https://github.com/minh-ton/reynard-browser",
-  "previous_commit": "0bfe06fda73842ff8f01a7e371854ee89f5e045a",
-  "commit": "d5f40af263560b494aeb7e8e1af3be7c4298df77",
-  "gecko_release": "FIREFOX_154_0_1_RELEASE",
-  "gecko_commit": "9cd094dbc3eac5df87a24e7a871e52880cb8cd42",
-  "integration_date": "2026-08-30",
-  "previous_fork_head": "fd2f378b9934ff2143345f77472844515107eaa6"
+  "previous_commit": "d5f40af263560b494aeb7e8e1af3be7c4298df77",
+  "commit": "c3e85a0e8dd189bf7bbc39e2fddfd410c2b6e03f",
+  "gecko_release": "FIREFOX_155_0_RELEASE",
+  "gecko_commit": "d065a04bc5610f496762935dee56604a78b91b51",
+  "integration_date": "2026-09-03",
+  "previous_fork_head": "0fca4e07db192ac2ab5ec10f850c926b911d685d"
 }

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import GeckoView
 import UIKit
 
 final class NavigationHistoryStore {
@@ -37,19 +38,28 @@ final class NavigationHistoryStore {
         var url: String
         var title: String
         var thumbnailData: Data?
+        var sessionHistoryIdentifier: GeckoSessionHistoryIdentifier?
         
         private enum CodingKeys: String, CodingKey {
             case id
             case url
             case title
             case thumbnailData
+            case sessionHistoryIdentifier
         }
         
-        init(id: UUID = UUID(), url: String, title: String, thumbnailData: Data?) {
+        init(
+            id: UUID = UUID(),
+            url: String,
+            title: String,
+            thumbnailData: Data?,
+            sessionHistoryIdentifier: GeckoSessionHistoryIdentifier? = nil
+        ) {
             self.id = id
             self.url = url
             self.title = title
             self.thumbnailData = thumbnailData
+            self.sessionHistoryIdentifier = sessionHistoryIdentifier
         }
         
         init(from decoder: Decoder) throws {
@@ -58,6 +68,10 @@ final class NavigationHistoryStore {
             url = try container.decode(String.self, forKey: .url)
             title = try container.decode(String.self, forKey: .title)
             thumbnailData = try container.decodeIfPresent(Data.self, forKey: .thumbnailData)
+            sessionHistoryIdentifier = try container.decodeIfPresent(
+                GeckoSessionHistoryIdentifier.self,
+                forKey: .sessionHistoryIdentifier
+            )
         }
     }
     
@@ -66,6 +80,7 @@ final class NavigationHistoryStore {
         var currentURL: String?
         var currentTitle: String?
         var currentThumbnailData: Data?
+        var currentSessionHistoryIdentifier: GeckoSessionHistoryIdentifier?
         var backHistory: [NavigationEntry]
         var forwardHistory: [NavigationEntry]
         var usesStoredHistory: Bool?
@@ -75,6 +90,7 @@ final class NavigationHistoryStore {
             case currentURL
             case currentTitle
             case currentThumbnailData = "currentThumbnail"
+            case currentSessionHistoryIdentifier
             case backHistory = "backList"
             case forwardHistory = "forwardList"
             case usesStoredHistory = "ownsNav"
@@ -85,6 +101,7 @@ final class NavigationHistoryStore {
             currentURL: String?,
             currentTitle: String?,
             currentThumbnailData: Data?,
+            currentSessionHistoryIdentifier: GeckoSessionHistoryIdentifier? = nil,
             backHistory: [NavigationEntry],
             forwardHistory: [NavigationEntry],
             usesStoredHistory: Bool?
@@ -93,9 +110,25 @@ final class NavigationHistoryStore {
             self.currentURL = currentURL
             self.currentTitle = currentTitle
             self.currentThumbnailData = currentThumbnailData
+            self.currentSessionHistoryIdentifier = currentSessionHistoryIdentifier
             self.backHistory = backHistory
             self.forwardHistory = forwardHistory
             self.usesStoredHistory = usesStoredHistory
+        }
+        
+        mutating func replaceWithSessionNavigationEntries(
+            with entries: [NavigationEntry],
+            currentIndex: Int
+        ) {
+            let currentEntry = entries[currentIndex]
+            currentEntryID = currentEntry.id
+            currentURL = currentEntry.url
+            currentTitle = currentEntry.title
+            currentThumbnailData = currentEntry.thumbnailData
+            currentSessionHistoryIdentifier = currentEntry.sessionHistoryIdentifier
+            backHistory = Array(entries[..<currentIndex])
+            forwardHistory = Array(entries[(currentIndex + 1)...])
+            usesStoredHistory = false
         }
     }
     
@@ -108,6 +141,7 @@ final class NavigationHistoryStore {
     private let persistenceQueue = DispatchQueue(label: "com.minh-ton.Reynard.NavigationHistoryStore.PersistenceQueue", qos: .utility)
     private var historyCache: [UUID: StoredHistory] = [:]
     private var pendingHistories: [UUID: StoredHistory] = [:]
+    private var nonPersistentTabIDs: Set<UUID> = []
     private var isPersistenceScheduled = false
     
     init(fileManager: FileManager = .default) {
@@ -134,6 +168,42 @@ final class NavigationHistoryStore {
             return snapshot(from: history)
         }
     }
+
+    func setPersistenceEnabled(_ enabled: Bool, for tabID: UUID) {
+        queue.sync {
+            if enabled {
+                nonPersistentTabIDs.remove(tabID)
+            } else {
+                nonPersistentTabIDs.insert(tabID)
+                pendingHistories.removeValue(forKey: tabID)
+            }
+        }
+
+        guard !enabled else {
+            return
+        }
+        let fileURL = historyURL(for: tabID)
+        persistenceQueue.sync {
+            try? fileManager.removeItem(at: fileURL)
+        }
+    }
+
+    func purgePersistedHistories(keeping tabIDs: Set<UUID>) {
+        persistenceQueue.sync {
+            let fileURLs = (try? fileManager.contentsOfDirectory(
+                at: storageURL,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )) ?? []
+            for fileURL in fileURLs {
+                guard let tabID = UUID(uuidString: fileURL.lastPathComponent),
+                      tabIDs.contains(tabID) else {
+                    try? fileManager.removeItem(at: fileURL)
+                    continue
+                }
+            }
+        }
+    }
     
     func currentState(for tabID: UUID) -> State {
         queue.sync {
@@ -143,6 +213,16 @@ final class NavigationHistoryStore {
                 canGoForward: !history.forwardHistory.isEmpty,
                 usesStoredHistory: history.usesStoredHistory ?? false
             )
+        }
+    }
+    
+    func restoreState(for tabID: UUID) {
+        queue.sync {
+            var history = loadHistory(for: tabID)
+            if history.usesStoredHistory == nil {
+                history.usesStoredHistory = !history.backHistory.isEmpty || !history.forwardHistory.isEmpty
+                saveHistory(history, for: tabID)
+            }
         }
     }
     
@@ -159,6 +239,9 @@ final class NavigationHistoryStore {
     func recordNavigation(to url: String, title: String, for tabID: UUID) {
         queue.sync {
             var history = loadHistory(for: tabID)
+            guard history.usesStoredHistory ?? (history.currentURL == nil) else {
+                return
+            }
             guard history.currentURL != url else {
                 let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmedTitle.isEmpty,
@@ -176,7 +259,8 @@ final class NavigationHistoryStore {
                     id: history.currentEntryID ?? UUID(),
                     url: currentURL,
                     title: history.currentTitle ?? currentURL,
-                    thumbnailData: history.currentThumbnailData
+                    thumbnailData: history.currentThumbnailData,
+                    sessionHistoryIdentifier: history.currentSessionHistoryIdentifier
                 ))
             }
             
@@ -184,8 +268,35 @@ final class NavigationHistoryStore {
             history.currentURL = url
             history.currentTitle = normalizedTitle
             history.currentThumbnailData = nil
+            history.currentSessionHistoryIdentifier = nil
             history.forwardHistory.removeAll(keepingCapacity: false)
             saveHistory(history, for: tabID)
+        }
+    }
+    
+    func synchronizeNavigationHistory(
+        with sessionState: GeckoSessionState,
+        for tabID: UUID
+    ) -> Int? {
+        let geckoEntries = sessionState.history
+        guard let currentIndex = sessionState.currentHistoryIndex,
+              geckoEntries.indices.contains(currentIndex) else {
+            return nil
+        }
+        
+        return queue.sync {
+            var storedHistory = loadHistory(for: tabID)
+            let synchronizedEntries = synchronizedNavigationEntries(
+                from: geckoEntries,
+                currentIndex: currentIndex,
+                preserving: storedHistory
+            )
+            storedHistory.replaceWithSessionNavigationEntries(
+                with: synchronizedEntries,
+                currentIndex: currentIndex
+            )
+            saveHistory(storedHistory, for: tabID)
+            return currentIndex
         }
     }
     
@@ -217,7 +328,8 @@ final class NavigationHistoryStore {
                     id: history.currentEntryID ?? UUID(),
                     url: currentURL,
                     title: history.currentTitle ?? currentURL,
-                    thumbnailData: history.currentThumbnailData
+                    thumbnailData: history.currentThumbnailData,
+                    sessionHistoryIdentifier: history.currentSessionHistoryIdentifier
                 ))
             }
             
@@ -227,6 +339,7 @@ final class NavigationHistoryStore {
             history.currentURL = target.url
             history.currentTitle = target.title
             history.currentThumbnailData = target.thumbnailData
+            history.currentSessionHistoryIdentifier = target.sessionHistoryIdentifier
             saveHistory(history, for: tabID)
             return target.url
         }
@@ -248,7 +361,8 @@ final class NavigationHistoryStore {
                     id: history.currentEntryID ?? UUID(),
                     url: currentURL,
                     title: history.currentTitle ?? currentURL,
-                    thumbnailData: history.currentThumbnailData
+                    thumbnailData: history.currentThumbnailData,
+                    sessionHistoryIdentifier: history.currentSessionHistoryIdentifier
                 ))
             }
             history.backHistory.append(contentsOf: movedEntries)
@@ -257,6 +371,7 @@ final class NavigationHistoryStore {
             history.currentURL = target.url
             history.currentTitle = target.title
             history.currentThumbnailData = target.thumbnailData
+            history.currentSessionHistoryIdentifier = target.sessionHistoryIdentifier
             saveHistory(history, for: tabID)
             return target.url
         }
@@ -336,10 +451,14 @@ final class NavigationHistoryStore {
                 var history = self.loadHistory(for: tabID)
                 history.currentThumbnailData = nil
                 history.backHistory = history.backHistory.map {
-                    NavigationEntry(id: $0.id, url: $0.url, title: $0.title, thumbnailData: nil)
+                    var entry = $0
+                    entry.thumbnailData = nil
+                    return entry
                 }
                 history.forwardHistory = history.forwardHistory.map {
-                    NavigationEntry(id: $0.id, url: $0.url, title: $0.title, thumbnailData: nil)
+                    var entry = $0
+                    entry.thumbnailData = nil
+                    return entry
                 }
                 self.saveHistory(history, for: tabID)
             }
@@ -347,25 +466,30 @@ final class NavigationHistoryStore {
     }
     
     func removeNavigationHistory(for tabID: UUID) {
-        queue.async {
-            self.historyCache.removeValue(forKey: tabID)
-            self.pendingHistories.removeValue(forKey: tabID)
-            let fileURL = self.historyURL(for: tabID)
-            self.persistenceQueue.async {
-                try? self.fileManager.removeItem(at: fileURL)
-            }
+        queue.sync {
+            historyCache.removeValue(forKey: tabID)
+            pendingHistories.removeValue(forKey: tabID)
+            nonPersistentTabIDs.remove(tabID)
+        }
+        let fileURL = historyURL(for: tabID)
+        persistenceQueue.async {
+            try? self.fileManager.removeItem(at: fileURL)
         }
     }
 
     func removeAllNavigationHistory() {
-        queue.async {
-            guard let fileURLs = try? self.fileManager.contentsOfDirectory(
-                at: self.storageURL,
-                includingPropertiesForKeys: nil
-            ) else {
-                return
-            }
-            fileURLs.forEach { try? self.fileManager.removeItem(at: $0) }
+        queue.sync {
+            historyCache.removeAll(keepingCapacity: false)
+            pendingHistories.removeAll(keepingCapacity: false)
+            isPersistenceScheduled = false
+        }
+        persistenceQueue.sync {
+            let fileURLs = (try? fileManager.contentsOfDirectory(
+                at: storageURL,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )) ?? []
+            fileURLs.forEach { try? fileManager.removeItem(at: $0) }
         }
     }
     
@@ -400,6 +524,10 @@ final class NavigationHistoryStore {
     
     private func saveHistory(_ history: StoredHistory, for tabID: UUID) {
         historyCache[tabID] = history
+        guard !nonPersistentTabIDs.contains(tabID) else {
+            pendingHistories.removeValue(forKey: tabID)
+            return
+        }
         pendingHistories[tabID] = history
         guard !isPersistenceScheduled else {
             return
@@ -422,7 +550,10 @@ final class NavigationHistoryStore {
     }
     
     private func persist(_ histories: [(UUID, StoredHistory)]) {
-        histories.forEach { tabID, history in
+        let persistableHistories = queue.sync {
+            histories.filter { !nonPersistentTabIDs.contains($0.0) }
+        }
+        persistableHistories.forEach { tabID, history in
             guard let data = try? JSONEncoder().encode(history) else {
                 return
             }
@@ -448,6 +579,77 @@ final class NavigationHistoryStore {
         }
         
         return false
+    }
+    
+    private func navigationEntries(from history: StoredHistory) -> [NavigationEntry] {
+        var entries = history.backHistory
+        if let currentURL = history.currentURL {
+            entries.append(NavigationEntry(
+                id: history.currentEntryID ?? UUID(),
+                url: currentURL,
+                title: history.currentTitle ?? currentURL,
+                thumbnailData: history.currentThumbnailData,
+                sessionHistoryIdentifier: history.currentSessionHistoryIdentifier
+            ))
+        }
+        entries.append(contentsOf: history.forwardHistory)
+        return entries
+    }
+    
+    private func synchronizedNavigationEntries(
+        from geckoEntries: [GeckoSessionHistoryItem],
+        currentIndex: Int,
+        preserving storedHistory: StoredHistory
+    ) -> [NavigationEntry] {
+        let storedEntries = navigationEntries(from: storedHistory)
+        let entriesMatchByPosition = storedEntries.count == geckoEntries.count &&
+        storedHistory.backHistory.count == currentIndex &&
+        zip(storedEntries, geckoEntries).allSatisfy { storedEntry, geckoEntry in
+            storedEntry.url == geckoEntry.url
+        }
+        let storedEntriesByIdentifier = navigationEntriesBySessionIdentifier(storedEntries)
+        
+        return geckoEntries.enumerated().map { index, geckoEntry in
+            let storedEntry: NavigationEntry?
+            if let identifier = geckoEntry.identifier,
+               let identifiedEntry = storedEntriesByIdentifier[identifier] {
+                storedEntry = identifiedEntry
+            } else if entriesMatchByPosition {
+                storedEntry = storedEntries[index]
+            } else {
+                storedEntry = nil
+            }
+            return navigationEntry(from: geckoEntry, preserving: storedEntry)
+        }
+    }
+    
+    private func navigationEntriesBySessionIdentifier(
+        _ entries: [NavigationEntry]
+    ) -> [GeckoSessionHistoryIdentifier: NavigationEntry] {
+        var entriesByIdentifier: [GeckoSessionHistoryIdentifier: NavigationEntry] = [:]
+        for entry in entries {
+            if let identifier = entry.sessionHistoryIdentifier {
+                entriesByIdentifier[identifier] = entry
+            }
+        }
+        return entriesByIdentifier
+    }
+    
+    private func navigationEntry(
+        from geckoEntry: GeckoSessionHistoryItem,
+        preserving storedEntry: NavigationEntry?
+    ) -> NavigationEntry {
+        let storedTitle = storedEntry?.title ?? geckoEntry.url
+        let title = geckoEntry.title.map {
+            return normalizedTitle($0, fallback: storedTitle)
+        } ?? storedTitle
+        return NavigationEntry(
+            id: storedEntry?.id ?? UUID(),
+            url: geckoEntry.url,
+            title: title,
+            thumbnailData: storedEntry?.thumbnailData,
+            sessionHistoryIdentifier: geckoEntry.identifier
+        )
     }
     
     private func snapshot(from history: StoredHistory) -> Snapshot {

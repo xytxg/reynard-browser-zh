@@ -1,6 +1,66 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Buy Me a Coffee" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请我喝杯咖啡"
+          }
+        }
+      }
+    },
+    "Experimental Features" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实验性功能"
+          }
+        }
+      }
+    },
+    "Hi, I'm Minh, the developer of Reynard. If you find the project useful, sponsoring me helps keep it alive and maintained. Thanks for the support!" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你好，我是 Reynard 的开发者 Minh。如果你觉得这个项目有用，赞助可以帮助项目持续维护和发展。感谢你的支持！"
+          }
+        }
+      }
+    },
+    "Not Now" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时不要"
+          }
+        }
+      }
+    },
+    "The app will now close for the experimental setting to take effect." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用即将关闭，以使实验性设置生效。"
+          }
+        }
+      }
+    },
+    "Video Picture-in-Picture" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "视频画中画"
+          }
+        }
+      }
+    },
     "App Updates" : {
       "localizations" : {
         "zh-Hans" : {

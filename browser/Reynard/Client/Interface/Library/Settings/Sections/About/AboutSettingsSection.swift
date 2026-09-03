@@ -50,7 +50,9 @@ final class AboutSettingsSection {
         
         switch displayedRows[index] {
         case .experimentalFeatures:
-            return SettingsViewUtils.disclosureCell(title: "Experimental Features")
+            return SettingsViewUtils.disclosureCell(
+                title: NSLocalizedString("Experimental Features", comment: "")
+            )
         case .appVersion:
             let info = Bundle.main.infoDictionary
             let version = info?["CFBundleShortVersionString"] as? String ?? "Unknown"

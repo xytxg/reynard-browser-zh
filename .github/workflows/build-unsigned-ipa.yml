@@ -79,7 +79,7 @@ jobs:
         with:
           xcode-version: latest
 
-      # Follow upstream's successful Firefox 154.0.1 toolchain. Mach bootstrap
+      # Follow upstream's successful Firefox 155 toolchain. Mach bootstrap
       # selects its matching WASI sysroot/compiler-rt instead of mixing LLVM versions.
       - name: Install build dependencies
         run: |

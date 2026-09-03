@@ -444,7 +444,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "すべての Cookie"
+            "value" : "すべてのCookie"
           }
         },
         "ka" : {
@@ -1036,7 +1036,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "すべてのサードパーティ Cookie"
+            "value" : "すべてのサードパーティCookie"
           }
         },
         "ka" : {
@@ -1604,7 +1604,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "セキュリティ強化のため、自動的に HTTPS 暗号化プロトコルを使用してサイトへの接続を試行します。"
+            "value" : "セキュリティ向上のため、自動的にHTTPS暗号化接続を試みます。"
           }
         },
         "ka" : {
@@ -1838,7 +1838,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "自動嘗試使用加密過的 HTTPS 通訊協定連線到網站，以增加安全性。"
+            "value" : "自動嘗試透過 HTTPS 加密通訊協定連線至網站，以提高安全性。"
           }
         }
       }
@@ -2686,7 +2686,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "既知のトラッキングウェブサイトへのリダイレクトにより設定された Cookie を消去します。"
+            "value" : "既知のトラッキングサイトへのリダイレクトで設定されたCookieを消去します。"
           }
         },
         "ka" : {
@@ -2926,13 +2926,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "清除通过重定向设置到已知跟踪网站的 Cookie。"
+            "value" : "清除在重定向至已知跟踪网站时设置的 Cookie。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "清除已知網站在重新導向時所設定的 Cookie。"
+            "value" : "清除重新導向至已知追蹤網站時所設定的 Cookie。"
           }
         }
       }
@@ -3852,7 +3852,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "未訪問のサイトの Cookie"
+            "value" : "未訪問のWebサイトからのCookie"
           }
         },
         "ka" : {
@@ -4420,7 +4420,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "クロスサイト Cookie"
+            "value" : "クロスサイトCookie"
           }
         },
         "ka" : {
@@ -4970,7 +4970,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "クロスサイトトラッキング Cookie"
+            "value" : "クロスサイトトラッキングCookie"
           }
         },
         "ka" : {
@@ -5556,7 +5556,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "クロスサイトトラッカーとソーシャルメディアトラッカー"
+            "value" : "クロスサイトおよびSNSトラッカー"
           }
         },
         "ka" : {
@@ -7338,7 +7338,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "プライベートタブのみ有効にする"
+            "value" : "プライベートタブのみで有効化"
           }
         },
         "ka" : {
@@ -7602,7 +7602,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "只對隱私瀏覽分頁開啟"
+            "value" : "僅在隱私瀏覽分頁中啟用"
           }
         }
       }
@@ -7876,7 +7876,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "すべてのタブで有効にする"
+            "value" : "すべてのタブで有効化"
           }
         },
         "ka" : {
@@ -8140,7 +8140,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "對所有分頁都開啟"
+            "value" : "在所有分頁中啟用"
           }
         }
       }
@@ -8402,7 +8402,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "フィンガープリント防止を有効にすると、疑わしいフィンガープリント採取を阻止します。"
+            "value" : "フィンガープリント防止を有効にして、疑わしいフィンガープリント採取を阻止します。"
           }
         },
         "ka" : {
@@ -8594,13 +8594,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "启用数字指纹跟踪程序防护，有助于阻止可疑程序。"
+            "value" : "启用数字指纹跟踪防护，以拦截存疑的数字指纹跟踪程序。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "開啟數位指紋追蹤程式保護，阻擋疑似是數位指紋追蹤程式的內容。"
+            "value" : "啟用數位指紋追蹤防護，以阻擋疑似的數位指紋追蹤程式。"
           }
         }
       }
@@ -9358,7 +9358,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "サイトの主要な問題を修正"
+            "value" : "主要なWebサイトの問題を修正"
           }
         },
         "ka" : {
@@ -9538,7 +9538,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "修正網站的主要問題"
+            "value" : "修正網站的重大問題"
           }
         }
       }
@@ -9764,7 +9764,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "サイトの軽微な問題を修正"
+            "value" : "軽微なWebサイトの問題を修正"
           }
         },
         "ka" : {
@@ -9944,7 +9944,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "修正網站的小問題"
+            "value" : "修正網站的輕微問題"
           }
         }
       }
@@ -10786,7 +10786,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "すべてのタブに適用"
+            "value" : "すべてのタブ"
           }
         },
         "ka" : {
@@ -11360,7 +11360,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "クロスサイト Cookie を分離する"
+            "value" : "クロスサイトCookieを分離"
           }
         },
         "ka" : {
@@ -12370,7 +12370,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ソーシャルネットワークによるウェブ上の行動追跡を制限します。"
+            "value" : "SNSによるWeb上の閲覧行動の追跡を制限します。"
           }
         },
         "ka" : {
@@ -12652,13 +12652,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "限制社交网络在网上跟踪您浏览活动的能力。"
+            "value" : "限制社交网络跨网站跟踪您的浏览活动。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "限制社群網站能在網路上追蹤您上網行為的能力。"
+            "value" : "限制社群網站跨網站追蹤您的瀏覽活動。"
           }
         }
       }
@@ -12956,7 +12956,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ウェブサイトが動作しない可能性があります"
+            "value" : "Webサイトが正常に動作しない可能性があります"
           }
         },
         "ka" : {
@@ -13250,7 +13250,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可能造成某些網站不正常"
+            "value" : "可能造成某些網站無法正常運作"
           }
         }
       }
@@ -13560,7 +13560,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "プライベートタブのみ適用"
+            "value" : "プライベートタブのみ"
           }
         },
         "ka" : {
@@ -13866,7 +13866,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "僅在隱私瀏覽分頁"
+            "value" : "僅在隱私瀏覽分頁中"
           }
         }
       }
@@ -14134,7 +14134,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ページは正常に読み込まれますが、ブロックされるトラッカーが少なくなります。"
+            "value" : "ページは通常どおり読み込まれますが、ブロックされるトラッカーは少なくなります。"
           }
         },
         "ka" : {
@@ -14362,7 +14362,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "頁面可正常載入，但封鎖少一點追蹤器。"
+            "value" : "頁面會正常載入，但封鎖的追蹤器較少。"
           }
         }
       }
@@ -14654,7 +14654,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "悪意のあるスクリプトによる暗号通貨マイニングを防止します。"
+            "value" : "悪意のあるスクリプトが端末のリソースを使って暗号通貨をマイニングするのを防止します。"
           }
         },
         "ka" : {
@@ -14936,7 +14936,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "防止有害指令碼使用您的裝置來為數位貨幣「採礦」。"
+            "value" : "防止惡意指令碼存取您的裝置以挖掘數位貨幣。"
           }
         }
       }
@@ -15772,7 +15772,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "SNS メディアトラッカー"
+            "value" : "SNSトラッカー"
           }
         },
         "ka" : {
@@ -16872,7 +16872,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "追跡コードを含む外部の広告、動画、その他のコンテンツの読み込みを停止します。一部のウェブサイトの機能に影響する場合があります。"
+            "value" : "追跡コードを含む外部の広告、動画、その他のコンテンツの読み込みを阻止します。一部のWebサイトの機能に影響する場合があります。"
           }
         },
         "ka" : {
@@ -17148,7 +17148,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "停止加载包含跟踪代码的广告、视频和其他内容。可能会影响某些网站功能。"
+            "value" : "阻止加载含有跟踪代码的外部广告、视频及其他内容。这可能会影响网站的部分功能。"
           }
         },
         "zh-Hant" : {
@@ -17410,7 +17410,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "端末を一意に識別できるデータがユーザーを追跡する目的で収集されるのを防止します。"
+            "value" : "追跡目的で使用される、端末を一意に識別可能なデータの収集を阻止します。"
           }
         },
         "ka" : {
@@ -17614,7 +17614,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "防止他人收集可用來追蹤您的裝置識別資料。"
+            "value" : "防止收集可唯一識別您裝置、並可用於追蹤的資料。"
           }
         }
       }
@@ -18510,7 +18510,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "トラッキング防止を強力にし、パフォーマンスを高速化します。ただし、一部のサイトが正常に機能しなくなる可能性があります。"
+            "value" : "トラッキング防止を強化し読み込みを高速化しますが、一部のWebサイトが正常に動作しない場合があります。"
           }
         },
         "ka" : {
@@ -18726,13 +18726,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "更强的跟踪保护与更快的性能，但可导致某些网站的运作不正常。"
+            "value" : "提供更强的跟踪保护和更快的浏览速度，但某些网站可能无法正常运行。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "更強大的追蹤保護功能與更快的效能，但某些網站會無法正常運作。"
+            "value" : "提供更強的追蹤保護及更快的瀏覽速度，但某些網站可能無法正常運作。"
           }
         }
       }
@@ -19210,7 +19210,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "疑似是數位指紋追蹤程式"
+            "value" : "疑似數位指紋追蹤程式"
           }
         }
       }
@@ -19472,7 +19472,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ウェブサイトにユーザーデータの共有と販売の拒否を通知する"
+            "value" : "Webサイトにデータの共有・販売の拒否を通知"
           }
         },
         "ka" : {
@@ -19688,13 +19688,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "要求网站不共享和不出售我的数据"
+            "value" : "要求网站不要共享或出售我的数据"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "告訴網站不要銷售或分享我的資料"
+            "value" : "要求網站不要分享或銷售我的資料"
           }
         }
       }
@@ -19962,7 +19962,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "包括的 Cookie 保護機能により、現在のサイトに対する Cookie を分離して、サイトを横断してあなたを追跡する Cookie を広告ネットワークなどのトラッカーが利用できないようにします。"
+            "value" : "包括的Cookie保護（Total Cookie Protection）により、Cookieをアクセス中のWebサイトごとに分離し、広告ネットワークなどのトラッカーがサイトを横断してあなたを追跡できないようにします。"
           }
         },
         "ka" : {
@@ -20190,13 +20190,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“全方位 Cookie 保护”能够完全隔离每个网站的 Cookie，阻止像广告联盟等这类跟踪器借其跨站跟踪您。"
+            "value" : "“全方位 Cookie 保护”会将 Cookie 隔离在您当前访问的网站内，使广告网络等跟踪器无法利用这些 Cookie 跨站跟踪您。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "全方位 Cookie 保護功能會將 Cookie 隔離於您所在的網站當中，這樣廣告網所送出的追蹤器就無法透過 Cookie 在不同網站間追蹤您。"
+            "value" : "全方位 Cookie 保護會將 Cookie 隔離在您目前造訪的網站中，讓廣告網路等追蹤器無法利用這些 Cookie 跨網站追蹤您。"
           }
         }
       }
@@ -21116,7 +21116,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ウェブサイトが動作しない原因になります"
+            "value" : "Webサイトが正常に動作しなくなる原因となります"
           }
         },
         "ka" : {
@@ -21410,7 +21410,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "會造成網站不正常"
+            "value" : "會造成網站無法正常運作"
           }
         }
       }

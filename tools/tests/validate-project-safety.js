@@ -22,6 +22,9 @@ function rejectText(value, fragment, message) {
 }
 
 const workflow = read(".github/workflows/build-unsigned-ipa.yml");
+if ((workflow.match(/- name: Require a real IPA artifact/g) ?? []).length !== 1) {
+  throw new Error("IPA workflow must contain exactly one artifact requirement step");
+}
 requireText(workflow, "tools/development/build-gecko.sh", "IPA workflow does not build Gecko from source");
 requireText(workflow, "tools/release/build-unsigned-app.sh", "IPA workflow does not build Reynard.app from source");
 requireText(workflow, "runs-on: xcode-27", "IPA workflow does not compile against the iOS 27 SDK");
@@ -187,6 +190,28 @@ requireText(tabStore, "privateTabs: []", "private tabs can be returned from pers
 requireText(tabStore, "selectedPrivateTabID: nil", "private tab selection can be persisted");
 requireText(tabStore, "purgePersistedPrivateTabsLocked", "legacy private tab records are not purged");
 rejectText(tabStore, "insertTabsLocked(persistedPrivateTabs", "private tabs are written to SQLite");
+requireText(
+  tabStore,
+  "guard !isPrivate else",
+  "private tab thumbnails can still be written to disk"
+);
+requireText(
+  tabStore,
+  "purgePersistedHistories(keeping:",
+  "orphaned private navigation histories are not purged on startup"
+);
+
+const navigationHistoryStore = read("browser/Reynard/Client/Stores/NavigationHistoryStore.swift");
+requireText(
+  navigationHistoryStore,
+  "nonPersistentTabIDs.contains(tabID)",
+  "private navigation histories are not excluded from persistence"
+);
+requireText(
+  navigationHistoryStore,
+  "pendingHistories.removeAll(keepingCapacity: false)",
+  "clearing navigation history leaves pending disk writes behind"
+);
 
 const browserPreferences = read("browser/Reynard/Client/Preferences/BrowserPreferences.swift");
 requireText(
@@ -197,6 +222,16 @@ requireText(
 
 const tabManager = read("browser/Reynard/Client/TabManagement/TabManagerImpl.swift");
 requireText(tabManager, "guard !tab.isPrivate", "private navigation state is not protected from persistence");
+requireText(
+  tabManager,
+  "setNavigationHistoryPersistenceEnabled(!tab.isPrivate",
+  "private tabs are not registered for in-memory-only navigation history"
+);
+requireText(
+  tabManager,
+  "persistThumbnail(image, for: tab.id, isPrivate: tab.isPrivate)",
+  "thumbnail persistence does not carry the tab privacy mode"
+);
 requireText(
   tabManager,
   "func createInitialTab(openingScreen: HomepageOpeningScreen)",
