@@ -41,6 +41,8 @@ Apple treats `com.apple.developer.web-browser` as a managed entitlement. An unsi
 
 **Settings → App Updates → Check for Updates** checks this repository's public GitHub Releases, including newer verified `main` builds. Reynard only accepts package links from this repository and verifies the downloaded IPA against its release SHA-256 file before presenting the share sheet. Because the IPA is unsigned, normal iOS installations must still hand it to AltStore, SideStore, or another compatible signer; iOS does not let a normally sandboxed app silently replace itself with an unsigned package. A TrollStore install can open TrollStore directly when a matching `.tipa` asset is attached to the release.
 
+Release descriptions contain only the latest section from `CHANGELOG.md` and the matching SHA-256 sidecar link/hash. Installation details remain in this README.
+
 > [!IMPORTANT]
 > - **LiveContainer is not supported** due to its own limitations.
 > - Sideloading methods that use a distribution certificate for signing are **not supported**.⁠

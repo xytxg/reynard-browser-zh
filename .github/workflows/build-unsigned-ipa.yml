@@ -278,38 +278,46 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             release_tag="$GITHUB_REF_NAME"
             release_title="Reynard Browser 中文版 $VERSION"
-            release_kind="版本标签构建"
             prerelease="false"
           elif [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]] &&
                git log -1 --pretty=%B | grep -Fq '[formal release]'; then
             release_tag="v${VERSION}-zh.1"
             release_title="Reynard Browser 中文版 $VERSION"
-            release_kind="正式版本构建"
             prerelease="false"
           else
             release_tag="build-$GITHUB_RUN_NUMBER"
             release_title="Reynard Browser 中文版 $VERSION · Build $GITHUB_RUN_NUMBER"
-            release_kind="自动源码构建"
             prerelease="true"
           fi
+
+          release_notes="$(
+            awk '
+              /^## / {
+                if (found) exit
+                found = 1
+                next
+              }
+              found { print }
+            ' CHANGELOG.md | sed '/./,$!d'
+          )"
+          test -n "$release_notes"
+          checksum="$(awk '{ print $1; exit }' "dist/$IPA_NAME.sha256")"
+          test "$checksum" = "$(printf '%s' "$checksum" | tr -cd '0-9a-f')"
+          test "${#checksum}" -eq 64
+          checksum_asset="$IPA_NAME.sha256"
+          checksum_url="https://github.com/$GITHUB_REPOSITORY/releases/download/$release_tag/$checksum_asset"
 
           note_file="dist/release-notes.md"
           {
             printf '<!-- reynard-update-build: %s -->\n' "$GITHUB_RUN_NUMBER"
-            echo '## Reynard Browser 中文版自动构建'
+            echo '## 更新日志'
             echo
-            printf -- '- 类型：%s\n' "$release_kind"
-            printf -- '- 版本：`%s`\n' "$VERSION"
-            printf -- '- 提交：`%s`\n' "$GITHUB_SHA"
-            printf -- '- 工作流运行：[#%s](https://github.com/%s/actions/runs/%s)\n' \
-              "$GITHUB_RUN_NUMBER" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            printf '%s\n' "$release_notes"
             echo
-            echo '> **未签名构建：此 IPA 没有签名，不能直接安装。**'
-            echo '> 安装前必须使用 TrollStore、AltStore、SideStore、个人证书或其他兼容方式签名/侧载，并保留 App Extensions。'
+            echo '## SHA-256 校验'
             echo
-            echo '该文件由 GitHub Actions 从本仓库的 Reynard、idevice、指定 Gecko 版本和补丁源码完整构建；同时附带 SHA-256 校验文件。'
-            echo
-            echo 'Unsigned build. This IPA is not signed and cannot be installed directly without a compatible signing or sideloading method.'
+            printf -- '- [下载 `%s`](%s)\n' "$checksum_asset" "$checksum_url"
+            printf -- '- `%s`\n' "$checksum"
           } > "$note_file"
 
           if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then

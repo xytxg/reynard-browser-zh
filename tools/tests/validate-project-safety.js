@@ -35,7 +35,9 @@ requireText(
   "firefox/toolkit/mozapps/extensions/default-theme",
   "iOS 27 compatibility inputs omit the Gecko default theme required by AddGecko.sh"
 );
-rejectText(workflow, "releases/download", "IPA workflow downloads a release binary");
+if (/(?:curl|wget)[^\n]*releases\/download/i.test(workflow)) {
+  throw new Error("IPA workflow downloads a release binary");
+}
 rejectText(workflow, "source.ipa", "IPA workflow accepts a prebuilt IPA as its source");
 for (const match of workflow.matchAll(/uses:\s+[^@\s]+@([^\s#]+)/g)) {
   if (!/^[a-f0-9]{40}$/.test(match[1])) {
@@ -184,6 +186,20 @@ requireText(
   "reynard-update-build:",
   "release notes do not expose a machine-readable build number to the updater"
 );
+requireText(releaseWorkflow, "'## 更新日志'", "release body does not include the latest changelog");
+requireText(releaseWorkflow, "'## SHA-256 校验'", "release body does not include checksum information");
+requireText(releaseWorkflow, "CHANGELOG.md", "release notes are not sourced from the project changelog");
+requireText(releaseWorkflow, "checksum_url", "release body does not link its SHA-256 sidecar");
+rejectText(releaseWorkflow, "release_kind=", "release body still publishes build-type metadata");
+rejectText(
+  releaseWorkflow,
+  "Unsigned build. This IPA is not signed",
+  "release body still contains the removed unsigned-build boilerplate"
+);
+
+const changelog = read("CHANGELOG.md");
+requireText(changelog, "## 0.11.1", "project changelog does not contain a current release section");
+requireText(changelog, "f25792a", "project changelog does not record the audited upstream baseline");
 
 const tabStore = read("browser/Reynard/Client/Stores/TabManagementStore.swift");
 requireText(tabStore, "privateTabs: []", "private tabs can be returned from persistent storage");
