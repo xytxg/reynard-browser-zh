@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - '*'
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       tag:
@@ -16,6 +18,10 @@ permissions:
 
 jobs:
   build:
+    if: >-
+      github.ref_type == 'tag' ||
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[release]')
     uses: ./.github/workflows/build.yml
     with:
       checkout_ref: ${{ github.event_name == 'push' && github.sha || inputs.tag }}
@@ -30,6 +36,30 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Check out release metadata
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Resolve release tag
+        id: metadata
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            tag="$GITHUB_REF_NAME"
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            tag="$DISPATCH_TAG"
+          else
+            tag="$(tr -d '\r\n' < .github/release-tag)"
+          fi
+          test -n "$tag"
+          notes=".github/release-notes/$tag.md"
+          test -s "$notes"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "notes=$notes" >> "$GITHUB_OUTPUT"
+
       - name: Download release artifacts
         uses: actions/download-artifact@v4
         with:
@@ -39,9 +69,13 @@ jobs:
       - name: Create or update release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+          tag_name: ${{ steps.metadata.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           token: ${{ github.token }}
-          draft: true
+          name: Reynard Browser 中文版 0.13.1
+          body_path: ${{ steps.metadata.outputs.notes }}
+          draft: false
+          prerelease: false
           fail_on_unmatched_files: true
           files: |
             dist/Reynard.ipa

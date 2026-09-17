@@ -232,6 +232,13 @@ index 230c7ac7..7689ed6c 100644
    }
    size_t componentCount = CGColorGetNumberOfComponents(aColor);
    if (componentCount == 0) {
+@@ -1263,5 +1265,5 @@ void LogSurface(IOSurfaceRef aSurfaceRef, CVPixelBufferRef aBuffer) {
+-    if (@available(macOS 12.0, *)) {
++    if (@available(macOS 12.0, iOS 15.0, *)) {
+       CFDictionaryRef bufferAttachments =
+           CVBufferCopyAttachments(aBuffer, kCVAttachmentMode_ShouldPropagate);
+       NSLog(@"Buffer attachments are %@.\n", bufferAttachments);
+       CFRelease(bufferAttachments);
 @@ -1583,8 +1585,7 @@ bool NativeLayerCARepresentation::EnqueueSurface(IOSurfaceRef aSurfaceRef) {
    AVSampleBufferDisplayLayer* videoLayer =
        (AVSampleBufferDisplayLayer*)mContentCALayer;
