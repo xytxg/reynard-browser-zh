@@ -93,6 +93,7 @@ final class SessionManager {
         session.historyDelegate = delegates.history
         session.permissionDelegate = delegates.permission
         session.progressDelegate = delegates.progress
+        session.scrollDelegate = delegates.scroll
         session.promptDelegate = delegates.prompt
         session.selectionActionDelegate = delegates.selectionAction
         session.mediaSessionDelegate = delegates.mediaSession
@@ -408,16 +409,6 @@ final class SessionManager {
     
     func restoreNavigation(for tabID: UUID) -> NavigationAvailability {
         return history.restoreState(for: tabID)
-    }
-    
-    func synchronizeNavigationHistory(
-        with sessionState: GeckoSessionState,
-        for tabID: UUID
-    ) -> Int? {
-        return history.synchronizeNavigationHistory(
-            with: sessionState,
-            for: tabID
-        )
     }
     
     func navigationAvailability(

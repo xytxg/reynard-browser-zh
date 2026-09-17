@@ -71,12 +71,6 @@ extension BrowserViewController: TabManagerDelegate {
         browserChrome.updatePageZoomLevel(selectedTab.session.settings.pageZoom.level)
         updateNavigationButtons()
         
-        contentView.setTab(
-            selectedTab,
-            pageBackgroundColor: sessionManager.pageBackgroundColor(for: selectedTab.session)
-        )
-        addonCoordinator.handleTabSelectionChange(selectedIndex: index, previousIndex: previousIndex)
-        
         if !tabOverview.isPresented && !tabOverview.isTransitionRunning {
             tabOverview.setMode(TabOverview.Mode(tabMode: tabManager.selectedTabMode), animated: false)
             tabOverview.reloadTabs()
@@ -85,6 +79,12 @@ extension BrowserViewController: TabManagerDelegate {
         tabBar.reloadTabs()
         homepageOverlayCoordinator.updatePresentation(animated: false)
         updateBrowserLayout(animated: animateTabBarVisibility)
+        
+        contentView.setTab(
+            selectedTab,
+            pageBackgroundColor: sessionManager.pageBackgroundColor(for: selectedTab.session)
+        )
+        addonCoordinator.handleTabSelectionChange(selectedIndex: index, previousIndex: previousIndex)
         
         if isShowingFullscreenMedia,
            fullscreenSession !== selectedTab.session {
@@ -172,7 +172,7 @@ extension BrowserViewController: TabManagerDelegate {
         case .location:
             if index == tabManager.selectedTabIndex {
                 contentView.resetScrollTracking()
-                toolbarController.reset()
+                toolbarController.reset(preserveManualCollapse: true)
                 let tab = tabManager.activeTabs[index]
                 contentView.noteHistoryLocationChange()
                 refreshAddressBar()
@@ -231,6 +231,11 @@ extension BrowserViewController: TabManagerDelegate {
             }
             let tab = tabManager.activeTabs[index]
             contentView.setPageBackgroundColor(sessionManager.pageBackgroundColor(for: tab.session))
+            
+        case .readerMode:
+            if index == tabManager.selectedTabIndex {
+                refreshAddressBar()
+            }
         }
     }
     

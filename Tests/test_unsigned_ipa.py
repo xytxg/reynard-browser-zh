@@ -20,7 +20,7 @@ def packed_version(version):
     return (major << 16) | (minor << 8) | patch
 
 
-def macho(signed=False, minimum_ios=(15, 0, 0), sdk=(27, 0, 0)):
+def macho(signed=False, minimum_ios=(13, 0, 0), sdk=(27, 0, 0)):
     build_version = struct.pack(
         "<6I", 0x32, 24, 2, packed_version(minimum_ios), packed_version(sdk), 0
     )
@@ -35,7 +35,7 @@ class UnsignedIPATests(unittest.TestCase):
     def fixture(self):
         root = "Payload/Reynard.app/"
         info = {"CFBundleIdentifier": "test.Reynard", "CFBundleExecutable": "Reynard",
-                "CFBundleVersion": "42", "CFBundleShortVersionString": "0.11.0", "MinimumOSVersion": "15.0",
+                "CFBundleVersion": "42", "CFBundleShortVersionString": "0.13.1", "MinimumOSVersion": "13.0",
                 "CFBundleURLTypes": [{"CFBundleURLSchemes": ["reynard", "http", "https"]}]}
         entries = {
             root + "Info.plist": plistlib.dumps(info),
@@ -64,7 +64,7 @@ class UnsignedIPATests(unittest.TestCase):
             validator.check_macho(io.BytesIO(macho()), minimum_ios_versions=minimum_versions),
             {0x0100000C},
         )
-        self.assertEqual(minimum_versions, [(15, 0, 0)])
+        self.assertEqual(minimum_versions, [(13, 0, 0)])
 
     def test_signed_header_rejected(self):
         with self.assertRaisesRegex(ValueError, "LC_CODE_SIGNATURE"):
@@ -90,17 +90,17 @@ class UnsignedIPATests(unittest.TestCase):
 
     def test_newer_binary_deployment_target_rejected(self):
         entries = self.fixture()
-        entries["Payload/Reynard.app/Reynard"] = macho(minimum_ios=(16, 0, 0))
-        with self.assertRaisesRegex(ValueError, "newer than iOS 15"):
+        entries["Payload/Reynard.app/Reynard"] = macho(minimum_ios=(14, 0, 0))
+        with self.assertRaisesRegex(ValueError, "newer than iOS 13"):
             self.verify_entries(entries)
 
     def test_manifest_deployment_target_rejected(self):
         entries = self.fixture()
         info_path = "Payload/Reynard.app/Info.plist"
         info = plistlib.loads(entries[info_path])
-        info["MinimumOSVersion"] = "13.0"
+        info["MinimumOSVersion"] = "15.0"
         entries[info_path] = plistlib.dumps(info)
-        with self.assertRaisesRegex(ValueError, "must be iOS 15.0"):
+        with self.assertRaisesRegex(ValueError, "must be iOS 13.0"):
             self.verify_entries(entries)
 
     def test_nested_signature_rejected(self):

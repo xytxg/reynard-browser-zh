@@ -50,6 +50,11 @@ rm -rf "$WORK_DIR" "$ROOT_DIR/dist/$OUTPUT_NAME"
 mkdir -p "$WORK_DIR/Payload"
 cp -R "$APP_PATH" "$WORK_DIR/Payload/"
 
+# Strip bitcode, because we bypass the signing stage & https://developer.apple.com/documentation/Xcode-Release-Notes/xcode-13_3_1-release-notes?changes=_1
+SWIFT_CONCURRENCY_PATH="$WORK_DIR/Payload/Reynard.app/Frameworks/libswift_Concurrency.dylib"
+xcrun bitcode_strip "$SWIFT_CONCURRENCY_PATH" -r -o "$SWIFT_CONCURRENCY_PATH"
+/usr/bin/codesign --force --sign - --verbose "$SWIFT_CONCURRENCY_PATH"
+
 cd "$WORK_DIR"
 
 if [ "$BUILD_TYPE" != "normal" ]; then
@@ -59,7 +64,7 @@ if [ "$BUILD_TYPE" != "normal" ]; then
 	"$CLANG_PATH" \
 		-arch arm64 \
 		-isysroot "$SDK_PATH" \
-		-miphoneos-version-min=15.0 \
+		-miphoneos-version-min=13.0 \
 		-Os \
 		"$PTRACE_JIT_SRC" \
 		-o "$PTRACE_JIT_OUT"

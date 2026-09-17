@@ -2,7 +2,7 @@
 
 # Reynard Browser
 
-Reynard is a **Gecko-based** web browser for iOS 15+.
+Reynard is a **Gecko-based** web browser with an iOS 13 deployment target and iOS 27 SDK compatibility checks.
 
 > [!NOTE]
 > This repository is the Simplified Chinese maintenance build. It preserves the upstream Gecko architecture
@@ -17,7 +17,19 @@ This project is mainly for users on older iOS versions who are stuck with an out
 
 The latest Simplified Chinese source builds are available on this repository's [Releases](https://github.com/xytxg/reynard-browser-zh/releases) page. These IPA files are unsigned and must be signed with a compatible sideloading method before installation. iOS 27 validates engine libraries before `main()` runs, so packaging normalizes the extensionless upstream `XUL` binary to `XUL.dylib` and rewrites its load commands for recursive signing tools. Please note that this project is still in an early experimental state, so expect bugs and missing features.
 
-### TrollStore (iOS 15 - 16.6.1, 17.0)
+### Available builds
+
+Every three-variant build produces the same package set as upstream:
+
+| Package | Intended installation |
+| --- | --- |
+| `Reynard.ipa` | Standard unsigned build for a compatible signer such as AltStore or SideStore |
+| `Reynard-TrollStore.tipa` | TrollStore / TrollStore Lite build with automatic JIT support |
+| `Reynard-Jailbroken.ipa` | Jailbroken build, including the iOS 13 AppSync installation path |
+
+The app and required native libraries are built with a minimum deployment target of iOS 13.0. CI also compiles the app with Xcode 27 and verifies the iOS 27 SDK load commands. Actual installation and JIT support still depend on the iOS version and signing method.
+
+### TrollStore (iOS 14 - 16.6.1, 17.0)
 
 For the best experience, I'd recommend sideloading Reynard via [TrollStore](https://github.com/opa334/TrollStore) using the `Reynard-TrollStore.tipa` build. This gives you automatic JIT enablement, better performance, and automatic app updates. For automatic app updates, make sure that the **URL Scheme Enabled** option is turned on in TrollStore.
 
@@ -48,7 +60,7 @@ Release descriptions contain only the latest section from `CHANGELOG.md` and the
 > - Sideloading methods that use a distribution certificate for signing are **not supported**.⁠
 > - Other sideloading methods are **untested**, and **no support will be provided** for issues arising from them.
 
-### Jailbroken (iOS 15+)
+### Jailbroken (iOS 13+)
 
 Sideload the `Reynard-Jailbroken.ipa` build using [Filza File Manager](https://www.tigisoftware.com/default/?page_id=78) with [AppSync Unified](https://github.com/akemin-dayo/AppSync) on a **jailbroken device**. You will also benefit from automatic JIT enablement and better performance.
 
@@ -56,7 +68,7 @@ Sideload the `Reynard-Jailbroken.ipa` build using [Filza File Manager](https://w
 
 ### Historical iOS 14 preview (iPhone 6S Plus, 14.1)
 
-These screenshots were made with an older Reynard build. Current builds require iOS 15 or later.
+These screenshots were made with an older Reynard build. Current builds retain the iOS 13 deployment target.
 
 <table>
   <tr>

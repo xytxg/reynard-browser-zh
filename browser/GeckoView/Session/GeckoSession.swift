@@ -116,6 +116,12 @@ public class GeckoSession {
         set { progressHandler.setDelegate(newValue) }
     }
     
+    lazy var scrollHandler = newScrollHandler(self)
+    public var scrollDelegate: ScrollDelegate? {
+        get { scrollHandler.delegate(as: ScrollDelegate.self) }
+        set { scrollHandler.setDelegate(newValue) }
+    }
+    
     lazy var promptHandler: GeckoSessionHandler = {
         let handler = newPromptHandler(self)
         return handler
@@ -161,6 +167,7 @@ public class GeckoSession {
         historyHandler,
         permissionHandler,
         progressHandler,
+        scrollHandler,
         promptHandler,
         selectionActionHandler,
         mediaSessionHandler,
@@ -261,6 +268,7 @@ public class GeckoSession {
         historyDelegate = nil
         permissionDelegate = nil
         progressDelegate = nil
+        scrollDelegate = nil
         promptDelegate = nil
         selectionActionDelegate = nil
         mediaSessionDelegate?.onDeactivated(session: self)
@@ -452,14 +460,15 @@ public class GeckoSession {
     }
     
     // Keyboard
-    public func focusedInputBottomRatio() async -> CGFloat? {
+    public func focusedInputMetrics() async -> (bottomRatio: CGFloat, caretTop: CGFloat?)? {
         let response = try? await dispatcher.query(type: "GeckoView:GetFocusedInputMetrics")
         guard let values = response as? [AnyHashable: Any],
-              let bottomRatioValue = values["bottomRatio"] else {
+              let bottomRatio = PayloadValue.cgFloat(values["bottomRatio"]),
+              let engineView else {
             return nil
         }
-        
-        return PayloadValue.cgFloat(bottomRatioValue)
+        let caretTop = PayloadValue.cgFloat(values["caretTop"])
+        return (bottomRatio, caretTop.map { $0 / engineView.contentScaleFactor })
     }
     
     @discardableResult
@@ -488,8 +497,8 @@ public class GeckoSession {
         window?.setDynamicToolbarMaxHeight(max(0, height))
     }
     
-    public func setContentBottomOffset(_ offset: CGFloat) {
-        window?.setFixedBottomOffset(offset)
+    public func setContentOffsets(top: CGFloat, bottom: CGFloat, topInset: CGFloat, bottomInset: CGFloat) {
+        window?.setContentOffsets(top, bottom: bottom, topInset: topInset, bottomInset: bottomInset)
     }
 }
 

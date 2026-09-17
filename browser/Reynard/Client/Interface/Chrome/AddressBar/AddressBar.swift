@@ -13,8 +13,10 @@ protocol AddressBarDelegate: AnyObject {
     func addressBarAddonItems(_ addressBar: AddressBar) -> [AddressBarMenu.AddonItem]
     func addressBar(_ addressBar: AddressBar, didSelectAddon item: AddonMenuItem)
     func addressBarDidRequestFindInPage(_ addressBar: AddressBar)
+    func addressBarDidRequestReader(_ addressBar: AddressBar)
     func addressBarDidRequestPageZoom(_ addressBar: AddressBar)
     func addressBarDidRequestWebsiteModeChange(_ addressBar: AddressBar)
+    func addressBarDidRequestHideToolbar(_ addressBar: AddressBar)
     func addressBarDidRequestWebsiteSettings(_ addressBar: AddressBar)
     func addressBar(_ addressBar: AddressBar, didRequestBookmarkInFavorites favorites: Bool)
     func addressBarShareableURL(_ addressBar: AddressBar) -> URL?
@@ -109,6 +111,7 @@ final class AddressBar: UIView {
     
     private var preserveAutocompleteAfterResign = false
     private var addonsMenu: UIMenu?
+    private var isReaderActive = false
     
     private var lastEditingText = ""
     private var lastEditWasDelete = false
@@ -185,6 +188,7 @@ final class AddressBar: UIView {
         field.translatesAutoresizingMaskIntoConstraints = false
         field.borderStyle = .none
         field.backgroundColor = .clear
+        field.textAlignment = .left
         field.placeholder = AddressBar.placeholderText
         field.keyboardType = .webSearch
         field.autocapitalizationType = .none
@@ -278,14 +282,6 @@ final class AddressBar: UIView {
         return textField.resignFirstResponder()
     }
     
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        addressBarBackground.layer.shadowPath = UIBezierPath(
-            roundedRect: addressBarBackground.bounds,
-            cornerRadius: UX.addressBarBackgroundCornerRadius
-        ).cgPath
-    }
-    
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         guard previousTraitCollection?.userInterfaceStyle != traitCollection.userInterfaceStyle else {
@@ -356,11 +352,20 @@ final class AddressBar: UIView {
         applyState()
     }
     
-    func updateMenu(url: String?, usesDesktopWebsite: Bool?) {
+    func updateMenu(url: String?, usesDesktopWebsite: Bool?, readerMode: ReaderModeState) {
+        isReaderActive = readerMode.isActive
         addonsMenu = AddressBarMenu.makeMenu(
             selectedURL: url,
             usesDesktopWebsite: usesDesktopWebsite,
             addonItems: delegate?.addressBarAddonItems(self) ?? [],
+            isReaderable: readerMode.isReaderable,
+            onShowReader: { [weak self] in
+                guard let self else { return }
+                self.performAfterMenuDismissal { [weak self] in
+                    guard let self else { return }
+                    self.delegate?.addressBarDidRequestReader(self)
+                }
+            },
             onAddonSelected: { [weak self] item in
                 guard let self else { return }
                 self.delegate?.addressBar(self, didSelectAddon: item)
@@ -376,6 +381,10 @@ final class AddressBar: UIView {
             onChangeWebsiteMode: { [weak self] in
                 guard let self else { return }
                 self.delegate?.addressBarDidRequestWebsiteModeChange(self)
+            },
+            onHideToolbar: { [weak self] in
+                guard let self else { return }
+                self.delegate?.addressBarDidRequestHideToolbar(self)
             },
             onWebsiteSettings: { [weak self] in
                 guard let self else { return }
@@ -650,6 +659,7 @@ final class AddressBar: UIView {
         addGestureRecognizer(tapGesture)
         addressBarContent.addInteraction(UIContextMenuInteraction(delegate: self))
         textField.addTarget(self, action: #selector(textFieldDidChange), for: .editingChanged)
+        leadingButton.addTarget(self, action: #selector(handleReaderButtonTap), for: .touchUpInside)
         trailingButton.addTarget(self, action: #selector(handleTrailingButtonTap), for: .touchUpInside)
         trailingButton.addGestureRecognizer(UILongPressGestureRecognizer(target: self, action: #selector(handleTrailingButtonLongPress)))
         autocompleteButton.addTarget(self, action: #selector(handleOverlayButtonTap), for: .touchUpInside)
@@ -707,6 +717,7 @@ final class AddressBar: UIView {
     
     private func resolveLeadingButtonState(for content: ContentState) -> LeadingButtonState {
         guard editingState == .inactive else { return .hidden }
+        if isReaderActive { return .menu }
         if case .loading = loadingState { return .loading }
         switch content {
         case .placeholder:
@@ -762,7 +773,11 @@ final class AddressBar: UIView {
             addressLabel.isHidden = false
             textField.isHidden = true
         }
-        textField.textAlignment = .left
+    }
+    
+    @objc private func handleReaderButtonTap() {
+        guard isReaderActive else { return }
+        delegate?.addressBarDidRequestReader(self)
     }
     
     private func applyLeadingButtonState(_ state: LeadingButtonState) {
@@ -792,9 +807,12 @@ final class AddressBar: UIView {
         }
         
         leadingButton.tintColor = .label
-        leadingButton.setImage(UIImage(named: "reynard.list.bullet.below.rectangle"), for: .normal)
-        leadingButton.setMenuPreservingPresentation(addonsMenu)
-        leadingButton.isUserInteractionEnabled = addonsMenu != nil
+        leadingButton.setImage(UIImage(named: isReaderActive ? "reynard.text.page" : "reynard.list.bullet.below.rectangle"), for: .normal)
+        if #available(iOS 14.0, *) {
+            leadingButton.showsMenuAsPrimaryAction = !isReaderActive
+        }
+        leadingButton.setMenuPreservingPresentation(isReaderActive ? nil : addonsMenu)
+        leadingButton.isUserInteractionEnabled = isReaderActive || addonsMenu != nil
     }
     
     private func applyTrailingButtonState(_ state: TrailingButtonState) {
@@ -809,6 +827,27 @@ final class AddressBar: UIView {
     }
     
     // MARK: - Display Content
+    
+    func toolbarTextPresentation(in view: UIView) -> (text: NSAttributedString, font: UIFont, frame: CGRect)? {
+        guard !addressLabel.isHidden,
+              let displayText = addressLabel.attributedText else {
+            return nil
+        }
+        let font: UIFont = addressLabel.font
+        let textWidth = addressLabel.sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: font.lineHeight)).width
+        let width = min(textWidth, addressLabel.bounds.width)
+        let frame = CGRect(
+            x: 0,
+            y: (addressLabel.bounds.height - font.lineHeight) / 2,
+            width: width,
+            height: font.lineHeight
+        )
+        return (displayText, font, addressLabel.convert(frame, to: view))
+    }
+    
+    func setDisplayTextHidden(_ hidden: Bool) {
+        addressLabel.alpha = hidden ? 0 : 1
+    }
     
     private func displayAttributedText() -> NSAttributedString? {
         guard let currentText, !currentText.isEmpty else {

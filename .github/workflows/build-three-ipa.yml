@@ -1,0 +1,26 @@
+name: Build three unsigned IPA variants
+
+run-name: Three IPA variants · ${{ github.ref_name }} · ${{ github.event_name }}
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - sync/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: three-ipa-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      checkout_ref: ${{ github.sha }}
+      build_normal_ipa: true
+      build_trollstore_tipa: true
+      build_jailbroken_ipa: true
