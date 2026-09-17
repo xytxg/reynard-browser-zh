@@ -86,8 +86,8 @@ def verify(path):
         app = plistlib.loads(archive.read(root + "Info.plist"))
         require(re.fullmatch(r"\d+(?:\.\d+){0,2}", str(app["CFBundleVersion"])), "Build number is not numeric")
         require(
-            parse_version(app["MinimumOSVersion"]) == (15, 0, 0),
-            "App deployment target must be iOS 15.0",
+            parse_version(app["MinimumOSVersion"]) == (13, 0, 0),
+            "App deployment target must be iOS 13.0",
         )
         registered_schemes = {
             scheme.lower()
@@ -125,7 +125,7 @@ def verify(path):
             require(0x0100000C in checked.get(name, set()), "Required arm64 binary is absent: " + name)
             versions = minimum_ios_by_binary.get(name, [])
             require(versions, "Required iOS deployment load command is absent: " + name)
-            require(max(versions) <= (15, 0, 0), "A required binary requires newer than iOS 15: " + name)
+            require(max(versions) <= (13, 0, 0), "A required binary requires newer than iOS 13: " + name)
 
         chinese = plistlib.loads(archive.read(root + "zh-Hans.lproj/Localizable.strings"))
         require(chinese.get("Pause") == "暂停" and chinese.get("Resume") == "继续下载", "Chinese download controls are missing")

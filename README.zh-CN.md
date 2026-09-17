@@ -1,6 +1,6 @@
 # Reynard Browser 简体中文说明
 
-Reynard 是面向 iOS 15 及更高版本的 Gecko 浏览器。本分支保留原有 Gecko、JIT、应用扩展、
+Reynard 是最低支持 iOS 13、并持续验证 iOS 27 SDK 兼容性的 Gecko 浏览器。本分支保留原有 Gecko、JIT、应用扩展、
 标签页和侧载架构，并加入简体中文（`zh-Hans`）、下载安全修复、私密会话保护和源码构建
 未签名 IPA 的 GitHub Actions 流程。
 
@@ -10,12 +10,13 @@ Reynard 是面向 iOS 15 及更高版本的 Gecko 浏览器。本分支保留原
 
 ## 上游同步状态
 
-当前维护代码已合并原作者仓库截至 `f25792a7d089c00f0e7499d6072bc653ce389ede`
-（2026-09-03）的更新，Gecko 为 `FIREFOX_155_0_RELEASE`，固定源码提交为
-`d065a04bc5610f496762935dee56604a78b91b51`。在上游代码基础上保留中文分支的下载安全、
-私密会话保护、iOS 15 最低版本、iOS 27 SDK 编译验证与未签名 IPA 构建。
+当前维护代码已合并原作者仓库截至 `5d08f386918409ff073f5ea0b6a4979b79529be5`
+（2026-09-16）的更新，Gecko 为 `FIREFOX_155_0_1_RELEASE`，固定源码提交为
+`fb95137a04eb8fe1196cb12f26b100c1e060295c`。在上游代码基础上保留中文分支的下载安全、
+私密会话保护、iOS 13 最低版本、iOS 27 SDK 编译验证与未签名 IPA 构建。
 
-近期同步包括 Firefox 155、完整标签页会话恢复、主页标签页行为和地址栏预览外观更新；
+近期同步包括 Firefox 155.0.1、DNS over HTTPS、远程调试、阅读模式、动态工具栏、
+iOS 13 侧栏及 Swift concurrency 打包修复；
 中文分支另修复私密标签页数据落盘、历史清理竞态、后台会话强制写入和动态边框颜色问题。
 
 具体基线见 `.github/upstream-sync.json`，当前更新见 `CHANGELOG.md`，早期合并记录见
@@ -45,7 +46,7 @@ GitHub Actions 产物没有 Apple 开发证书、分发证书或 Provisioning Pr
 Reynard 已注册 `http`、`https` URL Scheme，并同时处理冷启动和运行中的外部链接。收到链接后会
 直接在普通/私密浏览模式当前所选模式中打开网页；`reynard://` 包装链接只允许最终目标为有效的
 HTTP/HTTPS 地址，不允许借此打开本地文件或脚本协议。应用内可进入
-**设置 → 通用 → 默认浏览器**：iOS 18.3 及以上会直接打开“默认 App”设置，iOS 15–18.2
+**设置 → 通用 → 默认浏览器**：iOS 18.3 及以上会直接打开“默认 App”设置，iOS 13–18.2
 会打开 Reynard 的应用设置。
 
 能否出现在系统“浏览器 App”列表，最终取决于安装签名中是否真的含有 Apple 管理的
@@ -78,10 +79,10 @@ TrollStore 安装，且对应 Release 另附 `.tipa`，更新按钮会优先唤�
 ## 在 GitHub Actions 从源码构建
 
 1. 打开本仓库的 **Actions** 页面。
-2. 选择 **Build unsigned IPA from source**。
+2. 选择 **Build three unsigned IPA variants**。
 3. 点击 **Run workflow**。
-4. 工作流成功后，可在 **Releases** 下载 bot 自动发布的 IPA，也可在该次运行的
-   **Artifacts** 下载 `Reynard-source-unsigned-<运行编号>`。
+4. 工作流成功后，在该次运行的 **Artifacts** 分别下载 `Reynard.ipa`、
+   `Reynard-TrollStore.tipa` 和 `Reynard-Jailbroken.ipa`。
 
 工作流会按顺序执行：
 
@@ -91,12 +92,12 @@ TrollStore 安装，且对应 Release 另附 `.tipa`，更新按钮会优先唤�
 4. 使用真实 `Reynard` Scheme 构建 `Reynard.app`，并设置
    `CODE_SIGNING_ALLOWED=NO`、`CODE_SIGNING_REQUIRED=NO` 和
    `AD_HOC_CODE_SIGNING_ALLOWED=NO`。
-5. 检查主程序、`Info.plist`、两个应用扩展、GeckoView、`XUL.dylib` 和 Frameworks 后，生成标准
-   `Payload/Reynard.app` IPA。
+5. 检查主程序、`Info.plist`、两个应用扩展、GeckoView、XUL 和 Frameworks 后，分别生成普通、
+   TrollStore 与越狱三个包；越狱变体使用关闭 jemalloc 的独立 Gecko 构建。
 
 打包会检查 Mach-O 的 arm64 架构、残留签名、主应用与扩展构建号、中文资源和 ZIP 完整性。
 `CFBundleVersion` 使用数字构建号，源码短 SHA 保留在产物文件名和构建日志中。正式构建最低
-系统版本固定为 iOS 15.0，并另用 Xcode 27 / iOS 27 SDK 编译和检查 Mach-O 链接版本。
+系统版本固定为 iOS 13.0，并另用 Xcode 27 / iOS 27 SDK 编译和检查 Mach-O 链接版本。
 
 IPA 文件名格式为 `Reynard-<版本>-<提交短 SHA>-unsigned.ipa`。推送到 `main` 或手动运行时，
 成功产物通常创建 `build-<运行编号>` 预发行版；推送 `v*` 标签时创建同名正式 Release。

@@ -167,7 +167,7 @@ jobs:
           test -s "$gecko_dist/bin/XUL"
           test -d "$gecko_dist/include/GeckoView"
           if grep -E 'warning: .*only available on iOS .*newer.*\[-Wunguarded-availability-new\]' dist/logs/build-gecko.log; then
-            echo 'Gecko contains an API use that is unsafe for the iOS 15 deployment target.' >&2
+            echo 'Gecko contains an API use that is unsafe for the iOS 13 deployment target.' >&2
             exit 65
           fi
           df -h | tee dist/logs/disk-after-gecko.log
@@ -411,7 +411,7 @@ jobs:
           echo "iPhoneOS SDK $sdk_version" | tee -a dist/logs/xcode27-toolchain.log
           test "${sdk_version%%.*}" -ge 27
 
-      - name: Compile against the iOS 27 SDK with iOS 15 minimum
+      - name: Compile against the iOS 27 SDK with iOS 13 minimum
         run: tools/release/build-unsigned-app.sh
 
       - name: Verify linked SDK and deployment target
@@ -420,9 +420,9 @@ jobs:
           app_path="dist/Reynard.app"
           executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app_path/Info.plist")"
           minimum_os="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$app_path/Info.plist")"
-          test "$minimum_os" = "15.0"
+          test "$minimum_os" = "13.0"
           xcrun vtool -show-build "$app_path/$executable" | tee dist/logs/xcode27-load-commands.log
-          grep -Eq 'minos[[:space:]]+15(\.0+)?[[:space:]]*$' dist/logs/xcode27-load-commands.log
+          grep -Eq 'minos[[:space:]]+13(\.0+)?[[:space:]]*$' dist/logs/xcode27-load-commands.log
           grep -Eq 'sdk[[:space:]]+27(\.|$)' dist/logs/xcode27-load-commands.log
 
       - name: Upload Xcode 27 diagnostics

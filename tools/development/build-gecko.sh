@@ -76,7 +76,7 @@ trap 'exit 143' TERM
 {
 	echo "ac_add_options --enable-application=mobile/ios"
 	echo "ac_add_options --target=$TARGET"
-	echo "ac_add_options --enable-ios-target=15.0"
+	echo "ac_add_options --enable-ios-target=13.0"
 	echo "ac_add_options --enable-webrtc"
 	echo "ac_add_options --enable-optimize"
 	echo "ac_add_options --enable-release"

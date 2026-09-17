@@ -28,7 +28,7 @@ if ((workflow.match(/- name: Require a real IPA artifact/g) ?? []).length !== 1)
 requireText(workflow, "tools/development/build-gecko.sh", "IPA workflow does not build Gecko from source");
 requireText(workflow, "tools/release/build-unsigned-app.sh", "IPA workflow does not build Reynard.app from source");
 requireText(workflow, "runs-on: xcode-27", "IPA workflow does not compile against the iOS 27 SDK");
-requireText(workflow, 'test "$minimum_os" = "15.0"', "iOS 27 compatibility job does not enforce iOS 15");
+requireText(workflow, 'test "$minimum_os" = "13.0"', "iOS 27 compatibility job does not enforce iOS 13");
 requireText(workflow, "xcrun vtool -show-build", "iOS 27 compatibility job does not inspect Mach-O load commands");
 requireText(
   workflow,
@@ -52,18 +52,24 @@ requireText(unsignedBuild, "AD_HOC_CODE_SIGNING_ALLOWED=NO", "unsigned app build
 const buildConfiguration = read("browser/Configuration/Reynard.xcconfig");
 requireText(
   buildConfiguration,
+  "IPHONEOS_DEPLOYMENT_TARGET = 13.0",
+  "Xcode deployment target is not iOS 13"
+);
+const projectConfiguration = read("browser/Reynard.xcodeproj/project.pbxproj");
+rejectText(
+  projectConfiguration,
   "IPHONEOS_DEPLOYMENT_TARGET = 15.0",
-  "Xcode deployment target is not iOS 15"
+  "an Xcode target still overrides the iOS 13 deployment target with iOS 15"
 );
 const geckoBuild = read("tools/development/build-gecko.sh");
-requireText(geckoBuild, "--enable-ios-target=15.0", "Gecko deployment target is not iOS 15");
+requireText(geckoBuild, "--enable-ios-target=13.0", "Gecko deployment target is not iOS 13");
 requireText(
   geckoBuild,
   "libclang_rt.ios.a",
   "Gecko does not link the compiler runtime required by iOS availability guards"
 );
 const ideviceBuild = read("tools/development/build-idevice.sh");
-requireText(ideviceBuild, 'DEPLOYMENT_TARGET="15.0"', "idevice deployment target is not iOS 15");
+requireText(ideviceBuild, 'DEPLOYMENT_TARGET="13.0"', "idevice deployment target is not iOS 13");
 
 const unsignedPackage = read("tools/release/create-unsigned-ipa.sh");
 requireText(
@@ -468,6 +474,23 @@ requireText(jitEnabler, "NSFilePosixPermissions: @0700", "the temporary JIT help
 const eventDispatcher = read("browser/GeckoView/Events/EventDispatcher.swift");
 rejectText(eventDispatcher, "message as!", "malformed Gecko event payloads can still force-cast crash");
 
+const developerPreferences = read(
+  "browser/Reynard/Client/Interface/Library/Settings/Sections/Advanced/Developer/DeveloperPreferencesViewController.swift"
+);
+requireText(
+  developerPreferences,
+  'URL(string: "https://libimobiledevice.org")',
+  "remote debugging documentation link is not an absolute HTTPS URL"
+);
+rejectText(
+  developerPreferences,
+  "URL(string: urlString)!",
+  "remote debugging instructions still force-unwrap a relative URL"
+);
+if ((developerPreferences.match(/location != NSNotFound/g) ?? []).length < 2) {
+  throw new Error("remote debugging localization ranges are not checked before applying attributes");
+}
+
 const filePicker = read("browser/Reynard/Client/Interface/ContentView/WebContent/FilePicker/FilePicker.swift");
 requireText(
   filePicker,
@@ -483,25 +506,41 @@ requireText(
   "file-provider callbacks cross the main actor for media filenames"
 );
 
-const userDataMigration = read("browser/Reynard/Client/Startup/UserDataMigration.swift");
-requireText(
-  userDataMigration,
-  "mergeDirectoryContents",
-  "legacy migration can overwrite the active Application Support store"
+const userDataMigrationPath = path.join(
+  root,
+  "browser/Reynard/Client/Startup/UserDataMigration.swift"
 );
-rejectText(userDataMigration, 'fatalError("AppData migration failed")', "legacy migration still crashes on file errors");
-
-const ios15AvailabilityPatch = read("patches/zz-compat/iOS15RuntimeAvailability.patch");
-for (const [fragment, message] of [
-  ["__builtin_available(macos 10.13, iOS 17.0, *)", "VideoToolbox decoder APIs are not guarded for iOS 15"],
-  ["__builtin_available(macos 10.13, iOS 17.4, *)", "VideoToolbox encoder APIs are not guarded for iOS 15"],
-  ["__builtin_available(macos 13.0, iOS 16.0, *)", "constant-bitrate APIs are not guarded for iOS 15"],
-  ["@available(iOS 16.0, *)", "extended dynamic-range APIs are not guarded for iOS 15"],
-]) {
-  requireText(ios15AvailabilityPatch, fragment, message);
+if (fs.existsSync(userDataMigrationPath)) {
+  throw new Error("obsolete startup data migration is still present");
 }
 rejectText(
-  ios15AvailabilityPatch,
+  read("browser/Reynard/main.swift"),
+  "UserDataMigration",
+  "startup still invokes the obsolete data migration"
+);
+const mainSource = read("browser/Reynard/main.swift");
+requireText(
+  mainSource,
+  "configureUnsandboxedAppDataDirectories",
+  "iOS 13 unsandboxed builds do not configure Gecko app-data directories"
+);
+requireText(
+  mainSource,
+  "if #unavailable(iOS 14.0)",
+  "iOS 13 Gecko app-data compatibility is not runtime-gated"
+);
+
+const ios13AvailabilityPatch = read("patches/zz-compat/iOS13RuntimeAvailability.patch");
+for (const [fragment, message] of [
+  ["__builtin_available(macos 10.13, iOS 17.0, *)", "VideoToolbox decoder APIs are not guarded for iOS 13"],
+  ["__builtin_available(macos 10.13, iOS 17.4, *)", "VideoToolbox encoder APIs are not guarded for iOS 13"],
+  ["__builtin_available(macos 13.0, iOS 16.0, *)", "constant-bitrate APIs are not guarded for iOS 13"],
+  ["@available(iOS 16.0, *)", "extended dynamic-range APIs are not guarded for iOS 13"],
+]) {
+  requireText(ios13AvailabilityPatch, fragment, message);
+}
+rejectText(
+  ios13AvailabilityPatch,
   "\n+  if ([aScreen respondsToSelector:@selector(potentialEDRHeadroom)",
   "selector probing does not satisfy iOS availability checking for EDR APIs"
 );

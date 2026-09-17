@@ -17,7 +17,6 @@ struct GeneralSettingsSection {
         case homepage
         case languages
         case appearance
-        case compatibility
     }
     
     var rowCount: Int {
@@ -53,8 +52,6 @@ struct GeneralSettingsSection {
             return SettingsViewUtils.disclosureCell(title: NSLocalizedString("Languages", comment: ""))
         case .appearance:
             return SettingsViewUtils.disclosureCell(title: NSLocalizedString("Appearance", comment: ""))
-        case .compatibility:
-            return SettingsViewUtils.disclosureCell(title: NSLocalizedString("Compatibility", comment: ""))
         }
     }
     
@@ -82,8 +79,6 @@ struct GeneralSettingsSection {
             destination = LanguagesPreferencesViewController()
         case .appearance:
             destination = AppearancePreferencesViewController()
-        case .compatibility:
-            destination = CompatibilityPreferencesViewController()
         }
         viewController.navigationController?.pushViewController(destination, animated: true)
     }
