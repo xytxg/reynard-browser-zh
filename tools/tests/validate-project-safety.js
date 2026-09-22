@@ -532,6 +532,7 @@ requireText(
 
 const ios13AvailabilityPatch = read("patches/zz-compat/iOS13RuntimeAvailability.patch");
 for (const [fragment, message] of [
+  ["__builtin_available(macOS 11.0, iOS 14.0, *)", "HDR color-space APIs are not guarded for iOS 13"],
   ["__builtin_available(macos 10.13, iOS 17.0, *)", "VideoToolbox decoder APIs are not guarded for iOS 13"],
   ["__builtin_available(macos 10.13, iOS 17.4, *)", "VideoToolbox encoder APIs are not guarded for iOS 13"],
   ["__builtin_available(macos 13.0, iOS 16.0, *)", "constant-bitrate APIs are not guarded for iOS 13"],
