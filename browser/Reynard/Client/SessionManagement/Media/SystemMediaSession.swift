@@ -50,6 +50,7 @@ final class SystemMediaSession: MediaSessionDelegate {
     private let commandCenter = MPRemoteCommandCenter.shared()
     private var sessionStates: [ObjectIdentifier: SessionState] = [:]
     private var playbackHistory: [ObjectIdentifier] = []
+    private var interruptedPlaybackSessions: Set<ObjectIdentifier> = []
     private var commandTargets: [Any] = []
     weak var observer: SystemMediaSessionObserver?
     weak var playbackObserver: SystemMediaSessionPlaybackObserver?
@@ -114,6 +115,7 @@ final class SystemMediaSession: MediaSessionDelegate {
         let wasActive = activeSession === session
         sessionStates.removeValue(forKey: identifier)?.artworkTask?.cancel()
         playbackHistory.removeAll { $0 == identifier }
+        interruptedPlaybackSessions.remove(identifier)
         
         if wasActive {
             activateMostRecentPlayingSession()
@@ -325,11 +327,33 @@ final class SystemMediaSession: MediaSessionDelegate {
     
     @objc private func handleAudioSessionInterruption(_ notification: Notification) {
         guard let typeValue = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
-              AVAudioSession.InterruptionType(rawValue: typeValue) == .began else {
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
             return
         }
-        for state in sessionStates.values where state.playbackState == .playing {
-            state.session?.mediaSession.pause()
+        switch type {
+        case .began:
+            interruptedPlaybackSessions.removeAll()
+            for (identifier, state) in sessionStates where state.playbackState == .playing {
+                guard let session = state.session else { continue }
+                interruptedPlaybackSessions.insert(identifier)
+                session.mediaSession.pause()
+            }
+        case .ended:
+            let sessionsToResume = interruptedPlaybackSessions
+            interruptedPlaybackSessions.removeAll()
+            guard let optionsValue = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt,
+                  AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume) else {
+                return
+            }
+            for identifier in sessionsToResume {
+                guard let state = sessionStates[identifier],
+                      state.playbackState != .none else {
+                    continue
+                }
+                state.session?.mediaSession.play()
+            }
+        @unknown default:
+            return
         }
     }
     

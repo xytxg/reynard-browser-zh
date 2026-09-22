@@ -5243,8 +5243,8 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "常に選択したセキュアDNSプロバイダーを使用します。利用できない場合、ウェブサイトが読み込めないことがあります。"
           }
         },
         "pl": {
@@ -6617,8 +6617,8 @@
       "localizations": {
         "cs": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Zrušeno"
           }
         },
         "de": {
@@ -6641,14 +6641,14 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": " キャンセル済み"
           }
         },
         "pl": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Anulowane"
           }
         },
         "ru": {
@@ -9387,8 +9387,8 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "デフォルト保護"
           }
         },
         "pl": {
@@ -11531,8 +11531,8 @@
       "localizations": {
         "cs": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Selhalo"
           }
         },
         "de": {
@@ -11555,14 +11555,14 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "失敗"
           }
         },
         "pl": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Nieudane"
           }
         },
         "ru": {
@@ -12316,8 +12316,8 @@
         },
         "pl": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Twarde Przeładowanie Strony"
           }
         },
         "ru": {
@@ -12833,8 +12833,8 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "強化版保護"
           }
         },
         "pl": {
@@ -13221,8 +13221,8 @@
         },
         "de": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Ungültige URL"
           }
         },
         "en": {
@@ -13239,8 +13239,8 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "無効なURL"
           }
         },
         "pl": {
@@ -14288,8 +14288,8 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "最高レベルの保護"
           }
         },
         "pl": {
@@ -16661,8 +16661,8 @@
         },
         "de": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Im Hintergrund öffnen"
           }
         },
         "en": {
@@ -17758,8 +17758,8 @@
       "localizations": {
         "cs": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Pozastavit"
           }
         },
         "de": {
@@ -17782,14 +17782,14 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "停止"
           }
         },
         "pl": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Zatrzymaj"
           }
         },
         "ru": {
@@ -17817,8 +17817,8 @@
       "localizations": {
         "cs": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Pozastaveno"
           }
         },
         "de": {
@@ -17841,14 +17841,14 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "停止済み"
           }
         },
         "pl": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Zatrzymane"
           }
         },
         "ru": {
@@ -20085,8 +20085,8 @@
       "localizations": {
         "cs": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Navázat"
           }
         },
         "de": {
@@ -20109,14 +20109,14 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "再開"
           }
         },
         "pl": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Wznów"
           }
         },
         "ru": {
@@ -21095,8 +21095,8 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "セキュアDNSプロバイダー"
           }
         },
         "pl": {
@@ -21153,8 +21153,8 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "セキュアDNSは、これらのウェブサイトやそのサブドメインでは使用されません。"
           }
         },
         "pl": {
@@ -25577,8 +25577,8 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "URLは「https://」で始まる必要があります。"
           }
         },
         "pl": {
@@ -25927,8 +25927,8 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "プライバシーを保護するため、適切な場合に安全な DNS を使用します。"
           }
         },
         "pl": {
@@ -25985,8 +25985,8 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "可能な限り、選択した安全なDNSプロバイダーを使用します。利用できない場合は、システムDNSが使用されます。"
           }
         },
         "pl": {
@@ -26025,8 +26025,8 @@
         },
         "de": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Verwendet das System-DNS."
           }
         },
         "en": {
@@ -26043,8 +26043,8 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "システムのDNSを使用します。"
           }
         },
         "pl": {
@@ -27810,8 +27810,8 @@
         },
         "de": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Links in neuen Tabs öffnen"
           }
         },
         "en": {
@@ -27921,14 +27921,14 @@
       "localizations": {
         "cs": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Hotovo"
           }
         },
         "de": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Fertig"
           }
         },
         "en": {
@@ -27945,8 +27945,8 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "完了"
           }
         },
         "pl": {
@@ -27979,14 +27979,14 @@
       "localizations": {
         "cs": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Skrýt panel nástrojů"
           }
         },
         "de": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "Toolbar verstecken"
           }
         },
         "en": {
@@ -28003,8 +28003,8 @@
         },
         "ja": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": ""
+            "state": "translated",
+            "value": "ツールバーを非表示"
           }
         },
         "pl": {
@@ -28047,6 +28047,48 @@
             "state": "translated",
             "value": "深色"
           }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tmavá"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
         }
       }
     },
@@ -28062,6 +28104,48 @@
           "stringUnit": {
             "state": "translated",
             "value": "减小字体"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zmenšit písmo"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
           }
         }
       }
@@ -28079,6 +28163,48 @@
             "state": "translated",
             "value": "退出阅读模式"
           }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skrýt čtečku"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
         }
       }
     },
@@ -28094,6 +28220,48 @@
           "stringUnit": {
             "state": "translated",
             "value": "增大字体"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zvětšit písmo"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
           }
         }
       }
@@ -28112,6 +28280,48 @@
             "state": "translated",
             "value": "浅色"
           }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Světlá"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
         }
       }
     },
@@ -28127,6 +28337,48 @@
           "stringUnit": {
             "state": "translated",
             "value": "阅读模式"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Čtečka"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
           }
         }
       }
@@ -28145,6 +28397,48 @@
             "state": "translated",
             "value": "无衬线体"
           }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bezpatkové"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
         }
       }
     },
@@ -28161,6 +28455,48 @@
           "stringUnit": {
             "state": "translated",
             "value": "棕褐色"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sépiová"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
           }
         }
       }
@@ -28179,6 +28515,48 @@
             "state": "translated",
             "value": "衬线体"
           }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Patkové"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
         }
       }
     },
@@ -28194,6 +28572,48 @@
           "stringUnit": {
             "state": "translated",
             "value": "进入阅读模式"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zobrazit čtečku"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": ""
           }
         }
       }
