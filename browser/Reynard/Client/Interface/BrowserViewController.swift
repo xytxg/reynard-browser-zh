@@ -35,6 +35,7 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
         completion: (GeckoOrientationLockResult) -> Void
     )?
     private var preFullscreenOrientation: UIInterfaceOrientation?
+    private var lastLaidOutViewportSize: CGSize = .zero
     weak var fullscreenSession: GeckoSession?
     private let allowsSidebarHosting: Bool
     private var shouldRestoreContentFocus = false
@@ -221,6 +222,18 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
     
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        let viewportSize = view.bounds.size
+        if viewportSize != lastLaidOutViewportSize {
+            lastLaidOutViewportSize = viewportSize
+            DispatchQueue.main.async { [weak self] in
+                guard let self,
+                      self.isViewLoaded,
+                      self.view.window != nil else {
+                    return
+                }
+                self.updateBrowserLayoutIfNeeded(animated: false)
+            }
+        }
         toolbarController.updateLayout(
             chromeMode: browserLayout.chromeMode,
             isToolbarEnabled: !isShowingFullscreenMedia,
@@ -664,6 +677,14 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
             return isCompactPadLayout
             ? resolveCompactLayout(interfaceIdiom: .pad, orientation: orientation)
             : resolvePadLayout(interfaceIdiom: .pad, orientation: orientation)
+        }
+
+        // Foldable phones can move between compact and expanded widths without
+        // changing their interface idiom or orientation. Follow the live size
+        // class so the unfolded viewport receives the wide browser chrome while
+        // the cover display continues to use the compact phone layout.
+        if traitCollection.horizontalSizeClass == .regular {
+            return resolvePadLayout(interfaceIdiom: .phone, orientation: orientation)
         }
         
         guard orientation == .portrait else {
@@ -1209,7 +1230,7 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
             return
         }
         
-        tabManager.selectedTab?.session.notifyScreenOrientationChanged(to: interfaceOrientation)
+        sidebarCoordinator.notifyScreenOrientationChanged(to: interfaceOrientation)
         completePendingOrientationRequestIfSatisfied()
     }
     

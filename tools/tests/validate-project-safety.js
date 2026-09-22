@@ -28,7 +28,17 @@ if ((workflow.match(/- name: Require a real IPA artifact/g) ?? []).length !== 1)
 requireText(workflow, "tools/development/build-gecko.sh", "IPA workflow does not build Gecko from source");
 requireText(workflow, "tools/release/build-unsigned-app.sh", "IPA workflow does not build Reynard.app from source");
 requireText(workflow, "runs-on: xcode-27", "IPA workflow does not compile against the iOS 27 SDK");
-requireText(workflow, 'test "$minimum_os" = "13.0"', "iOS 27 compatibility job does not enforce iOS 13");
+requireText(
+  workflow,
+  'REYNARD_DEPLOYMENT_TARGET_OVERRIDE: "15.0"',
+  "iOS 27 compatibility job does not use Xcode 27's supported minimum"
+);
+requireText(
+  workflow,
+  "Verify the shipping project still targets iOS 13",
+  "iOS 27 compatibility job does not preserve the shipping iOS 13 target"
+);
+requireText(workflow, 'test "$minimum_os" = "15.0"', "iOS 27 compatibility job does not verify its linked minimum");
 requireText(workflow, "xcrun vtool -show-build", "iOS 27 compatibility job does not inspect Mach-O load commands");
 requireText(
   workflow,
@@ -48,8 +58,31 @@ for (const match of workflow.matchAll(/uses:\s+[^@\s]+@([^\s#]+)/g)) {
 const unsignedBuild = read("tools/release/build-unsigned-app.sh");
 requireText(unsignedBuild, "CODE_SIGNING_ALLOWED=NO", "unsigned app build does not disable signing");
 requireText(unsignedBuild, "AD_HOC_CODE_SIGNING_ALLOWED=NO", "unsigned app build allows ad-hoc signing");
+requireText(
+  unsignedBuild,
+  "REYNARD_DEPLOYMENT_TARGET_OVERRIDE",
+  "unsigned app build does not support the isolated Xcode 27 deployment override"
+);
 
 const buildConfiguration = read("browser/Configuration/Reynard.xcconfig");
+const currentVersion = buildConfiguration.match(/^CURRENT_VERSION = (\d+\.\d+\.\d+)$/m)?.[1];
+if (!currentVersion) {
+  throw new Error("Xcode project has no valid release version");
+}
+const releaseTag = read(".github/release-tag").trim();
+if (releaseTag !== `v${currentVersion}-zh.1`) {
+  throw new Error("Release tag does not match the Xcode app version");
+}
+requireText(
+  read(".github/workflows/build-release.yml"),
+  `name: Reynard Browser 中文版 ${currentVersion}`,
+  "Release title does not match the Xcode app version"
+);
+requireText(
+  read(`.github/release-notes/${releaseTag}.md`),
+  `# Reynard Browser 中文版 ${currentVersion}`,
+  "Release notes do not match the Xcode app version"
+);
 requireText(
   buildConfiguration,
   "IPHONEOS_DEPLOYMENT_TARGET = 13.0",
@@ -529,9 +562,15 @@ requireText(
   "if #unavailable(iOS 14.0)",
   "iOS 13 Gecko app-data compatibility is not runtime-gated"
 );
+rejectText(
+  mainSource,
+  "obsoleted: 14.0",
+  "iOS 13 Gecko app-data helper cannot be type-checked by newer deployment targets"
+);
 
 const ios13AvailabilityPatch = read("patches/zz-compat/iOS13RuntimeAvailability.patch");
 for (const [fragment, message] of [
+  ["__builtin_available(macOS 11.0, iOS 14.0, *)", "HDR color-space APIs are not guarded for iOS 13"],
   ["__builtin_available(macos 10.13, iOS 17.0, *)", "VideoToolbox decoder APIs are not guarded for iOS 13"],
   ["__builtin_available(macos 10.13, iOS 17.4, *)", "VideoToolbox encoder APIs are not guarded for iOS 13"],
   ["__builtin_available(macos 13.0, iOS 16.0, *)", "constant-bitrate APIs are not guarded for iOS 13"],

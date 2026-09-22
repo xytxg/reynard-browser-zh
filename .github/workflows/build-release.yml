@@ -66,13 +66,20 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Verify all release packages are nonempty
+        run: |
+          set -euo pipefail
+          for artifact in Reynard.ipa Reynard-TrollStore.tipa Reynard-Jailbroken.ipa; do
+            test -s "dist/$artifact"
+          done
+
       - name: Create or update release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.metadata.outputs.tag }}
           target_commitish: ${{ github.sha }}
           token: ${{ github.token }}
-          name: Reynard Browser 中文版 0.13.1
+          name: Reynard Browser 中文版 0.14.1
           body_path: ${{ steps.metadata.outputs.notes }}
           draft: false
           prerelease: false

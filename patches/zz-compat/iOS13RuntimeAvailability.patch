@@ -2,6 +2,13 @@ diff --git a/dom/media/platforms/apple/AppleVTDecoder.cpp b/dom/media/platforms/
 index eb9a080f..f33fdf1b 100644
 --- a/dom/media/platforms/apple/AppleVTDecoder.cpp
 +++ b/dom/media/platforms/apple/AppleVTDecoder.cpp
+@@ -437,5 +437,5 @@ CFStringRef CGColorSpaceNameForFrame(gfx::TransferFunction aTransferFunction,
+                                      gfx::ColorSpace2 aColorPrimaries) {
+-  if (__builtin_available(macOS 11.0, *)) {
++  if (__builtin_available(macOS 11.0, iOS 14.0, *)) {
+     if (aTransferFunction == gfx::TransferFunction::PQ) {
+       return kCGColorSpaceITUR_2100_PQ;
+     }
 @@ -712,22 +712,24 @@ MediaResult AppleVTDecoder::InitializeSession() {
                         RESULT_DETAIL("Couldn't create decompression session!"));
    }

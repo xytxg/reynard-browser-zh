@@ -15,6 +15,16 @@ mkdir -p "$DIST_DIR" "$LOG_DIR" "$ROOT_DIR/build"
 rm -rf "$DERIVED_DATA" "$DIST_DIR/Reynard.app"
 cp "$XCCONFIG_SOURCE" "$XCCONFIG_PATH"
 
+if [[ -n "${REYNARD_DEPLOYMENT_TARGET_OVERRIDE:-}" ]]; then
+    [[ "$REYNARD_DEPLOYMENT_TARGET_OVERRIDE" =~ ^[0-9]+\.[0-9]+$ ]] || {
+        echo "Deployment target override must be a major.minor version"
+        exit 64
+    }
+    perl -pi -e \
+        "s/^IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = $REYNARD_DEPLOYMENT_TARGET_OVERRIDE/" \
+        "$XCCONFIG_PATH"
+fi
+
 BUILD_SHA="$(git -C "$ROOT_DIR" rev-parse --short=7 HEAD)"
 BUILD_NUMBER="${GITHUB_RUN_NUMBER:-$(git -C "$ROOT_DIR" rev-list --count HEAD)}"
 [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || { echo "Build number must be numeric"; exit 64; }

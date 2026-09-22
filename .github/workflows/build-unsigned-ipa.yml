@@ -411,7 +411,19 @@ jobs:
           echo "iPhoneOS SDK $sdk_version" | tee -a dist/logs/xcode27-toolchain.log
           test "${sdk_version%%.*}" -ge 27
 
-      - name: Compile against the iOS 27 SDK with iOS 13 minimum
+      - name: Verify the shipping project still targets iOS 13
+        run: |
+          set -euo pipefail
+          grep -Fq 'IPHONEOS_DEPLOYMENT_TARGET = 13.0' browser/Configuration/Reynard.xcconfig
+          grep -Fq 'DEPLOYMENT_TARGET="13.0"' tools/development/build-idevice.sh
+          grep -Fq -- '--enable-ios-target=13.0' tools/development/build-gecko.sh
+
+      - name: Compile against the iOS 27 SDK with its supported minimum
+        env:
+          # Xcode 27 no longer accepts deployment targets below iOS 15. The
+          # shipping Xcode/Gecko/idevice build above still targets iOS 13;
+          # this separate job verifies source compatibility with the iOS 27 SDK.
+          REYNARD_DEPLOYMENT_TARGET_OVERRIDE: "15.0"
         run: tools/release/build-unsigned-app.sh
 
       - name: Verify linked SDK and deployment target
@@ -420,9 +432,9 @@ jobs:
           app_path="dist/Reynard.app"
           executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app_path/Info.plist")"
           minimum_os="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$app_path/Info.plist")"
-          test "$minimum_os" = "13.0"
+          test "$minimum_os" = "15.0"
           xcrun vtool -show-build "$app_path/$executable" | tee dist/logs/xcode27-load-commands.log
-          grep -Eq 'minos[[:space:]]+13(\.0+)?[[:space:]]*$' dist/logs/xcode27-load-commands.log
+          grep -Eq 'minos[[:space:]]+15(\.0+)?[[:space:]]*$' dist/logs/xcode27-load-commands.log
           grep -Eq 'sdk[[:space:]]+27(\.|$)' dist/logs/xcode27-load-commands.log
 
       - name: Upload Xcode 27 diagnostics
