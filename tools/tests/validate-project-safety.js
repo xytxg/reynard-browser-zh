@@ -65,6 +65,24 @@ requireText(
 );
 
 const buildConfiguration = read("browser/Configuration/Reynard.xcconfig");
+const currentVersion = buildConfiguration.match(/^CURRENT_VERSION = (\d+\.\d+\.\d+)$/m)?.[1];
+if (!currentVersion) {
+  throw new Error("Xcode project has no valid release version");
+}
+const releaseTag = read(".github/release-tag").trim();
+if (releaseTag !== `v${currentVersion}-zh.1`) {
+  throw new Error("Release tag does not match the Xcode app version");
+}
+requireText(
+  read(".github/workflows/build-release.yml"),
+  `name: Reynard Browser 中文版 ${currentVersion}`,
+  "Release title does not match the Xcode app version"
+);
+requireText(
+  read(`.github/release-notes/${releaseTag}.md`),
+  `# Reynard Browser 中文版 ${currentVersion}`,
+  "Release notes do not match the Xcode app version"
+);
 requireText(
   buildConfiguration,
   "IPHONEOS_DEPLOYMENT_TARGET = 13.0",
