@@ -544,6 +544,11 @@ requireText(
   "if #unavailable(iOS 14.0)",
   "iOS 13 Gecko app-data compatibility is not runtime-gated"
 );
+rejectText(
+  mainSource,
+  "obsoleted: 14.0",
+  "iOS 13 Gecko app-data helper cannot be type-checked by newer deployment targets"
+);
 
 const ios13AvailabilityPatch = read("patches/zz-compat/iOS13RuntimeAvailability.patch");
 for (const [fragment, message] of [
