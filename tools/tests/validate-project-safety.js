@@ -575,6 +575,12 @@ const ios13AvailabilityPatch = [
   "patches/dom/media/platforms/apple/AppleVTEncoder.cpp.patch",
   "patches/widget/uikit/ScreenHelperUIKit.mm.patch",
 ].map(read).join("\n");
+const decoderAvailabilityPatch = read(
+  "patches/dom/media/platforms/apple/AppleVTDecoder.cpp.patch"
+);
+const encoderAvailabilityPatch = read(
+  "patches/dom/media/platforms/apple/AppleVTEncoder.cpp.patch"
+);
 for (const [fragment, message] of [
   ["__builtin_available(macOS 11.0, iOS 14.0, *)", "HDR color-space APIs are not guarded for iOS 13"],
   ["__builtin_available(iOS 17.0, *)", "VideoToolbox decoder APIs are not guarded for iOS 13"],
@@ -583,6 +589,16 @@ for (const [fragment, message] of [
 ]) {
   requireText(ios13AvailabilityPatch, fragment, message);
 }
+requireText(
+  decoderAvailabilityPatch,
+  "if (__builtin_available(iOS 17.0, *)) {\n+    const void* specKeys[]",
+  "VideoToolbox decoder key reference is outside its iOS 17 availability scope"
+);
+requireText(
+  encoderAvailabilityPatch,
+  "if (__builtin_available(iOS 17.4, *)) {\n+    const void* keys[]",
+  "VideoToolbox encoder key reference is outside its iOS 17.4 availability scope"
+);
 rejectText(
   ios13AvailabilityPatch,
   "\n+  if ([aScreen respondsToSelector:@selector(potentialEDRHeadroom)",

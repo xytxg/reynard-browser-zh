@@ -11,18 +11,37 @@ index ec208f22419a..38c517d0ed03 100644
      if (aLowLatencyRateControl) {
        // If doing low-latency rate control, the hardware encoder
        // is required.
-@@ -50,6 +50,10 @@ static CFDictionaryRef BuildEncoderSpec(const bool aHardwareNotAllowed,
+@@ -50,16 +50,19 @@ static CFDictionaryRef BuildEncoderSpec(const bool aHardwareNotAllowed,
                                  &kCFTypeDictionaryValueCallBacks);
      }
    }
-+  if (!__builtin_available(iOS 17.4, *)) {
-+    return nullptr;
-+  }
+-  const void* keys[] = {
+-      kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder};
+-  const void* values[] = {aHardwareNotAllowed ? kCFBooleanFalse
+-                                              : kCFBooleanTrue};
+-
+-  static_assert(std::size(keys) == std::size(values),
+-                "Non matching keys/values array size");
+-  return CFDictionaryCreate(kCFAllocatorDefault, keys, values, std::size(keys),
+-                            &kCFTypeDictionaryKeyCallBacks,
+-                            &kCFTypeDictionaryValueCallBacks);
++  if (__builtin_available(iOS 17.4, *)) {
++    const void* keys[] = {
++        kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder};
++    const void* values[] = {aHardwareNotAllowed ? kCFBooleanFalse
++                                                : kCFBooleanTrue};
 +
-   const void* keys[] = {
-       kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder};
-   const void* values[] = {aHardwareNotAllowed ? kCFBooleanFalse
-@@ -98,7 +102,7 @@ bool AppleVTEncoder::SetAverageBitrate(uint32_t aBitsPerSec) {
++    static_assert(std::size(keys) == std::size(values),
++                  "Non matching keys/values array size");
++    return CFDictionaryCreate(kCFAllocatorDefault, keys, values,
++                              std::size(keys), &kCFTypeDictionaryKeyCallBacks,
++                              &kCFTypeDictionaryValueCallBacks);
++  }
++  return nullptr;
+ }
+ 
+ static CFDictionaryRef BuildFrameProps(const VideoData* aSample) {
+@@ -98,7 +101,7 @@ bool AppleVTEncoder::SetAverageBitrate(uint32_t aBitsPerSec) {
  bool AppleVTEncoder::SetConstantBitrate(uint32_t aBitsPerSec) {
    MOZ_ASSERT(mSession);
  
@@ -31,7 +50,7 @@ index ec208f22419a..38c517d0ed03 100644
      SessionPropertyManager mgr(mSession);
      OSStatus rv = mgr.Set(kVTCompressionPropertyKey_ConstantBitRate,
                            AssertedCast<int32_t>(aBitsPerSec));
-@@ -138,7 +142,7 @@ bool AppleVTEncoder::SetRealtime(bool aEnabled) {
+@@ -138,7 +141,7 @@ bool AppleVTEncoder::SetRealtime(bool aEnabled) {
      return false;
    }
  
@@ -40,7 +59,7 @@ index ec208f22419a..38c517d0ed03 100644
      status = mgr.Set(
          kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality, aEnabled);
      LOGD("{} PrioritizeEncodingSpeedOverQuality, status: {}",
-@@ -572,7 +576,7 @@ MediaResult AppleVTEncoder::InitSession() {
+@@ -572,7 +575,7 @@ MediaResult AppleVTEncoder::InitSession() {
    }
  
    if (mConfig.mScalabilityMode != ScalabilityMode::None) {
@@ -49,7 +68,7 @@ index ec208f22419a..38c517d0ed03 100644
        float baseLayerFPSRatio = 1.0f;
        switch (mConfig.mScalabilityMode) {
          case ScalabilityMode::L1T2:
-@@ -637,11 +641,14 @@ MediaResult AppleVTEncoder::InitSession() {
+@@ -637,11 +640,14 @@ MediaResult AppleVTEncoder::InitSession() {
      return colorSpaceResult;
    }
  

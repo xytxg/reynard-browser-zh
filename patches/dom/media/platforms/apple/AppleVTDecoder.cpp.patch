@@ -76,18 +76,46 @@ index 6881412889f5..b4f3d750d173 100644
    }
  
    return NS_OK;
-@@ -825,6 +836,10 @@ CFDictionaryRef AppleVTDecoder::CreateDecoderExtensions() {
+@@ -825,21 +836,24 @@ CFDictionaryRef AppleVTDecoder::CreateDecoderExtensions() {
  }
  
  CFDictionaryRef AppleVTDecoder::CreateDecoderSpecification() {
-+  if (!__builtin_available(iOS 17.0, *)) {
-+    return nullptr;
-+  }
+-  const void* specKeys[] = {
+-      kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder};
+-  const void* specValues[1];
+-  if (gfx::gfxVars::CanUseHardwareVideoDecoding()) {
+-    specValues[0] = kCFBooleanTrue;
+-  } else {
+-    // This GPU is blacklisted for hardware decoding.
+-    specValues[0] = kCFBooleanFalse;
++  if (__builtin_available(iOS 17.0, *)) {
++    const void* specKeys[] = {
++        kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder};
++    const void* specValues[1];
++    if (gfx::gfxVars::CanUseHardwareVideoDecoding()) {
++      specValues[0] = kCFBooleanTrue;
++    } else {
++      // This GPU is blacklisted for hardware decoding.
++      specValues[0] = kCFBooleanFalse;
++    }
++    static_assert(std::size(specKeys) == std::size(specValues),
++                  "Non matching keys/values array size");
 +
-   const void* specKeys[] = {
-       kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder};
-   const void* specValues[1];
-@@ -881,9 +896,15 @@ CFDictionaryRef AppleVTDecoder::CreateOutputConfiguration() {
++    return CFDictionaryCreate(
++        kCFAllocatorDefault, specKeys, specValues, std::size(specKeys),
++        &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+   }
+-  static_assert(std::size(specKeys) == std::size(specValues),
+-                "Non matching keys/values array size");
+-
+-  return CFDictionaryCreate(kCFAllocatorDefault, specKeys, specValues,
+-                            std::size(specKeys), &kCFTypeDictionaryKeyCallBacks,
+-                            &kCFTypeDictionaryValueCallBacks);
++  return nullptr;
+ }
+ 
+ CFDictionaryRef AppleVTDecoder::CreateOutputConfiguration() {
+@@ -881,9 +895,15 @@ CFDictionaryRef AppleVTDecoder::CreateOutputConfiguration() {
        std::size(IOSurfaceKeys), &kCFTypeDictionaryKeyCallBacks,
        &kCFTypeDictionaryValueCallBacks));
  
