@@ -79,4 +79,11 @@ for patch_file in $patch_files; do
 	fi
 done
 
+# Firefox 157 already contains the EDR availability guard in its base source.
+# Check the final engine source so synchronization cannot silently regress it.
+if ! grep -Fq '@available(iOS 16.0, *)' "$SUBMODULE_PATH/widget/uikit/ScreenHelperUIKit.mm"; then
+    echo "Missing iOS 13 EDR availability protection in patched Gecko source."
+    exit 1
+fi
+
 echo "Finished applying patches."

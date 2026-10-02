@@ -125,11 +125,7 @@ public class GeckoEventDispatcherWrapper: NSObject, SwiftEventDispatcher {
         gecko = dispatcher
     }
     
-    public func dispatch(toSwift type: String!, message: Any!, callback: EventCallback?) {
-        guard let type else {
-            callback?.sendError("Missing Gecko event type")
-            return
-        }
+    public func dispatch(toSwift type: String, message: Any?, callback: EventCallback?) {
 
         let typedMessage: [String: Any?]?
         if message == nil {
@@ -157,10 +153,7 @@ public class GeckoEventDispatcherWrapper: NSObject, SwiftEventDispatcher {
         }
     }
     
-    public func hasListener(_ type: String!) -> Bool {
-        guard let type else {
-            return false
-        }
+    public func hasListener(_ type: String) -> Bool {
         return listeners.keys.contains(type)
     }
 }

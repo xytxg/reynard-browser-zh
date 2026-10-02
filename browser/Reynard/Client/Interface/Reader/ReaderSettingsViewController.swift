@@ -109,14 +109,15 @@ final class ReaderSettingsViewController: UIViewController, UIPopoverPresentatio
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         brightnessAdjustmentEnded()
+        
+        if isBeingDismissed || presentingViewController == nil {
+            onVisibilityChanged?(false)
+        }
     }
     
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         fontSizeDotsDismissal?.cancel()
-        if isBeingDismissed || presentingViewController == nil {
-            onVisibilityChanged?(false)
-        }
     }
     
     // MARK: - Presentation
@@ -158,6 +159,8 @@ final class ReaderSettingsViewController: UIViewController, UIPopoverPresentatio
         } else {
             modalPresentationStyle = .popover
             if #available(iOS 26.0, *) {
+                view.backgroundColor = .clear
+                backgroundView.effect = nil
                 configureOpaqueMaterialContainers()
             }
         }
@@ -608,7 +611,8 @@ final class ReaderSettingsViewController: UIViewController, UIPopoverPresentatio
     
     @objc private func findInPage() {
         guard isCurrentReader else { return }
-        dismiss(animated: true, completion: onFindInPage)
+        onFindInPage?()
+        dismiss(animated: true)
     }
     
     @objc private func hideReader() {

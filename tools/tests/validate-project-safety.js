@@ -483,7 +483,7 @@ requireText(svgRenderer, "maximumDataSize", "untrusted SVG icon data is not capp
 const ddiManager = read("browser/Reynard/JIT/RPPairing/DDIManager.swift");
 requireText(
   ddiManager,
-  "5423e4e955fbb3a9eef3e1212acfbfc6e7a26236",
+  "6eae353ae694bda1c421d4a3eee5459ae59c99a1",
   "Developer Disk Images are not pinned to an audited revision"
 );
 rejectText(ddiManager, "refs/heads/main", "Developer Disk Images still download from a mutable branch");
@@ -568,13 +568,18 @@ rejectText(
   "iOS 13 Gecko app-data helper cannot be type-checked by newer deployment targets"
 );
 
-const ios13AvailabilityPatch = read("patches/zz-compat/iOS13RuntimeAvailability.patch");
+// Firefox 157 integration moved the decoder/encoder guards into upstream patches.
+const ios13AvailabilityPatch = [
+  "patches/zz-compat/iOS13RuntimeAvailability.patch",
+  "patches/dom/media/platforms/apple/AppleVTDecoder.cpp.patch",
+  "patches/dom/media/platforms/apple/AppleVTEncoder.cpp.patch",
+  "patches/widget/uikit/ScreenHelperUIKit.mm.patch",
+].map(read).join("\n");
 for (const [fragment, message] of [
   ["__builtin_available(macOS 11.0, iOS 14.0, *)", "HDR color-space APIs are not guarded for iOS 13"],
-  ["__builtin_available(macos 10.13, iOS 17.0, *)", "VideoToolbox decoder APIs are not guarded for iOS 13"],
-  ["__builtin_available(macos 10.13, iOS 17.4, *)", "VideoToolbox encoder APIs are not guarded for iOS 13"],
+  ["__builtin_available(iOS 17.0, *)", "VideoToolbox decoder APIs are not guarded for iOS 13"],
+  ["__builtin_available(iOS 17.4, *)", "VideoToolbox encoder APIs are not guarded for iOS 13"],
   ["__builtin_available(macos 13.0, iOS 16.0, *)", "constant-bitrate APIs are not guarded for iOS 13"],
-  ["@available(iOS 16.0, *)", "extended dynamic-range APIs are not guarded for iOS 13"],
 ]) {
   requireText(ios13AvailabilityPatch, fragment, message);
 }
