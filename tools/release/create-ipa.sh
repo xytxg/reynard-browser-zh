@@ -46,6 +46,12 @@ plutil -replace CFBundleIdentifier -string "com.minh-ton.Reynard" "$APP_PATH/Inf
 plutil -replace CFBundleIdentifier -string "com.minh-ton.Reynard.Helper" "$APP_PATH/PlugIns/Reynard Helper.appex/Info.plist"
 plutil -replace CFBundleIdentifier -string "com.minh-ton.Reynard.OpenIn" "$APP_PATH/PlugIns/OpenIn.appex/Info.plist"
 
+# The standard package must use the same XUL normalization, signature stripping,
+# and structural validation as the dedicated source-built unsigned workflow.
+if [ "$BUILD_TYPE" = "normal" ]; then
+    exec "$SCRIPT_DIR/create-unsigned-ipa.sh" "$APP_PATH" "$ROOT_DIR/dist/$OUTPUT_NAME"
+fi
+
 rm -rf "$WORK_DIR" "$ROOT_DIR/dist/$OUTPUT_NAME"
 mkdir -p "$WORK_DIR/Payload"
 cp -R "$APP_PATH" "$WORK_DIR/Payload/"

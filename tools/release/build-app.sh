@@ -29,9 +29,12 @@ mkdir -p "$DIST_DIR"
 
 cp "$XCCONFIG_PATH" "$BUILD_XCCONFIG_PATH"
 
-BUILD_SHA=$(git -C "$ROOT_DIR" rev-parse HEAD | cut -c1-7)
+BUILD_NUMBER="${GITHUB_RUN_NUMBER:-$(git -C "$ROOT_DIR" rev-list --count HEAD)}"
+case "$BUILD_NUMBER" in
+    ''|*[!0-9]*) echo "Build number must be numeric"; exit 64 ;;
+esac
 sed -i '' -E \
-	-e "s|^CURRENT_BUILD = .*|CURRENT_BUILD = $BUILD_SHA|" \
+	-e "s|^CURRENT_BUILD = .*|CURRENT_BUILD = $BUILD_NUMBER|" \
 	"$BUILD_XCCONFIG_PATH"
 
 if [ "$NIGHTLY" = true ]; then
@@ -62,8 +65,9 @@ if [ "$NO_SIGNING" = true ]; then
 
 	# Strip bitcode because the archive bypasses signing: https://developer.apple.com/documentation/Xcode-Release-Notes/xcode-13_3_1-release-notes?changes=_1
 	SWIFT_CONCURRENCY_PATH="$DIST_DIR/Reynard.xcarchive/Products/Applications/Reynard.app/Frameworks/libswift_Concurrency.dylib"
-	xcrun bitcode_strip "$SWIFT_CONCURRENCY_PATH" -r -o "$SWIFT_CONCURRENCY_PATH"
-	/usr/bin/codesign --force --sign - --verbose "$SWIFT_CONCURRENCY_PATH"
+	if [ -f "$SWIFT_CONCURRENCY_PATH" ]; then
+		xcrun bitcode_strip "$SWIFT_CONCURRENCY_PATH" -r -o "$SWIFT_CONCURRENCY_PATH"
+	fi
 else
 	run_xcodebuild
 fi
