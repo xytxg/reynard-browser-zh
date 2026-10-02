@@ -40,6 +40,7 @@ final class AddressBar: UIView {
         static let addressBarAutocompleteTrailingInset: CGFloat = 30
         static let addressBarTextFontSize: CGFloat = 17
         static let addressBarDismissButtonAnimationDuration: TimeInterval = 0.2
+        static let addressBarAudioButtonAnimationDuration: TimeInterval = 0.18
         static let addressBarBackgroundShadowOpacity: Float = 0.18
         static let addressBarBackgroundShadowRadius: CGFloat = 14
         static let addressBarBackgroundShadowOffset = CGSize(width: 0, height: 2)
