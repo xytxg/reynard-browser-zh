@@ -162,6 +162,37 @@ jobs:
       - name: Build idevice support library
         run: ./tools/development/build-idevice.sh
 
+      - name: Stage Xcode 27 compatibility inputs
+        if: ${{ matrix.variant == 'standard' }}
+        run: |
+          set -euo pipefail
+          compat_input="$RUNNER_TEMP/reynard-ios27-input"
+          gecko_dist="engine/firefox/obj-aarch64-apple-ios/dist"
+          rm -rf "$compat_input"
+          mkdir -p "$compat_input/gecko/bin" "$compat_input/gecko/include" \
+            "$compat_input/firefox/toolkit/mozapps/extensions/default-theme"
+          for directory in bin include; do
+            rsync -aL "$gecko_dist/$directory/" "$compat_input/gecko/$directory/"
+          done
+          rsync -aL \
+            "engine/firefox/toolkit/mozapps/extensions/default-theme/" \
+            "$compat_input/firefox/toolkit/mozapps/extensions/default-theme/"
+          test -n "$(find "$compat_input/firefox/toolkit/mozapps/extensions/default-theme" -type f -print -quit)"
+          install -m 0644 browser/Reynard/JIT/RPPairing/libidevice_ffi.a \
+            "$compat_input/libidevice_ffi.a"
+          test -s "$compat_input/gecko/bin/XUL"
+          du -sh "$compat_input"
+
+      - name: Upload Xcode 27 compatibility inputs
+        if: ${{ matrix.variant == 'standard' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Reynard-ios27-input
+          path: ${{ runner.temp }}/reynard-ios27-input
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+
       - name: Install packaging dependencies
         run: brew install ldid
 
