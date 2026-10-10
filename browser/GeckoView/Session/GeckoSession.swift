@@ -519,6 +519,10 @@ public class GeckoSession {
     }
     
     // Keyboard
+    public func dismissSoftwareKeyboard() {
+        window?.dismissSoftwareKeyboard()
+    }
+
     public func focusedInputMetrics() async -> (bottomRatio: CGFloat, caretTop: CGFloat?)? {
         let response = try? await dispatcher.query(type: "GeckoView:GetFocusedInputMetrics")
         guard let values = response as? [AnyHashable: Any],
@@ -557,8 +561,20 @@ public class GeckoSession {
         window?.setDynamicToolbarMaxHeight(maxHeight, minHeight: min(max(0, minHeight), maxHeight))
     }
     
-    public func setContentOffsets(top: CGFloat, bottom: CGFloat, topInset: CGFloat, bottomInset: CGFloat) {
-        window?.setContentOffsets(top, bottom: bottom, topInset: topInset, bottomInset: bottomInset)
+    public func setContentOffsets(
+        top: CGFloat,
+        bottom: CGFloat,
+        topInset: CGFloat,
+        bottomInset: CGFloat,
+        contentTranslationY: CGFloat
+    ) {
+        window?.setContentOffsets(
+            top,
+            bottom: bottom,
+            topInset: topInset,
+            bottomInset: bottomInset,
+            contentTranslationY: contentTranslationY
+        )
     }
 }
 

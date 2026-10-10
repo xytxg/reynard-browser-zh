@@ -325,7 +325,8 @@ final class ContentView: UIView, UIGestureRecognizerDelegate {
             top: resizesPageWithToolbar ? 0 : -toolbarTopOffset,
             bottom: resizesPageWithToolbar ? 0 : contentBottomOffset,
             topInset: layoutTopInset,
-            bottomInset: contentBottomInset
+            bottomInset: contentBottomInset,
+            contentTranslationY: transform.ty
         )
     }
     
