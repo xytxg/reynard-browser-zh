@@ -1,9 +1,9 @@
 diff --git a/widget/uikit/GeckoEditableSupport.mm b/widget/uikit/GeckoEditableSupport.mm
 new file mode 100644
-index 000000000000..22885484c9c6
+index 000000000000..4a4a7ad774f9
 --- /dev/null
 +++ b/widget/uikit/GeckoEditableSupport.mm
-@@ -0,0 +1,4132 @@
+@@ -0,0 +1,4146 @@
 +/* This Source Code Form is subject to the terms of the Mozilla Public
 + * License, v. 2.0. If a copy of the MPL was not distributed with this
 + * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -1812,7 +1812,20 @@ index 000000000000..22885484c9c6
 +      return;
 +    }
 +  } else if (shouldActivate && mEditable.mSelectionActivated) {
-+    return;
++    // UIKit can deactivate selection after setting marked text.
++    id selectionView = [assistant textSelectionView];
++    Ivar activated =
++        class_getInstanceVariable([selectionView class], "m_activated");
++    if (!activated) {
++      return;
++    }
++
++    const BOOL* isActivated = reinterpret_cast<const BOOL*>(
++        reinterpret_cast<const uint8_t*>(selectionView) +
++        ivar_getOffset(activated));
++    if (*isActivated) {
++      return;
++    }
 +  }
 +
 +  if (shouldActivate) {
@@ -3436,7 +3449,8 @@ index 000000000000..22885484c9c6
 +      return YES;
 +    }
 +
-+    return [self supportsImagePaste] && UIPasteboard.generalPasteboard.hasImages;
++    return
++        [self supportsImagePaste] && UIPasteboard.generalPasteboard.hasImages;
 +  }
 +
 +  if (aAction == @selector(delete:)) {
