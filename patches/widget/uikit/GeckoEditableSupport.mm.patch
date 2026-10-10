@@ -1,9 +1,9 @@
 diff --git a/widget/uikit/GeckoEditableSupport.mm b/widget/uikit/GeckoEditableSupport.mm
 new file mode 100644
-index 000000000000..0a3426e2d557
+index 000000000000..22885484c9c6
 --- /dev/null
 +++ b/widget/uikit/GeckoEditableSupport.mm
-@@ -0,0 +1,4117 @@
+@@ -0,0 +1,4132 @@
 +/* This Source Code Form is subject to the terms of the Mozilla Public
 + * License, v. 2.0. If a copy of the MPL was not distributed with this
 + * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -1102,6 +1102,21 @@ index 000000000000..0a3426e2d557
 +    gfx::Matrix rotation(0, -1, 1, 0, 0, 0);
 +    transform = rotation * transform;
 +  }
++
++  // Keep scale in the rect so its edges don't move as the selection grows.
++  const float scaleX = std::hypot(transform._11, transform._12);
++  const float scaleY = std::hypot(transform._21, transform._22);
++  if (scaleX == 0 || scaleY == 0) {
++    aTransform = CGAffineTransformIdentity;
++    return CGRectZero;
++  }
++
++  rect.width *= scaleX;
++  rect.height *= scaleY;
++  transform._11 /= scaleX;
++  transform._12 /= scaleX;
++  transform._21 /= scaleY;
++  transform._22 /= scaleY;
 +
 +  // UIKit clips the rect before applying its transform. Keep its position in
 +  // the text view and rotate around that position.
