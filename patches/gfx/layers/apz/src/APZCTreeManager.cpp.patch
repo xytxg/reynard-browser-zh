@@ -1,5 +1,5 @@
 diff --git a/gfx/layers/apz/src/APZCTreeManager.cpp b/gfx/layers/apz/src/APZCTreeManager.cpp
-index b17a25de70dc..baa7299ba711 100644
+index b17a25de70dc..35c5902ef746 100644
 --- a/gfx/layers/apz/src/APZCTreeManager.cpp
 +++ b/gfx/layers/apz/src/APZCTreeManager.cpp
 @@ -4,11 +4,13 @@
@@ -63,7 +63,7 @@ index b17a25de70dc..baa7299ba711 100644
  
      transforms.AppendElement(
          wr::ToWrTransformProperty(*info.mFixedPositionAnimationId, transform));
-@@ -995,26 +1007,52 @@ void APZCTreeManager::SampleForWebRender(const Maybe<VsyncId>& aVsyncId,
+@@ -995,25 +1007,51 @@ void APZCTreeManager::SampleForWebRender(const Maybe<VsyncId>& aVsyncId,
  
    for (const StickyPositionInfo& info : mStickyPositionInfo) {
      MOZ_ASSERT(info.mStickyPositionAnimationId.isSome());
@@ -112,19 +112,18 @@ index b17a25de70dc..baa7299ba711 100644
 +    widget::AttachNativeTextInputScrollUpdates(aWindowId, aTxn, scrollUpdates);
 +  }
 +#endif
- }
- 
++}
++
 +#ifdef MOZ_WIDGET_UIKIT
 +void APZCTreeManager::SetNativeTextInputScrollers(
 +    const nsTArray<ScrollableLayerGuid>& aScrollers) {
 +  MutexAutoLock lock(mMapLock);
 +  mNativeTextInputScrollers = aScrollers.Clone();
-+}
+ }
 +#endif
-+
+ 
  ParentLayerRect APZCTreeManager::ComputeClippedCompositionBounds(
      const MutexAutoLock& aProofOfMapLock, ClippedCompositionBoundsMap& aDestMap,
-     ScrollableLayerGuid aGuid) {
 @@ -1379,9 +1417,23 @@ HitTestingTreeNode* APZCTreeManager::PrepareNodeForLayer(
        node->SetLastChild(nullptr);
      }
@@ -322,7 +321,7 @@ index b17a25de70dc..baa7299ba711 100644
  
    RecursiveMutexAutoLock lock(mTreeLock);
  
-@@ -3554,15 +3569,54 @@ ParentLayerToScreenMatrix4x4 APZCTreeManager::GetApzcToGeckoTransform(
+@@ -3554,15 +3569,89 @@ ParentLayerToScreenMatrix4x4 APZCTreeManager::GetApzcToGeckoTransform(
        PixelCastJustification::ScreenIsParentLayerForRoot);
  }
  
@@ -341,6 +340,41 @@ index b17a25de70dc..baa7299ba711 100644
 +  ScreenToScreenMatrix4x4 transform =
 +      GetScreenToApzcTransform(aApzc) *
 +      GetApzcToGeckoTransform(aApzc, components);
++
++  // Account for viewport movement when an iframe skips the root scroll frame.
++  {
++    RecursiveMutexAutoLock treeLock(mTreeLock);
++    RefPtr<HitTestingTreeNode> targetNode = GetTargetNode(
++        aApzc->GetGuid(), &ScrollableLayerGuid::EqualsIgnoringPresShell);
++    for (auto* node = targetNode.get(); node; node = node->GetParent()) {
++      if (node->GetApzc() && node->GetApzc()->IsRootContent()) {
++        break;
++      }
++
++      if (auto zoomId = node->GetAsyncZoomContainerId()) {
++        MutexAutoLock mapLock(mMapLock);
++        if (auto* rootApzc =
++                GetRootContentApzc(node->GetLayersId(), *zoomId, mapLock)) {
++          const AsyncTransformComponents visual{
++              AsyncTransformComponent::eVisual};
++          const Matrix4x4 asyncUntransform =
++              rootApzc
++                  ->GetAsyncTransformForInputTransformation(
++                      visual, aApzc->GetLayersId())
++                  .Inverse()
++                  .ToUnknownMatrix();
++          const Matrix4x4 paintTransform =
++              rootApzc->GetTransformToLastDispatchedPaint(visual,
++                                                          aApzc->GetLayersId());
++          transform = ViewAs<ScreenToScreenMatrix4x4>(asyncUntransform *
++                                                      paintTransform) *
++                      transform;
++        }
++        break;
++      }
++    }
++  }
++
 +  ScreenPoint translation;
 +  if (aHit.mFixedPosSides != SideBits::eNone && aHit.mTargetApzc &&
 +      aHit.mTargetApzc->IsRootContent()) {
@@ -381,7 +415,7 @@ index b17a25de70dc..baa7299ba711 100644
  }
  
  CSSToCSSMatrix4x4 APZCTreeManager::GetOopifToRootContentTransform(
-@@ -3676,19 +3730,7 @@ Maybe<ScreenIntPoint> APZCTreeManager::ConvertToGecko(
+@@ -3676,19 +3765,7 @@ Maybe<ScreenIntPoint> APZCTreeManager::ConvertToGecko(
    const HitTestResult& hit = mInputQueue->GetCurrentTouchBlock()
                                   ? mTouchBlockHitResult
                                   : mTapGestureHitResult;
@@ -402,7 +436,7 @@ index b17a25de70dc..baa7299ba711 100644
  }
  
  already_AddRefed<AsyncPanZoomController> APZCTreeManager::CommonAncestor(
-@@ -3738,68 +3780,70 @@ already_AddRefed<AsyncPanZoomController> APZCTreeManager::CommonAncestor(
+@@ -3738,68 +3815,70 @@ already_AddRefed<AsyncPanZoomController> APZCTreeManager::CommonAncestor(
    return ancestor.forget();
  }
  
@@ -426,16 +460,16 @@ index b17a25de70dc..baa7299ba711 100644
    }
 -  RefPtr<AsyncPanZoomController> targetApzc = it->second.apzc;
 -  return targetApzc && targetApzc->IsRootContent();
-+  auto* apzc = it->second.apzc.get();
-+  return apzc && apzc->IsRootContent() ? apzc : nullptr;
- }
- 
+-}
+-
 -SideBits APZCTreeManager::SidesStuckToRootContent(
 -    const HitTestingTreeNode* aNode, AsyncTransformConsumer aMode) const {
 -  MutexAutoLock lock(mMapLock);
 -  return SidesStuckToRootContent(StickyPositionInfo(aNode), aMode, lock);
--}
--
++  auto* apzc = it->second.apzc.get();
++  return apzc && apzc->IsRootContent() ? apzc : nullptr;
+ }
+ 
 -SideBits APZCTreeManager::SidesStuckToRootContent(
 -    const StickyPositionInfo& aStickyInfo, AsyncTransformConsumer aMode,
 -    const MutexAutoLock& aProofOfMapLock) const {
@@ -526,7 +560,70 @@ index b17a25de70dc..baa7299ba711 100644
  }
  
  LayerToParentLayerMatrix4x4 APZCTreeManager::ComputeTransformForScrollThumbNode(
-@@ -3965,11 +4009,17 @@ void APZCTreeManager::SendSubtreeTransformsToChromeMainThread(
+@@ -3915,6 +3994,23 @@ void APZCTreeManager::SendSubtreeTransformsToChromeMainThread(
+       // Note, mRootNode needs to be checked with mTreeLock held.
+       return;
+     }
++
++    // Include fixed elements when the root viewport moves.
++    bool useZoomContainer = false;
++    if (aAncestor && aAncestor->IsRootContent()) {
++      useZoomContainer = aAncestor->GetZoomAnimationId().isSome();
++    }
++
++    auto isAtAncestor = [&](HitTestingTreeNode* aNode) {
++      if (useZoomContainer) {
++        return aNode->GetLayersId() == aAncestor->GetLayersId() &&
++               aNode->GetAsyncZoomContainerId() ==
++                   Some(aAncestor->GetGuid().mScrollId);
++      }
++
++      return aAncestor && aNode->GetApzc() == aAncestor;
++    };
++
+     // This formulation duplicates matrix multiplications closer
+     // to the root of the tree. For now, aiming for separation
+     // of concerns rather than minimum number of multiplications.
+@@ -3922,7 +4018,7 @@ void APZCTreeManager::SendSubtreeTransformsToChromeMainThread(
+         mRootNode.get(),
+         [&](HitTestingTreeNode* aNode) {
+           mTreeLock.AssertCurrentThreadIn();
+-          bool atAncestor = (aAncestor && aNode->GetApzc() == aAncestor);
++          bool atAncestor = isAtAncestor(aNode);
+           MOZ_ASSERT(!(underAncestor && atAncestor));
+           underAncestor |= atAncestor;
+           if (!underAncestor) {
+@@ -3941,14 +4037,26 @@ void APZCTreeManager::SendSubtreeTransformsToChromeMainThread(
+               // It's important to pass aRemoteLayersId=layersId here (not
+               // parent->GetLayersId()). layersId is the LayersId of the
+               // remote content for which this transform is being computed.
++              RefPtr<AsyncPanZoomController> rootContentApzc;
++
++              for (auto* node = parent; node; node = node->GetParent()) {
++                if (auto zoomId = node->GetAsyncZoomContainerId()) {
++                  MutexAutoLock mapLock(mMapLock);
++                  rootContentApzc =
++                      GetRootContentApzc(node->GetLayersId(), *zoomId, mapLock);
++                  break;
++                }
++              }
+               messages.AppendElement(MatrixMessage(
+-                  Some(parent->GetTransformToGecko(layersId)),
+-                  parent->GetRemoteDocumentScreenRect(layersId), layersId));
++                  Some(parent->GetTransformToGecko(layersId, rootContentApzc)),
++                  parent->GetRemoteDocumentScreenRect(layersId,
++                                                      rootContentApzc),
++                  layersId));
+             }
+           }
+         },
+         [&](HitTestingTreeNode* aNode) {
+-          bool atAncestor = (aAncestor && aNode->GetApzc() == aAncestor);
++          bool atAncestor = isAtAncestor(aNode);
+           if (atAncestor) {
+             MOZ_ASSERT(underAncestor);
+             underAncestor = false;
+@@ -3965,11 +4073,17 @@ void APZCTreeManager::SendSubtreeTransformsToChromeMainThread(
  }
  
  void APZCTreeManager::SetFixedLayerMargins(ScreenIntCoord aTop,
@@ -546,7 +643,7 @@ index b17a25de70dc..baa7299ba711 100644
    }
    {
      RecursiveMutexAutoLock lock(mTreeLock);
-@@ -3979,9 +4029,20 @@ void APZCTreeManager::SetFixedLayerMargins(ScreenIntCoord aTop,
+@@ -3979,9 +4093,20 @@ void APZCTreeManager::SetFixedLayerMargins(ScreenIntCoord aTop,
  
  void APZCTreeManager::SetFixedLayerMarginsOnRootContentApzcs(
      const RecursiveMutexAutoLock& aProofOfTreeLock) {
@@ -569,7 +666,7 @@ index b17a25de70dc..baa7299ba711 100644
    }
  }
  
-@@ -4108,11 +4169,18 @@ APZCTreeManager::FixedPositionInfo::FixedPositionInfo(
+@@ -4108,11 +4233,18 @@ APZCTreeManager::FixedPositionInfo::FixedPositionInfo(
  APZCTreeManager::StickyPositionInfo::StickyPositionInfo(
      const HitTestingTreeNode* aNode) {
    mStickyPositionAnimationId = aNode->GetStickyPositionAnimationId();
