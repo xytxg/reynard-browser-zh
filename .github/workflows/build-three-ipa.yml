@@ -12,9 +12,11 @@ on:
 permissions:
   contents: read
 
+# Only the newest commit on a branch needs its three-variant artifacts; this
+# workflow never publishes, so superseded runs can be cancelled safely.
 concurrency:
   group: three-ipa-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -24,6 +26,7 @@ jobs:
       build_normal_ipa: true
       build_trollstore_tipa: true
       build_jailbroken_ipa: true
+      stage_ios27_input: true
 
   ios27-compatibility:
     name: Xcode 27 / iOS 27 SDK compatibility
@@ -37,6 +40,7 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
           submodules: false
+          persist-credentials: false
 
       - name: Download source-built link inputs
         uses: actions/download-artifact@v4

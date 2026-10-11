@@ -81,8 +81,43 @@ if [ "$BUILD_TYPE" = "--jailbroken" ]; then
 	# requires a paid Apple developer account because of using the free one we would have to replace the
 	# provisioning profile once every 7 days?). So this is a workaround for the issue where libhooker-based
 	# jailbreaks just refuse to load the adhoc signed dylib and cause the app to crash.
-	curl --location --output "Reynard-0.10.0.ipa" "https://github.com/minh-ton/reynard-browser/releases/download/0.10.0/Reynard.ipa" # 0.10.0 is the last one that is properly signed
-	unzip -p "Reynard-0.10.0.ipa" "Payload/Reynard.app/Frameworks/libswift_Concurrency.dylib" > "Payload/Reynard.app/Frameworks/libswift_Concurrency.dylib"
+	#
+	# The 0.10.0 package is the last properly signed upstream build. Pin both the downloaded IPA and the
+	# extracted dylib so a replaced release asset or a truncated download fails the build instead of being
+	# silently embedded in the jailbroken package.
+	SIGNED_IPA_URL="https://github.com/minh-ton/reynard-browser/releases/download/0.10.0/Reynard.ipa"
+	SIGNED_IPA_SHA256="567282427ffa56bf897aa786ff3e16beb6098c31b7880b309d94f6f2f58d5a8b"
+	SIGNED_CONCURRENCY_SHA256="cab2c1c922f659d8d96fb2b4b0717e646dca432895443998beadda9a3532386e"
+	SIGNED_IPA_PATH="$ROOT_DIR/dist/Reynard-0.10.0-signed-source.ipa"
+	SIGNED_CONCURRENCY_TMP="$WORK_DIR/libswift_Concurrency.dylib.signed"
+	CONCURRENCY_PATH="Payload/Reynard.app/Frameworks/libswift_Concurrency.dylib"
+
+	rm -f "$SIGNED_IPA_PATH" "$SIGNED_CONCURRENCY_TMP"
+	if ! curl --fail --silent --show-error --location --retry 3 --retry-delay 5 \
+		--output "$SIGNED_IPA_PATH" "$SIGNED_IPA_URL"; then
+		echo "Failed to download the signed libswift_Concurrency source package." >&2
+		exit 1
+	fi
+	actual_ipa_sha256="$(shasum -a 256 "$SIGNED_IPA_PATH" | awk '{ print $1 }')"
+	if [ "$actual_ipa_sha256" != "$SIGNED_IPA_SHA256" ]; then
+		echo "Signed source package SHA-256 mismatch: expected $SIGNED_IPA_SHA256, got $actual_ipa_sha256" >&2
+		rm -f "$SIGNED_IPA_PATH"
+		exit 1
+	fi
+	if ! unzip -p "$SIGNED_IPA_PATH" "$CONCURRENCY_PATH" > "$SIGNED_CONCURRENCY_TMP"; then
+		echo "Signed source package does not contain $CONCURRENCY_PATH." >&2
+		rm -f "$SIGNED_IPA_PATH" "$SIGNED_CONCURRENCY_TMP"
+		exit 1
+	fi
+	actual_dylib_sha256="$(shasum -a 256 "$SIGNED_CONCURRENCY_TMP" | awk '{ print $1 }')"
+	if [ "$actual_dylib_sha256" != "$SIGNED_CONCURRENCY_SHA256" ]; then
+		echo "Signed libswift_Concurrency.dylib SHA-256 mismatch: expected $SIGNED_CONCURRENCY_SHA256, got $actual_dylib_sha256" >&2
+		rm -f "$SIGNED_IPA_PATH" "$SIGNED_CONCURRENCY_TMP"
+		exit 1
+	fi
+	mkdir -p "Payload/Reynard.app/Frameworks"
+	mv -f "$SIGNED_CONCURRENCY_TMP" "$CONCURRENCY_PATH"
+	rm -f "$SIGNED_IPA_PATH"
 fi
 
 zip -r "../$OUTPUT_NAME" Payload -x "._*" -x ".DS_Store" -x "__MACOSX"

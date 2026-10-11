@@ -56,14 +56,26 @@ XUL_DYLIB_PATH="$APP_PATH/Frameworks/XUL.dylib"
 mv "$XUL_PATH" "$XUL_DYLIB_PATH"
 install_name_tool -id '@rpath/XUL.dylib' "$XUL_DYLIB_PATH"
 
+# Capture command output before matching it. With `set -o pipefail`, `grep -q`
+# exits on the first match and the producer receives SIGPIPE, which turns a real
+# match into a failed pipeline and silently skips the check.
 while IFS= read -r -d '' candidate; do
-    if file "$candidate" | grep -q 'Mach-O' && \
-        otool -L "$candidate" 2>/dev/null | grep -Fq '@rpath/XUL'; then
+    file_description="$(file -b "$candidate" 2>/dev/null || true)"
+    case "$file_description" in
+        *Mach-O*) ;;
+        *) continue ;;
+    esac
+    load_commands="$(otool -L "$candidate" 2>/dev/null || true)"
+    if [[ "$load_commands" == *"@rpath/XUL "* ]]; then
         install_name_tool -change '@rpath/XUL' '@rpath/XUL.dylib' "$candidate"
     fi
 done < <(find "$APP_PATH" -type f -print0)
 
-if find "$APP_PATH" -type f -print0 | xargs -0 otool -L 2>/dev/null | grep -Fq '@rpath/XUL '; then
+stale_xul_references="$(
+    find "$APP_PATH" -type f -print0 | xargs -0 otool -L 2>/dev/null | grep -F '@rpath/XUL ' || true
+)"
+if [[ -n "$stale_xul_references" ]]; then
+    printf '%s\n' "$stale_xul_references"
     echo "A stale @rpath/XUL load command remains in the packaged app."
     exit 70
 fi

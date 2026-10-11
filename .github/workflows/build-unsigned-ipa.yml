@@ -2,19 +2,23 @@ name: Build unsigned IPA from source
 
 run-name: Unsigned IPA · ${{ github.ref_name }} · ${{ github.event_name }}
 
+# Formal releases for `v*` tags are produced only by build-release.yml. This
+# workflow runs quality checks for pushes and pull requests, and builds an IPA
+# for same-repository `[build ipa]` pull requests or manual dispatches. Only a
+# manual dispatch on main publishes, and only as a prerelease that the in-app
+# updater ignores.
 on:
   workflow_dispatch:
   pull_request:
   push:
     branches: [main]
-    tags: ["v*"]
 
 permissions:
   contents: read
 
 concurrency:
   group: unsigned-ipa-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality:
@@ -24,6 +28,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Set up latest Xcode
         uses: maxim-lobanov/setup-xcode@1242409711ff5721add51979e9e11e23ebb7e5a4 # v1
         with:
@@ -50,7 +56,6 @@ jobs:
     needs: quality
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      startsWith(github.ref, 'refs/tags/v') ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.head.repo.full_name == github.repository &&
        contains(github.event.pull_request.title, '[build ipa]'))
@@ -72,6 +77,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
           submodules: false
+          persist-credentials: false
 
       - name: Set up latest Xcode
         uses: maxim-lobanov/setup-xcode@1242409711ff5721add51979e9e11e23ebb7e5a4 # v1
@@ -266,7 +272,7 @@ jobs:
 
       - name: Publish successful build release
         id: release
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -274,20 +280,15 @@ jobs:
           VERSION: ${{ steps.package.outputs.version }}
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            release_tag="$GITHUB_REF_NAME"
-            release_title="Reynard Browser 中文版 $VERSION"
-            prerelease="false"
-          elif [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]] &&
-               git log -1 --pretty=%B | grep -Fq '[formal release]'; then
-            release_tag="v${VERSION}-zh.1"
-            release_title="Reynard Browser 中文版 $VERSION"
-            prerelease="false"
-          else
-            release_tag="build-$GITHUB_RUN_NUMBER"
-            release_title="Reynard Browser 中文版 $VERSION · Build $GITHUB_RUN_NUMBER"
-            prerelease="true"
+          # Formal releases come from build-release.yml. A manual dispatch on
+          # main only publishes a test prerelease, which the updater skips.
+          if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" || "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Refusing to publish from $GITHUB_EVENT_NAME on $GITHUB_REF." >&2
+            exit 64
           fi
+          release_tag="build-$GITHUB_RUN_NUMBER"
+          release_title="Reynard Browser 中文版 $VERSION · Build $GITHUB_RUN_NUMBER"
+          prerelease="true"
 
           release_notes="$(
             awk '
@@ -361,8 +362,8 @@ jobs:
             echo '- Installation: the IPA must be signed by a compatible sideloading method before normal installation.'
             if [[ -n "${RELEASE_URL:-}" ]]; then
               echo "- Release: $RELEASE_URL"
-            elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-              echo '- Release: not published for pull request checks.'
+            else
+              echo '- Release: not published (only manual dispatches on main publish a prerelease).'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -378,6 +379,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
           submodules: false
+          persist-credentials: false
 
       - name: Download source-built link inputs
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4

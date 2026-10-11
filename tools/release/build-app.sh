@@ -67,6 +67,11 @@ if [ "$NO_SIGNING" = true ]; then
 	SWIFT_CONCURRENCY_PATH="$DIST_DIR/Reynard.xcarchive/Products/Applications/Reynard.app/Frameworks/libswift_Concurrency.dylib"
 	if [ -f "$SWIFT_CONCURRENCY_PATH" ]; then
 		xcrun bitcode_strip "$SWIFT_CONCURRENCY_PATH" -r -o "$SWIFT_CONCURRENCY_PATH"
+		# bitcode_strip invalidates the existing signature. The TrollStore package does not re-sign
+		# Frameworks/*.dylib, so restore an ad-hoc signature here. The standard package strips all
+		# signatures later in create-unsigned-ipa.sh, and the jailbroken package swaps in a pinned,
+		# properly signed copy in create-ipa.sh.
+		/usr/bin/codesign --force --sign - --verbose "$SWIFT_CONCURRENCY_PATH"
 	fi
 else
 	run_xcodebuild
