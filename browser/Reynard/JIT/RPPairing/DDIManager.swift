@@ -342,13 +342,50 @@ final class DDIManager: NSObject {
         return isValidFile(at: item.destinationURL, for: item)
     }
 
+    // Full SHA-256 verification of ~17 MB of DDI files used to run on every cold
+    // start on the main thread (JITController.start → hasRequiredDDIFiles). A
+    // file is now hashed once; afterwards it is accepted while its size and
+    // modification date still match the values recorded when its hash matched.
+    private static let verifiedFileSignaturesKey = "DDIManager.verifiedFileSignatures"
+
+    private static func verificationSignature(size: Int, modificationDate: Date?) -> String? {
+        guard let modificationDate else {
+            return nil
+        }
+        return "\(size):\(modificationDate.timeIntervalSince1970)"
+    }
+
+    private func recordedSignature(for item: DownloadItem) -> String? {
+        let signatures = UserDefaults.standard.dictionary(forKey: Self.verifiedFileSignaturesKey)
+        return signatures?[item.expectedSHA256] as? String
+    }
+
+    private func recordVerifiedSignature(_ signature: String, for item: DownloadItem) {
+        var signatures = UserDefaults.standard.dictionary(forKey: Self.verifiedFileSignaturesKey) ?? [:]
+        signatures[item.expectedSHA256] = signature
+        UserDefaults.standard.set(signatures, forKey: Self.verifiedFileSignaturesKey)
+    }
+
     private func isValidFile(at fileURL: URL, for item: DownloadItem) -> Bool {
         guard let values = try? fileURL.resourceValues(
-            forKeys: [.isRegularFileKey, .fileSizeKey]
+            forKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey]
         ),
         values.isRegularFile == true,
-        values.fileSize == Int(item.expectedByteCount),
-        let fileHandle = try? FileHandle(forReadingFrom: fileURL) else {
+        let fileSize = values.fileSize,
+        fileSize == Int(item.expectedByteCount) else {
+            return false
+        }
+
+        let signature = Self.verificationSignature(
+            size: fileSize,
+            modificationDate: values.contentModificationDate
+        )
+        if let signature,
+           recordedSignature(for: item) == signature {
+            return true
+        }
+
+        guard let fileHandle = try? FileHandle(forReadingFrom: fileURL) else {
             return false
         }
         defer { fileHandle.closeFile() }
@@ -362,7 +399,13 @@ final class DDIManager: NSObject {
             hasher.update(data: data)
         }
         let digest = hasher.finalize().map { String(format: "%02x", $0) }.joined()
-        return digest == item.expectedSHA256
+        guard digest == item.expectedSHA256 else {
+            return false
+        }
+        if let signature {
+            recordVerifiedSignature(signature, for: item)
+        }
+        return true
     }
 }
 

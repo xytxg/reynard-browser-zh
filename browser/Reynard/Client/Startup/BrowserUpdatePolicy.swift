@@ -14,7 +14,10 @@ enum BrowserUpdatePolicy {
         pattern: #"(?<![0-9])(\d+)\.(\d+)(?:\.(\d+))?"#
     )
     private static let packageNameExpression = try? NSRegularExpression(
-        pattern: #"^Reynard-[A-Za-z0-9._-]+\.(?:ipa|tipa)$"#,
+        // Accept both the formal release names (`Reynard.ipa`,
+        // `Reynard-TrollStore.tipa`) and the CI build names
+        // (`Reynard-<version>-<sha>-unsigned.ipa`).
+        pattern: #"^Reynard(?:-[A-Za-z0-9._-]+)?\.(?:ipa|tipa)$"#,
         options: [.caseInsensitive]
     )
 

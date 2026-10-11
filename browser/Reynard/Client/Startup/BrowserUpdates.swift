@@ -217,7 +217,10 @@ final class BrowserUpdates {
     }
 
     private func makeRelease(_ release: GitHubRelease) -> BrowserUpdateRelease? {
+        // Prereleases are test builds (for example `build-N` from a manual CI run)
+        // and must never be offered as an update.
         guard !release.draft,
+              !release.prerelease,
               let packageSource = preferredStandardPackage(in: release.assets),
               let package = makeAsset(packageSource, allAssets: release.assets),
               let version = BrowserUpdatePolicy.version(

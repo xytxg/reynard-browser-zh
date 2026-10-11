@@ -43,23 +43,26 @@ enum ZipArchiveReader {
             let nameStart = offset + 46
             let nameEnd = nameStart + fileNameLength
 
+            // Structural bounds are required for every entry because the next
+            // central directory record is located from them.
             guard containsBytes(in: archiveData, at: nameStart, count: fileNameLength),
                   containsBytes(
                     in: archiveData,
                     at: nameEnd,
                     count: extraFieldLength + commentLength
-                  ),
-                  compressedSize <= maximumArchiveSize,
-                  uncompressedSize <= maximumEntrySize,
-                  let fileName = String(
-                    data: archiveData.subdata(in: nameStart..<nameEnd),
-                    encoding: .utf8
                   ) else {
                 return nil
             }
 
-            if fileName == path {
-                guard generalPurposeFlags & 0x1 == 0 else {
+            // Unrelated entries may be large or use a non-UTF-8 (for example
+            // CP437) file name; skip them instead of failing the whole lookup.
+            if let fileName = String(
+                data: archiveData.subdata(in: nameStart..<nameEnd),
+                encoding: .utf8
+            ), fileName == path {
+                guard compressedSize <= maximumArchiveSize,
+                      uncompressedSize <= maximumEntrySize,
+                      generalPurposeFlags & 0x1 == 0 else {
                     return nil
                 }
                 return localEntryData(
@@ -146,50 +149,53 @@ enum ZipArchiveReader {
             return nil
         }
 
-        var stream = z_stream()
-        var status = data.withUnsafeBytes { inputBuffer -> Int32 in
-            guard let baseAddress = inputBuffer.bindMemory(to: Bytef.self).baseAddress else {
-                return Z_DATA_ERROR
+        // Keep the whole inflate session inside one withUnsafeBytes scope:
+        // `stream.next_in` points into `data`, and that pointer is only valid
+        // inside the closure (small Data values may be stored inline).
+        return data.withUnsafeBytes { (inputBuffer: UnsafeRawBufferPointer) -> Data? in
+            guard let inputBaseAddress = inputBuffer.bindMemory(to: Bytef.self).baseAddress else {
+                return nil
             }
-            stream.next_in = UnsafeMutablePointer(mutating: baseAddress)
+
+            var stream = z_stream()
+            stream.next_in = UnsafeMutablePointer(mutating: inputBaseAddress)
             stream.avail_in = uInt(inputBuffer.count)
-            return inflateInit2_(&stream, -MAX_WBITS, ZLIB_VERSION, Int32(MemoryLayout<z_stream>.size))
-        }
-        
-        guard status == Z_OK else {
-            return nil
-        }
-        defer { inflateEnd(&stream) }
-        
-        let chunkSize = 32 * 1024
-        var output = Data(capacity: min(expectedSize, maximumEntrySize))
-        var buffer = [UInt8](repeating: 0, count: chunkSize)
-
-        repeat {
-            status = buffer.withUnsafeMutableBytes { outputBuffer -> Int32 in
-                guard let baseAddress = outputBuffer.bindMemory(to: Bytef.self).baseAddress else {
-                    return Z_DATA_ERROR
-                }
-                stream.next_out = baseAddress
-                stream.avail_out = uInt(outputBuffer.count)
-                return zlib.inflate(&stream, Z_NO_FLUSH)
+            var status = inflateInit2_(&stream, -MAX_WBITS, ZLIB_VERSION, Int32(MemoryLayout<z_stream>.size))
+            guard status == Z_OK else {
+                return nil
             }
-            
-            let producedCount = buffer.count - Int(stream.avail_out)
-            if producedCount > 0 {
-                guard output.count <= maximumEntrySize - producedCount else {
-                    return nil
+            defer { inflateEnd(&stream) }
+
+            let chunkSize = 32 * 1024
+            var output = Data(capacity: min(expectedSize, maximumEntrySize))
+            var buffer = [UInt8](repeating: 0, count: chunkSize)
+
+            repeat {
+                status = buffer.withUnsafeMutableBytes { outputBuffer -> Int32 in
+                    guard let baseAddress = outputBuffer.bindMemory(to: Bytef.self).baseAddress else {
+                        return Z_DATA_ERROR
+                    }
+                    stream.next_out = baseAddress
+                    stream.avail_out = uInt(outputBuffer.count)
+                    return zlib.inflate(&stream, Z_NO_FLUSH)
                 }
-                output.append(contentsOf: buffer.prefix(producedCount))
+
+                let producedCount = buffer.count - Int(stream.avail_out)
+                if producedCount > 0 {
+                    guard output.count <= maximumEntrySize - producedCount else {
+                        return nil
+                    }
+                    output.append(contentsOf: buffer.prefix(producedCount))
+                }
+            } while status == Z_OK
+
+            guard status == Z_STREAM_END,
+                  output.count == expectedSize else {
+                return nil
             }
-        } while status == Z_OK
 
-        guard status == Z_STREAM_END,
-              output.count == expectedSize else {
-            return nil
+            return output
         }
-
-        return output
     }
 
     private static func containsBytes(in data: Data, at offset: Int, count: Int) -> Bool {
