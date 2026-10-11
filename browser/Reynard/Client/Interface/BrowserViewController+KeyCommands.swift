@@ -21,7 +21,7 @@ extension BrowserViewController {
         if tabOverview.isPresented || tabOverview.isTransitionRunning {
             setTabOverviewVisible(false, animated: false)
         }
-        _ = browserChrome.addressBar.becomeFirstResponder()
+        browserChrome.addressBar.focusForHardwareKeyboard()
     }
     
     @objc func closeTabKeyCommand(_ sender: UIKeyCommand) {
