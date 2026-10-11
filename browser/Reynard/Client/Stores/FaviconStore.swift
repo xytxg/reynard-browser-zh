@@ -88,23 +88,27 @@ final class FaviconStore {
     private var database: OpaquePointer?
     private let sqliteTransient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
     
-    private lazy var metadataUserAgent: String = {
+    // Computed once during initialization. A lazy var is not thread-safe and was
+    // first touched from concurrent favicon tasks; static lets use swift_once.
+    private let metadataUserAgent: String = FaviconStore.makeMetadataUserAgent()
+    
+    private static func makeMetadataUserAgent() -> String {
         let version = ProcessInfo.processInfo.operatingSystemVersion
         let operatingSystemVersion = "\(version.majorVersion)_\(version.minorVersion)"
         let safariVersion = "\(version.majorVersion).\(version.minorVersion)"
         let device = UIDevice.current.userInterfaceIdiom == .pad ? "iPad; CPU OS" : "iPhone; CPU iPhone OS"
         return "Mozilla/5.0 (\(device) \(operatingSystemVersion) like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/\(safariVersion) Mobile/15E148 Safari/604.1"
-    }()
+    }
     
-    private lazy var linkTagExpression = try? NSRegularExpression(
+    private static let linkTagExpression = try? NSRegularExpression(
         pattern: "(?is)<link\\b[^>]*>",
         options: []
     )
-    private lazy var metaTagExpression = try? NSRegularExpression(
+    private static let metaTagExpression = try? NSRegularExpression(
         pattern: "(?is)<meta\\b[^>]*>",
         options: []
     )
-    private lazy var attributeExpression = try? NSRegularExpression(
+    private static let attributeExpression = try? NSRegularExpression(
         pattern: "(?is)([A-Za-z_:][-A-Za-z0-9_:.]*)\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s>]+))",
         options: []
     )
@@ -1136,7 +1140,7 @@ final class FaviconStore {
     // MARK: - HTML Parsing
     
     private func manifestURL(in html: String, baseURL: URL) -> URL? {
-        guard let linkTagExpression else {
+        guard let linkTagExpression = Self.linkTagExpression else {
             return nil
         }
         let nsHTML = html as NSString
@@ -1160,7 +1164,7 @@ final class FaviconStore {
     }
     
     private func iconCandidates(in html: String, baseURL: URL) -> [IconCandidate] {
-        guard let linkTagExpression else {
+        guard let linkTagExpression = Self.linkTagExpression else {
             return []
         }
         let nsHTML = html as NSString
@@ -1285,7 +1289,7 @@ final class FaviconStore {
     }
     
     private func attributes(in tag: String) -> [String: String] {
-        guard let attributeExpression else {
+        guard let attributeExpression = Self.attributeExpression else {
             return [:]
         }
         let nsTag = tag as NSString
@@ -1316,7 +1320,7 @@ final class FaviconStore {
     }
     
     private func metaRefreshRedirectURL(in html: String, baseURL: URL) -> URL? {
-        guard let metaTagExpression else {
+        guard let metaTagExpression = Self.metaTagExpression else {
             return nil
         }
         let nsHTML = html as NSString

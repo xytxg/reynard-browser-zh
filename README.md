@@ -31,7 +31,7 @@ The app and required native libraries are built with a minimum deployment target
 
 ### TrollStore (iOS 14 - 16.6.1, 17.0)
 
-For the best experience, I'd recommend sideloading Reynard via [TrollStore](https://github.com/opa334/TrollStore) using the `Reynard-TrollStore.tipa` build. This gives you automatic JIT enablement, better performance, and automatic app updates. For automatic app updates, make sure that the **URL Scheme Enabled** option is turned on in TrollStore.
+For the best experience, I'd recommend sideloading Reynard via [TrollStore](https://github.com/opa334/TrollStore) using the `Reynard-TrollStore.tipa` build. This gives you automatic JIT enablement, better performance, and verified in-app updates that are handed to TrollStore through the share sheet.
 
 > [!NOTE]
 > - [palera1n](https://palera.in/) and [Dopamine](https://ellekit.space/dopamine/) users on an iOS version without TrollStore support should install [TrollStore Lite](https://havoc.app/package/trollstorelite) and sideload the `Reynard-TrollStore.tipa` build with it.
@@ -51,7 +51,7 @@ Apple treats `com.apple.developer.web-browser` as a managed entitlement. An unsi
 
 ### Updates
 
-**Settings → App Updates → Check for Updates** checks this repository's public GitHub Releases, including newer verified `main` builds. Reynard only accepts package links from this repository and verifies the downloaded IPA against its release SHA-256 file before presenting the share sheet. Because the IPA is unsigned, normal iOS installations must still hand it to AltStore, SideStore, or another compatible signer; iOS does not let a normally sandboxed app silently replace itself with an unsigned package. A TrollStore install can open TrollStore directly when a matching `.tipa` asset is attached to the release.
+**Settings → App Updates → Check for Updates** checks this repository's public GitHub Releases. Drafts and prereleases (such as manual `build-N` CI builds) are ignored. Reynard only accepts package links from this repository and verifies the downloaded IPA against its release SHA-256 file before presenting the share sheet. Because the IPA is unsigned, normal iOS installations must still hand it to AltStore, SideStore, or another compatible signer; iOS does not let a normally sandboxed app silently replace itself with an unsigned package. A TrollStore install downloads the release's `.tipa`, verifies it against its `.sha256` file, and then hands it to TrollStore through the share sheet; an unverified download URL is never passed to TrollStore. Older downloaded update packages are deleted when a new one is saved.
 
 Release descriptions contain only the latest section from `CHANGELOG.md` and the matching SHA-256 sidecar link/hash. Installation details remain in this README.
 

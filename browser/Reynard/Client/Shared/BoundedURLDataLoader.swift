@@ -27,6 +27,11 @@ final class BoundedURLDataLoader: NSObject {
 
     private let maximumByteCount: Int
     private let responseValidator: ResponseValidator
+    // `start()`/`cancel()` run on the caller's thread (usually main) while
+    // `finish()` runs on the session's delegate queue. `stateLock` guards the
+    // properties shared between them: `completion`, `session` and `task`.
+    // `receivedData` and `acceptedResponse` are only touched on the delegate queue.
+    private let stateLock = NSLock()
     private var completion: Completion?
     private var receivedData = Data()
     private var acceptedResponse: HTTPURLResponse?
@@ -55,28 +60,42 @@ final class BoundedURLDataLoader: NSObject {
 
     @discardableResult
     func start(with request: URLRequest) -> Self {
-        guard task == nil, completion != nil else {
+        stateLock.lock()
+        guard task == nil,
+              completion != nil,
+              let session else {
+            stateLock.unlock()
             return self
         }
-        task = session?.dataTask(with: request)
-        task?.resume()
+        let newTask = session.dataTask(with: request)
+        task = newTask
+        stateLock.unlock()
+        newTask.resume()
         return self
     }
 
     func cancel() {
-        task?.cancel()
+        stateLock.lock()
+        let currentTask = task
+        stateLock.unlock()
+        currentTask?.cancel()
     }
 
     private func finish(_ result: Result<LoadedResponse, Error>) {
+        stateLock.lock()
         guard let completion else {
+            stateLock.unlock()
             return
         }
         self.completion = nil
         task = nil
+        let finishedSession = session
+        session = nil
+        stateLock.unlock()
+
         receivedData.removeAll(keepingCapacity: false)
         acceptedResponse = nil
-        session?.finishTasksAndInvalidate()
-        session = nil
+        finishedSession?.finishTasksAndInvalidate()
         completion(result)
     }
 }

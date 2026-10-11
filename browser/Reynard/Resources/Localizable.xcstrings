@@ -31297,16 +31297,6 @@
         }
       }
     },
-    "Video Picture-in-Picture": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "视频画中画"
-          }
-        }
-      }
-    },
     "App Updates": {
       "localizations": {
         "zh-Hans": {
@@ -31998,6 +31988,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "确定要上传“%@”中的所有文件吗？请仅在信任此网站时继续。"
+          }
+        }
+      }
+    },
+    "The TrollStore package is verified with its SHA-256 checksum before it is shared. Choose TrollStore in the share sheet to install it.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TrollStore 安装包会先通过 SHA-256 校验再分享。请在共享菜单中选择 TrollStore 进行安装。"
+          }
+        }
+      }
+    },
+    "The TrollStore package will be verified with its SHA-256 checksum. When the download finishes, choose TrollStore in the share sheet.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TrollStore 安装包将使用 SHA-256 进行校验。下载完成后，请在共享菜单中选择 TrollStore。"
           }
         }
       }

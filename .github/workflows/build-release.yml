@@ -1,9 +1,13 @@
 name: Build Release
 
+# This is the only workflow that publishes formal releases. It runs for pushed
+# `v*` tags, for `[release]` commits on main (tag read from .github/release-tag),
+# and for manual rebuilds of an existing tag. build-unsigned-ipa.yml no longer
+# reacts to tags, so one tag produces exactly one build and one release.
 on:
   push:
     tags:
-      - '*'
+      - 'v*'
     branches:
       - main
   workflow_dispatch:
@@ -16,32 +20,32 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build:
+  metadata:
+    name: Resolve release metadata
     if: >-
       github.ref_type == 'tag' ||
       github.event_name == 'workflow_dispatch' ||
       contains(github.event.head_commit.message, '[release]')
-    uses: ./.github/workflows/build.yml
-    with:
-      checkout_ref: ${{ github.event_name == 'push' && github.sha || inputs.tag }}
-      build_normal_ipa: true
-      build_trollstore_tipa: true
-      build_jailbroken_ipa: true
-
-  release:
-    name: Create release
-    needs: build
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      tag: ${{ steps.metadata.outputs.tag }}
+      version: ${{ steps.metadata.outputs.version }}
+      ref: ${{ steps.metadata.outputs.ref }}
+      notes: ${{ steps.metadata.outputs.notes }}
     steps:
-      - name: Check out release metadata
+      - name: Check out release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
 
-      - name: Resolve release tag
+      - name: Resolve and validate release tag
         id: metadata
         env:
           DISPATCH_TAG: ${{ inputs.tag }}
@@ -54,37 +58,114 @@ jobs:
           else
             tag="$(tr -d '\r\n' < .github/release-tag)"
           fi
-          test -n "$tag"
+          if [[ ! "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-zh\.[0-9]+$ ]]; then
+            echo "Release tag '$tag' does not match vX.Y.Z-zh.N" >&2
+            exit 64
+          fi
+          version="${BASH_REMATCH[1]}"
+          app_version="$(awk -F ' = ' '/^CURRENT_VERSION = / { print $2; exit }' browser/Configuration/Reynard.xcconfig)"
+          if [[ "$version" != "$app_version" ]]; then
+            echo "Release tag version $version does not match CURRENT_VERSION $app_version" >&2
+            exit 64
+          fi
           notes=".github/release-notes/$tag.md"
           test -s "$notes"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "notes=$notes" >> "$GITHUB_OUTPUT"
+          ref="$(git rev-parse HEAD)"
+          # Never attach a new build to an existing tag that points at another commit.
+          remote="https://github.com/$GITHUB_REPOSITORY.git"
+          remote_sha="$(git ls-remote "$remote" "refs/tags/$tag^{}" | awk 'NR == 1 { print $1 }')"
+          if [[ -z "$remote_sha" ]]; then
+            remote_sha="$(git ls-remote "$remote" "refs/tags/$tag" | awk 'NR == 1 { print $1 }')"
+          fi
+          if [[ -n "$remote_sha" && "$remote_sha" != "$ref" ]]; then
+            echo "Tag $tag already points to $remote_sha, not $ref" >&2
+            exit 65
+          fi
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "ref=$ref"
+            echo "notes=$notes"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: metadata
+    uses: ./.github/workflows/build.yml
+    with:
+      checkout_ref: ${{ needs.metadata.outputs.ref }}
+      build_normal_ipa: true
+      build_trollstore_tipa: true
+      build_jailbroken_ipa: true
+
+  release:
+    name: Create release
+    needs: [metadata, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out release metadata
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.metadata.outputs.ref }}
+          fetch-depth: 1
+          persist-credentials: false
 
       - name: Download release artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
+          pattern: 'Reynard*.*ipa'
           merge-multiple: true
 
-      - name: Verify all release packages are nonempty
+      - name: Verify packages and write SHA-256 sidecars
         run: |
           set -euo pipefail
+          cd dist
           for artifact in Reynard.ipa Reynard-TrollStore.tipa Reynard-Jailbroken.ipa; do
-            test -s "dist/$artifact"
+            test -s "$artifact"
+            shasum -a 256 "$artifact" > "$artifact.sha256"
+            cat "$artifact.sha256"
           done
 
       - name: Create or update release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ steps.metadata.outputs.tag }}
-          target_commitish: ${{ github.sha }}
-          token: ${{ github.token }}
-          name: Reynard Browser 中文版 0.15.0
-          body_path: ${{ steps.metadata.outputs.notes }}
-          draft: false
-          prerelease: false
-          fail_on_unmatched_files: true
-          files: |
-            dist/Reynard.ipa
-            dist/Reynard-TrollStore.tipa
-            dist/Reynard-Jailbroken.ipa
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.metadata.outputs.tag }}
+          VERSION: ${{ needs.metadata.outputs.version }}
+          REF: ${{ needs.metadata.outputs.ref }}
+          NOTES: ${{ needs.metadata.outputs.notes }}
+        run: |
+          set -euo pipefail
+          title="Reynard Browser 中文版 ${VERSION}"
+          note_file="dist/release-notes.md"
+          {
+            # CFBundleVersion of these packages is this workflow's run number
+            # (tools/release/build-app.sh); the updater reads it from this marker.
+            printf '<!-- reynard-update-build: %s -->\n' "$GITHUB_RUN_NUMBER"
+            cat "$NOTES"
+            echo
+            echo '## SHA-256 校验'
+            echo
+            for artifact in Reynard.ipa Reynard-TrollStore.tipa Reynard-Jailbroken.ipa; do
+              checksum="$(awk '{ print $1; exit }' "dist/$artifact.sha256")"
+              printf -- '- `%s`：`%s`\n' "$artifact" "$checksum"
+            done
+          } > "$note_file"
+
+          assets=(
+            dist/Reynard.ipa dist/Reynard.ipa.sha256
+            dist/Reynard-TrollStore.tipa dist/Reynard-TrollStore.tipa.sha256
+            dist/Reynard-Jailbroken.ipa dist/Reynard-Jailbroken.ipa.sha256
+          )
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "$title" --notes-file "$note_file" --prerelease=false --draft=false
+          else
+            gh release create "$TAG" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$REF" \
+              --title "$title" \
+              --notes-file "$note_file"
+          fi

@@ -135,8 +135,11 @@ final class UpdatesSettingsSection {
         }
         if installedThroughTrollStore {
             let text: String
-            if BrowserUpdates.shared.latestRelease?.trollStorePackage != nil {
-                text = NSLocalizedString("Make sure TrollStore's URL Scheme is enabled.", comment: "")
+            if BrowserUpdates.shared.latestRelease?.trollStorePackage?.checksumURL != nil {
+                text = NSLocalizedString(
+                    "The TrollStore package is verified with its SHA-256 checksum before it is shared. Choose TrollStore in the share sheet to install it.",
+                    comment: ""
+                )
             } else {
                 text = NSLocalizedString(
                     "No TrollStore package is attached to this release. The verified unsigned IPA can still be downloaded and shared.",
@@ -229,35 +232,27 @@ final class UpdatesSettingsSection {
             return
         }
 
+        // TrollStore installs get the .tipa through the same verified download as
+        // the standard IPA. Handing TrollStore the remote URL would skip the
+        // SHA-256 check entirely, so the URL-scheme shortcut is no longer used.
         if installedThroughTrollStore,
            let trollStorePackage = release.trollStorePackage,
-           openInTrollStore(trollStorePackage) {
+           trollStorePackage.checksumURL != nil {
+            downloadVerifiedUpdate(trollStorePackage, isTrollStorePackage: true, from: viewController)
             return
         }
 
-        downloadVerifiedUpdate(release.package, from: viewController)
-    }
-
-    private func openInTrollStore(_ package: BrowserUpdateAsset) -> Bool {
-        guard BrowserUpdatePolicy.isAllowedReleaseDownloadURL(package.downloadURL) else {
-            return false
-        }
-        var components = URLComponents()
-        components.scheme = "apple-magnifier"
-        components.host = "install"
-        components.queryItems = [URLQueryItem(name: "url", value: package.downloadURL.absoluteString)]
-        guard let schemeURL = components.url,
-              UIApplication.shared.canOpenURL(schemeURL) else {
-            return false
-        }
-        UIApplication.shared.open(schemeURL)
-        return true
+        downloadVerifiedUpdate(release.package, isTrollStorePackage: false, from: viewController)
     }
 
     private func downloadVerifiedUpdate(
         _ package: BrowserUpdateAsset,
+        isTrollStorePackage: Bool,
         from viewController: UIViewController
     ) {
+        guard activeOperationID == nil else {
+            return
+        }
         guard BrowserUpdatePolicy.isAllowedPackageName(package.name),
               BrowserUpdatePolicy.isAllowedReleaseDownloadURL(package.downloadURL),
               let checksumURL = package.checksumURL,
@@ -269,19 +264,24 @@ final class UpdatesSettingsSection {
             return
         }
 
-        let message = NSLocalizedString(
-            "The IPA will be verified with its SHA-256 checksum. When the download finishes, choose the app that you use to sign Reynard in the share sheet.",
-            comment: ""
-        )
+        let message: String
+        if isTrollStorePackage {
+            message = NSLocalizedString(
+                "The TrollStore package will be verified with its SHA-256 checksum. When the download finishes, choose TrollStore in the share sheet.",
+                comment: ""
+            )
+        } else {
+            message = NSLocalizedString(
+                "The IPA will be verified with its SHA-256 checksum. When the download finishes, choose the app that you use to sign Reynard in the share sheet.",
+                comment: ""
+            )
+        }
         let alert = UIAlertController(
             title: NSLocalizedString("Downloading Update", comment: ""),
             message: message,
             preferredStyle: .alert
         )
         let operationID = UUID()
-        guard activeOperationID == nil else {
-            return
-        }
         activeOperationID = operationID
         let progressView = UIProgressView(progressViewStyle: .default)
         progressView.translatesAutoresizingMaskIntoConstraints = false
@@ -516,6 +516,7 @@ final class UpdatesSettingsSection {
             withIntermediateDirectories: true
         )
         let destinationURL = updatesDirectory.appendingPathComponent(fileName, isDirectory: false)
+        removeStoredPackages(in: updatesDirectory)
         if FileManager.default.fileExists(atPath: destinationURL.path) {
             try FileManager.default.removeItem(at: destinationURL)
         }
@@ -525,6 +526,21 @@ final class UpdatesSettingsSection {
         resourceValues.isExcludedFromBackup = true
         try? excludedURL.setResourceValues(resourceValues)
         return destinationURL
+    }
+
+    // Only the newest verified package is kept. Older update packages are
+    // hundreds of megabytes each and would otherwise accumulate in Documents.
+    private func removeStoredPackages(in updatesDirectory: URL) {
+        guard let storedFiles = try? FileManager.default.contentsOfDirectory(
+            at: updatesDirectory,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else {
+            return
+        }
+        for fileURL in storedFiles where BrowserUpdatePolicy.isAllowedPackageName(fileURL.lastPathComponent) {
+            try? FileManager.default.removeItem(at: fileURL)
+        }
     }
 
     private func finishUpdate(

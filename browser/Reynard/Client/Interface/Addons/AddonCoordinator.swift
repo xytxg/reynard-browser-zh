@@ -52,6 +52,10 @@ final class AddonCoordinator: NSObject, AddonEmbedderDelegate {
     private let iconCache = NSCache<NSString, UIImage>()
     private let iconLoadingQueue = DispatchQueue(label: "com.minh-ton.Reynard.AddonCoordinator.IconLoadingQueue", qos: .utility)
     private var loadingIconIDs = Set<String>()
+    // Icons that could not be loaded, keyed by add-on ID and icon URL. Without
+    // this, a failed load refreshes the chrome, which calls prepareMenuIcons()
+    // and immediately schedules the same failing load again.
+    private var failedIconKeys = Set<String>()
     private var pendingAddonDownloadPaths = Set<String>()
     private var pendingWebExtensionDownloadsByPath: [String: DownloadStore.WebExtensionDownloadItem] = [:]
     let updateCoordinator: AddonUpdateCoordinator
@@ -251,7 +255,7 @@ final class AddonCoordinator: NSObject, AddonEmbedderDelegate {
     // MARK: - AddonEmbedderDelegate
     
     func addonController(_ controller: AddonRuntime, didUpdate addon: Addon) {
-        _ = addon
+        clearFailedIcons(for: addon.id)
         if addon.metaData.enabled == false || AddonRuntime.shared.installedAddons.contains(where: { $0.id == addon.id }) == false {
             clearCachedActions(for: addon.id)
         }
@@ -587,16 +591,27 @@ final class AddonCoordinator: NSObject, AddonEmbedderDelegate {
         return UIImage(named: "reynard.puzzlepiece.extension")
     }
     
+    private func failedIconKey(for addonID: String, iconURL: String?) -> String {
+        return addonID + "\n" + (iconURL ?? "")
+    }
+    
+    private func clearFailedIcons(for addonID: String) {
+        let prefix = addonID + "\n"
+        failedIconKeys = failedIconKeys.filter { !$0.hasPrefix(prefix) }
+    }
+    
     private func prefetchIconIfNeeded(for addon: Addon) {
         let cacheKey = addon.id as NSString
+        let iconURL = addon.metaData.iconURL
+        let failureKey = failedIconKey(for: addon.id, iconURL: iconURL)
         guard iconCache.object(forKey: cacheKey) == nil,
               loadingIconIDs.contains(addon.id) == false,
-              addon.metaData.iconURL != nil else {
+              failedIconKeys.contains(failureKey) == false,
+              iconURL != nil else {
             return
         }
         
         loadingIconIDs.insert(addon.id)
-        let iconURL = addon.metaData.iconURL
         iconLoadingQueue.async { [weak self] in
             guard let self else {
                 return
@@ -607,9 +622,13 @@ final class AddonCoordinator: NSObject, AddonEmbedderDelegate {
             )
             DispatchQueue.main.async {
                 self.loadingIconIDs.remove(addon.id)
-                if let image {
-                    self.iconCache.setObject(image, forKey: cacheKey)
+                guard let image else {
+                    // Remember the failure and do not refresh the chrome; a
+                    // refresh would immediately request the same icon again.
+                    self.failedIconKeys.insert(failureKey)
+                    return
                 }
+                self.iconCache.setObject(image, forKey: cacheKey)
                 self.delegate?.refreshAddonChrome(self)
             }
         }

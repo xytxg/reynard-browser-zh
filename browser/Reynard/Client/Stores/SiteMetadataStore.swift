@@ -58,11 +58,11 @@ final class SiteMetadataStore {
     private var records: [String: SiteMetadataRecord] = [:]
     private var activeRequests: [String: Task<SiteMetadataSnapshot?, Never>] = [:]
     
-    private lazy var metaTagExpression = try? NSRegularExpression(
+    private static let metaTagExpression = try? NSRegularExpression(
         pattern: "(?is)<meta\\b[^>]*>",
         options: []
     )
-    private lazy var attributeExpression = try? NSRegularExpression(
+    private static let attributeExpression = try? NSRegularExpression(
         pattern: "(?is)([A-Za-z_:][-A-Za-z0-9_:.]*)\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s>]+))",
         options: []
     )
@@ -389,7 +389,7 @@ final class SiteMetadataStore {
     // MARK: - HTML Parsing
     
     private func openGraphMetadata(in html: String) -> [String: String] {
-        guard let metaTagExpression else {
+        guard let metaTagExpression = Self.metaTagExpression else {
             return [:]
         }
         let nsHTML = html as NSString
@@ -414,7 +414,7 @@ final class SiteMetadataStore {
     }
     
     private func attributes(in tag: String) -> [String: String] {
-        guard let attributeExpression else {
+        guard let attributeExpression = Self.attributeExpression else {
             return [:]
         }
         let nsTag = tag as NSString
@@ -445,7 +445,7 @@ final class SiteMetadataStore {
     }
     
     private func metaRefreshRedirectURL(in html: String, baseURL: URL) -> URL? {
-        guard let metaTagExpression else {
+        guard let metaTagExpression = Self.metaTagExpression else {
             return nil
         }
         let nsHTML = html as NSString

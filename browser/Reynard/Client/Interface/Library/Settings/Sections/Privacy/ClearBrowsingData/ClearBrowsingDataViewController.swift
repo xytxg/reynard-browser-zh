@@ -238,6 +238,13 @@ final class ClearBrowsingDataViewController: SettingsTableViewController {
         
         browserViewController.tabManager.removeAllTabs(mode: .regular)
         browserViewController.tabManager.removeAllTabs(mode: .private)
+        // removeAllTabs records regular tabs as recently closed and keeps their
+        // per-tab navigation history and thumbnails. Clearing opened tabs must not
+        // leave them restorable, so drop those records before the replacement tab
+        // is created. Both calls are ordered on the store's serial queue after
+        // the recently-closed writes queued above.
+        TabManagementStore.shared.clearRecentlyClosedTabs()
+        TabManagementStore.shared.clearPersistedSession()
         browserViewController.tabManager.createTab(selecting: true, mode: .regular)
     }
     

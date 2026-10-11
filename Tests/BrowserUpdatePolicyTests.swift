@@ -83,6 +83,15 @@ private struct BrowserUpdatePolicyTests {
             BrowserUpdatePolicy.isAllowedPackageName("Reynard-0.10.2-TrollStore.tipa"),
             "A valid TrollStore package name was rejected"
         )
+        try expect(
+            BrowserUpdatePolicy.isAllowedPackageName("Reynard.ipa"),
+            "The formal release IPA name was rejected"
+        )
+        try expect(
+            BrowserUpdatePolicy.isAllowedPackageName("Reynard-TrollStore.tipa"),
+            "The formal release TrollStore package name was rejected"
+        )
+        try expect(!BrowserUpdatePolicy.isAllowedPackageName("Reynard..ipa"), "An empty package suffix was accepted")
         try expect(!BrowserUpdatePolicy.isAllowedPackageName("../Reynard.ipa"), "A traversal package name was accepted")
         try expect(!BrowserUpdatePolicy.isAllowedPackageName("Other.ipa"), "An unrelated IPA name was accepted")
     }

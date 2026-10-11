@@ -16,6 +16,12 @@ final class BackgroundAudioManager {
     private var player = AVAudioPlayerNode()
     private var healthCheckTimer: Timer?
     private var isRunning = false
+    // A failed restart (for example while a call or another app holds the audio
+    // session) must not stop keep-alive for the rest of the process. Failures
+    // are retried by the health check with exponential backoff instead.
+    private var consecutiveFailures = 0
+    private var nextRecoveryAttempt: Date?
+    private static let maximumRecoveryDelay: TimeInterval = 60
     
     private init() {
         NotificationCenter.default.addObserver(
@@ -43,9 +49,9 @@ final class BackgroundAudioManager {
         }
         
         isRunning = true
-        guard startEngine() else {
-            isRunning = false
-            return
+        resetRecoveryBackoff()
+        if !startEngine() {
+            recordRecoveryFailure()
         }
         startHealthCheck()
     }
@@ -56,6 +62,7 @@ final class BackgroundAudioManager {
         }
         
         isRunning = false
+        resetRecoveryBackoff()
         healthCheckTimer?.invalidate()
         healthCheckTimer = nil
         player.stop()
@@ -124,6 +131,10 @@ final class BackgroundAudioManager {
               !engine.isRunning || !player.isPlaying else {
             return
         }
+        if let nextRecoveryAttempt,
+           Date() < nextRecoveryAttempt {
+            return
+        }
         
         do {
             try AVAudioSession.sharedInstance().setActive(true)
@@ -131,12 +142,27 @@ final class BackgroundAudioManager {
                 try engine.start()
             }
             player.play()
+            resetRecoveryBackoff()
         } catch {
             NSLog("BackgroundAudioManager: recovery failed: %@", error.localizedDescription)
-            if !startEngine() {
-                stop()
+            if startEngine() {
+                resetRecoveryBackoff()
+            } else {
+                recordRecoveryFailure()
             }
         }
+    }
+    
+    private func recordRecoveryFailure() {
+        consecutiveFailures += 1
+        let exponent = Double(min(consecutiveFailures, 6))
+        let delay = min(pow(2, exponent), Self.maximumRecoveryDelay)
+        nextRecoveryAttempt = Date().addingTimeInterval(delay)
+    }
+    
+    private func resetRecoveryBackoff() {
+        consecutiveFailures = 0
+        nextRecoveryAttempt = nil
     }
     
     @objc private func handleInterruption(_ notification: Notification) {
@@ -146,6 +172,9 @@ final class BackgroundAudioManager {
             return
         }
         
+        // The session is available again; retry immediately instead of waiting
+        // for the backoff window from failures during the interruption.
+        resetRecoveryBackoff()
         recoverIfNeeded()
     }
     
@@ -156,8 +185,9 @@ final class BackgroundAudioManager {
         
         engine = AVAudioEngine()
         player = AVAudioPlayerNode()
+        resetRecoveryBackoff()
         if !startEngine() {
-            stop()
+            recordRecoveryFailure()
         }
     }
 }
