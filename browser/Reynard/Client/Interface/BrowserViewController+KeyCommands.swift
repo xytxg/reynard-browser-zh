@@ -70,7 +70,7 @@ extension BrowserViewController {
         if tabOverview.isPresented || tabOverview.isTransitionRunning {
             setTabOverviewVisible(false, animated: false)
         }
-        browserChrome.showActionBar(.findInPage, animated: true)
+        browserChrome.showActionBar(.findInPage(), animated: true)
     }
     
     @objc func reloadPageKeyCommand(_ sender: UIKeyCommand) {

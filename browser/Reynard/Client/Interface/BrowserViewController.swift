@@ -459,7 +459,7 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
                     } else if activityType == AddToFavoritesActivity.identifier {
                         self.presentBookmarkEditor(addToFavorites: true)
                     } else if activityType == FindInPageActivity.identifier {
-                        self.browserChrome.showActionBar(.findInPage, animated: true)
+                        self.browserChrome.showActionBar(.findInPage(), animated: true)
                     }
                 }
             )
