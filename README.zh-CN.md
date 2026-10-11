@@ -4,19 +4,19 @@ Reynard 是最低支持 iOS 13、并持续验证 iOS 27 SDK 兼容性的 Gecko �
 标签页和侧载架构，并加入简体中文（`zh-Hans`）、下载安全修复、私密会话保护和源码构建
 未签名 IPA 的 GitHub Actions 流程。
 
-已成功的 `main`、手动和 `v*` 标签构建会由 `github-actions[bot]` 自动发布到本仓库的
-[Releases](https://github.com/xytxg/reynard-browser-zh/releases) 页面，并附带 IPA 与 SHA-256
-校验文件。普通分支和 Pull Request 不具备发布权限。
+推送 `v*` 标签（或 `main` 上带 `[release]` 标记的提交）后，**Build Release** 会由
+`github-actions[bot]` 把三个安装包及各自的 SHA-256 校验文件发布到本仓库的
+[Releases](https://github.com/xytxg/reynard-browser-zh/releases) 页面。普通分支和 Pull Request 不具备发布权限。
 
 ## 上游同步状态
 
-当前维护代码已合并原作者仓库截至 `5d08f386918409ff073f5ea0b6a4979b79529be5`
-（2026-09-16）的更新，Gecko 为 `FIREFOX_155_0_1_RELEASE`，固定源码提交为
-`fb95137a04eb8fe1196cb12f26b100c1e060295c`。在上游代码基础上保留中文分支的下载安全、
+当前维护代码已合并原作者仓库截至 `6114ed617d02f1ec470ba4af947f04904b493f48`
+（2026-10-11，Reynard 0.17.0）的更新，Gecko 为 `FIREFOX_157_0_1_RELEASE`，固定源码提交为
+`0c469c2352451630bc69fc328c9f0c589c6c534d`。在上游代码基础上保留中文分支的下载安全、
 私密会话保护、iOS 13 最低版本、iOS 27 SDK 编译验证与未签名 IPA 构建。
 
-近期同步包括 Firefox 155.0.1、DNS over HTTPS、远程调试、阅读模式、动态工具栏、
-iOS 13 侧栏及 Swift concurrency 打包修复；
+近期同步包括 Firefox 157.0.1、原生文本输入重写、硬件键盘标签页切换与地址栏自动聚焦、
+剪贴板图片粘贴、DNS over HTTPS、远程调试、阅读模式与动态工具栏；
 中文分支另修复私密标签页数据落盘、历史清理竞态、后台会话强制写入和动态边框颜色问题。
 
 具体基线见 `.github/upstream-sync.json`，当前更新见 `CHANGELOG.md`，早期合并记录见
@@ -67,14 +67,15 @@ HTTP/HTTPS 地址，不允许借此打开本地文件或脚本协议。应用内
 ## 检测和下载更新
 
 进入 **设置 → App 更新 → 检测更新**，Reynard 会请求本仓库公开的 GitHub Releases API，
-同时识别正式版和更新的 `main` 构建。更新器只接受
+只识别正式版，草稿和预发行版（例如手动运行产生的 `build-<运行编号>`）一律忽略。更新器只接受
 `github.com/xytxg/reynard-browser-zh/releases/download/` 下、名称符合 Reynard 规则的 IPA；下载前
 读取 Release 附带的 `.sha256`，下载后同时核对文件大小和 SHA-256，通过后才会打开共享菜单。
 
 普通 iOS App 无权静默安装或覆盖自身，未签名 IPA 也不能直接执行。因此 AltStore、SideStore、
 个人证书等安装方式会在校验完成后打开共享菜单，需要手动选择原签名工具重新签名安装。若当前通过
-TrollStore 安装，且对应 Release 另附 `.tipa`，更新按钮会优先唤起 TrollStore；只有未签名 IPA 时
-仍会走“校验后分享”。这项限制来自 iOS 代码签名模型，不能通过浏览器代码绕过。
+TrollStore 安装，且对应 Release 另附 `.tipa` 及其 `.sha256`，更新器会先下载并校验 `.tipa`，再在共享菜单中交给
+TrollStore；不再把未经校验的下载地址直接交给 TrollStore。没有 `.tipa` 时仍会走未签名 IPA 的“校验后分享”。
+新更新包保存前会删除旧的更新包。这项限制来自 iOS 代码签名模型，不能通过浏览器代码绕过。
 
 ## 在 GitHub Actions 从源码构建
 
@@ -99,10 +100,13 @@ TrollStore 安装，且对应 Release 另附 `.tipa`，更新按钮会优先唤�
 `CFBundleVersion` 使用数字构建号，源码短 SHA 保留在产物文件名和构建日志中。正式构建最低
 系统版本固定为 iOS 13.0，并另用 Xcode 27 / iOS 27 SDK 编译和检查 Mach-O 链接版本。
 
-IPA 文件名格式为 `Reynard-<版本>-<提交短 SHA>-unsigned.ipa`。推送到 `main` 或手动运行时，
-成功产物通常创建 `build-<运行编号>` 预发行版；推送 `v*` 标签时创建同名正式 Release。
-维护者明确标记 `[formal release]` 的主分支提交也会在真实 IPA 校验通过后发布中文版正式版。
-Release 正文只显示 `CHANGELOG.md` 的最新一节以及 SHA-256 校验文件和哈希；安装说明保留在本说明文档。
+正式 Release 只由 **Build Release** 生成：推送 `v*` 标签，或在 `main` 上提交带 `[release]` 的提交
+（标签取自 `.github/release-tag`）。构建前会校验标签格式、版本号与 `CURRENT_VERSION` 一致，
+且标签已存在时必须指向同一提交。Release 正文取自 `.github/release-notes/<标签>.md`，
+并附三个安装包的 SHA-256 校验文件和哈希；安装说明保留在本说明文档。
+**Build unsigned IPA from source** 不再响应标签，生成的 IPA 文件名格式为
+`Reynard-<版本>-<提交短 SHA>-unsigned.ipa`；只有在 `main` 上手动运行时才会创建
+`build-<运行编号>` 预发行版，应用内更新器不会提供预发行版。Nightly 在没有新提交时自动跳过。
 Pull Request 默认只运行快速检查；需要按需验证完整包时，可在
 PR 标题中加入 `[build ipa]`，但 PR 构建不会创建发行版，以防未合并代码取得发布权限。
 旧的上游 AltStore 元数据刷新工作流只允许手动运行，不会再被每个中文构建发行版触发，也不会
