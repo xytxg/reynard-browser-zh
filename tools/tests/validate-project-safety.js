@@ -73,10 +73,16 @@ const releaseTag = read(".github/release-tag").trim();
 if (releaseTag !== `v${currentVersion}-zh.1`) {
   throw new Error("Release tag does not match the Xcode app version");
 }
+const formalReleaseWorkflow = read(".github/workflows/build-release.yml");
 requireText(
-  read(".github/workflows/build-release.yml"),
-  `name: Reynard Browser 中文版 ${currentVersion}`,
-  "Release title does not match the Xcode app version"
+  formalReleaseWorkflow,
+  'title="Reynard Browser 中文版 ${VERSION}"',
+  "Release title is not derived from the validated release tag"
+);
+requireText(
+  formalReleaseWorkflow,
+  "does not match CURRENT_VERSION",
+  "Release workflow does not verify the tag against the Xcode app version before building"
 );
 requireText(
   read(`.github/release-notes/${releaseTag}.md`),
@@ -237,7 +243,10 @@ rejectText(
 );
 
 const changelog = read("CHANGELOG.md");
-requireText(changelog, "## 0.11.1", "project changelog does not contain a current release section");
+const latestChangelogHeading = changelog.match(/^## (.+)$/m)?.[1] ?? "";
+if (!latestChangelogHeading.startsWith(`${currentVersion} `)) {
+  throw new Error("the newest CHANGELOG.md section does not match the Xcode app version");
+}
 requireText(changelog, "f25792a", "project changelog does not record the audited upstream baseline");
 
 const tabStore = read("browser/Reynard/Client/Stores/TabManagementStore.swift");
@@ -372,50 +381,20 @@ requireText(
   "favicon metadata requests allow non-web URL schemes"
 );
 
-const pictureInPictureDelegate = read("browser/GeckoView/Delegates/PictureInPictureDelegate.swift");
+// Upstream removed the experimental native picture-in-picture implementation
+// (800fb571). Make sure no stale file or reference survives a later sync.
+for (const removedPath of [
+  "browser/GeckoView/Delegates/PictureInPictureDelegate.swift",
+  "browser/Reynard/Client/SessionManagement/Media/PictureInPictureCoordinator.swift",
+]) {
+  if (fs.existsSync(path.join(root, removedPath))) {
+    throw new Error("removed picture-in-picture source was reintroduced: " + removedPath);
+  }
+}
 rejectText(
-  pictureInPictureDelegate,
-  "preconditionFailure",
-  "an unavailable picture-in-picture candidate still crashes the browser"
-);
-
-const pictureInPictureCoordinator = read(
-  "browser/Reynard/Client/SessionManagement/Media/PictureInPictureCoordinator.swift"
-);
-requireText(
-  pictureInPictureCoordinator,
-  "@available(iOS 15.0, *)",
-  "picture-in-picture coordinator availability contract is missing"
-);
-requireText(
-  pictureInPictureCoordinator,
-  "deinit",
-  "picture-in-picture coordinator does not define lifecycle cleanup"
-);
-requireText(
-  pictureInPictureCoordinator,
-  "observedSession?.pictureInPictureDelegate = nil",
-  "picture-in-picture coordinator leaves the Gecko session delegate attached"
-);
-requireText(
-  pictureInPictureCoordinator,
-  "state.presentation?.controller.delegate = nil",
-  "picture-in-picture coordinator leaves the AVKit controller delegate attached"
-);
-requireText(
-  pictureInPictureCoordinator,
-  "mediaSession.observer = nil",
-  "picture-in-picture coordinator leaves the media observer attached"
-);
-requireText(
-  pictureInPictureCoordinator,
-  "sessionManager.applicationStateObserver = nil",
-  "picture-in-picture coordinator leaves the application observer attached"
-);
-requireText(
-  pictureInPictureCoordinator,
-  "sessionManager.pictureInPictureHandler = nil",
-  "picture-in-picture coordinator leaves the session handler attached"
+  read("browser/Reynard.xcodeproj/project.pbxproj"),
+  "PictureInPicture",
+  "the Xcode project still references removed picture-in-picture sources"
 );
 
 const siteMetadataStore = read("browser/Reynard/Client/Stores/SiteMetadataStore.swift");
@@ -603,6 +582,69 @@ rejectText(
   ios13AvailabilityPatch,
   "\n+  if ([aScreen respondsToSelector:@selector(potentialEDRHeadroom)",
   "selector probing does not satisfy iOS availability checking for EDR APIs"
+);
+
+// Release pipeline and updater hardening.
+requireText(browserUpdates, "!release.prerelease", "the updater offers prereleases as updates");
+rejectText(
+  releaseWorkflow,
+  'tags: ["v*"]',
+  "the unsigned IPA workflow still publishes tags alongside build-release.yml"
+);
+requireText(
+  releaseWorkflow,
+  "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'",
+  "the unsigned IPA workflow can publish from branches other than main"
+);
+requireText(formalReleaseWorkflow, "- 'v*'", "build-release.yml does not limit formal releases to v* tags");
+requireText(formalReleaseWorkflow, ".sha256", "formal releases do not publish SHA-256 sidecars for the updater");
+requireText(formalReleaseWorkflow, "reynard-update-build:", "formal releases do not expose their build number");
+const nightlyWorkflow = read(".github/workflows/build-nightly.yml");
+requireText(nightlyWorkflow, "should_build", "nightly builds do not skip unchanged commits");
+for (const workflowName of fs.readdirSync(path.join(root, ".github/workflows"))) {
+  if (!workflowName.endsWith(".yml")) {
+    continue;
+  }
+  const workflowText = read(`.github/workflows/${workflowName}`);
+  const checkoutCount = (workflowText.match(/uses: actions\/checkout@/g) ?? []).length;
+  const persistedCount = (workflowText.match(/persist-credentials: false/g) ?? []).length;
+  if (checkoutCount !== persistedCount) {
+    throw new Error(`${workflowName} has a checkout that persists the GitHub token`);
+  }
+  if (workflowName !== "build.yml" && !workflowText.includes("\nconcurrency:\n")) {
+    throw new Error(`${workflowName} has no concurrency group`);
+  }
+}
+rejectText(
+  unsignedPackage,
+  "| grep -Fq '@rpath/XUL '",
+  "the stale @rpath/XUL check is defeated by pipefail and grep -q"
+);
+const ipaPackaging = read("tools/release/create-ipa.sh");
+requireText(
+  ipaPackaging,
+  'SIGNED_IPA_SHA256="567282427ffa56bf897aa786ff3e16beb6098c31b7880b309d94f6f2f58d5a8b"',
+  "the downloaded signed libswift_Concurrency source IPA is not pinned"
+);
+requireText(
+  read("tools/release/build-app.sh"),
+  '/usr/bin/codesign --force --sign - --verbose "$SWIFT_CONCURRENCY_PATH"',
+  "libswift_Concurrency.dylib is not re-signed after bitcode_strip"
+);
+requireText(
+  read("browser/Reynard/Client/Interface/Addons/AddonCoordinator.swift"),
+  "failedIconKeys.insert(failureKey)",
+  "failed add-on icon loads are retried in a refresh loop"
+);
+requireText(
+  read("browser/Reynard/Client/Interface/Library/Settings/Sections/Privacy/ClearBrowsingData/ClearBrowsingDataViewController.swift"),
+  "TabManagementStore.shared.clearPersistedSession()",
+  "clearing opened tabs leaves restorable recently closed tabs and tab sessions"
+);
+rejectText(
+  read("browser/Reynard/JIT/Services/BackgroundAudioManager.swift"),
+  "if !startEngine() {\n                stop()",
+  "background audio keep-alive stops permanently after one failed recovery"
 );
 
 console.log("Project safety validation passed");
