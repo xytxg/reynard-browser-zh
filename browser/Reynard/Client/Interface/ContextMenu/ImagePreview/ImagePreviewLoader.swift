@@ -5,6 +5,7 @@
 //  Created by Minh Ton on 16/6/26.
 //
 
+import GeckoView
 import UIKit
 
 struct ImagePreviewLoader {
@@ -12,7 +13,7 @@ struct ImagePreviewLoader {
     private static let maximumDataURLLength = 28 * 1024 * 1024
     private static let maximumPreviewPixelSize = 2048
 
-    static func image(from url: URL) async -> UIImage? {
+    static func image(from url: URL, in session: GeckoSession) async -> UIImage? {
         if url.isFileURL {
             guard let values = try? url.resourceValues(
                 forKeys: [.isRegularFileKey, .fileSizeKey]
@@ -31,26 +32,15 @@ struct ImagePreviewLoader {
             return imageFromDataURL(url.absoluteString)
         }
 
-        guard URLUtils.isWebURL(url) else {
+        // Gecko performs the request with the page's principal, so
+        // same-origin blob: images can be fetched as well.
+        guard URLUtils.isWebURL(url) || url.scheme?.lowercased() == "blob",
+              let data = try? await session.fetchImageData(from: url),
+              data.count <= maximumSourceDataSize else {
             return nil
         }
 
-        return await withCheckedContinuation { continuation in
-            let loader = BoundedURLDataLoader(
-                maximumByteCount: maximumSourceDataSize,
-                responseValidator: { response in
-                    guard response.statusCode == 200,
-                          let finalURL = response.url else {
-                        return false
-                    }
-                    return URLUtils.isWebURL(finalURL)
-                },
-                completion: { result in
-                    continuation.resume(returning: try? decodedPreview(from: result.get().data))
-                }
-            )
-            loader.start(with: URLRequest(url: url))
-        }
+        return decodedPreview(from: data)
     }
 
     private static func imageFromDataURL(_ value: String) -> UIImage? {

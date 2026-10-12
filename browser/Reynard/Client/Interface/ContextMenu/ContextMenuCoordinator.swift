@@ -191,8 +191,10 @@ extension ContextMenuCoordinator: UIContextMenuInteractionDelegate {
         : .newTab
         
         if case let .image(url, _) = context.target,
+           let session = host.contextMenuSelectedSession,
            let imageConfiguration = ImagePreviewMenu.configuration(
             for: context,
+            session: session,
             showsPreview: context.allowsPreview && Prefs.BrowsingSettings.showImagePreviews,
             isPrivate: host.contextMenuSelectedTabIsPrivate,
             sourceView: host.contextMenuSourceView,
