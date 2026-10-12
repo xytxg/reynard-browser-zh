@@ -1,9 +1,9 @@
 diff --git a/widget/uikit/GeckoEditableSupport.mm b/widget/uikit/GeckoEditableSupport.mm
 new file mode 100644
-index 000000000000..f1da48a3a27a
+index 000000000000..096684f57032
 --- /dev/null
 +++ b/widget/uikit/GeckoEditableSupport.mm
-@@ -0,0 +1,4189 @@
+@@ -0,0 +1,4193 @@
 +/* This Source Code Form is subject to the terms of the Mozilla Public
 + * License, v. 2.0. If a copy of the MPL was not distributed with this
 + * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -2130,6 +2130,10 @@ index 000000000000..f1da48a3a27a
 +  }
 +
 +  id<GeckoTextInteractionAssistant> assistant = [self interactionAssistant];
++  if (![assistant respondsToSelector:@selector(currentDraggedHandle)]) {
++    return NO;
++  }
++
 +  return [assistant currentDraggedHandle] != 0;
 +}
 +
