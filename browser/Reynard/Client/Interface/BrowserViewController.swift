@@ -1013,6 +1013,12 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
         && !browserChrome.isShowingFindInPage
         && (presentedController == nil || presentedController?.isBeingDismissed == true)
         
+        if shouldRelocateInput {
+            toolbarController.lock(for: .inputRelocation)
+        } else {
+            toolbarController.unlock(for: .inputRelocation)
+        }
+        
         let animation = keyboardAnimation(from: notification)
         if shouldRelocateInput && browserLayout.interfaceIdiom == .phone {
             browserChrome.showActionBar(.keyboardDismissal, animated: false)
@@ -1036,6 +1042,7 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
     }
     
     @objc private func keyboardWillHide(_ notification: Notification) {
+        toolbarController.unlock(for: .inputRelocation)
         let animation = keyboardAnimation(from: notification)
         if browserChrome.isShowingKeyboardDismissal {
             browserChrome.dismissActionBar(animated: false)
