@@ -516,6 +516,7 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
                 self?.toolbarController.collapseBottomToolbar()
             } else {
                 self?.toolbarController.restoreBottomToolbar()
+                self?.requestContentKeyboardFocus()
             }
         }
         browserChrome.onKeyboardDismissal = { [weak self] in
@@ -857,6 +858,12 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
         )
         NotificationCenter.default.addObserver(
             self,
+            selector: #selector(selectionSystemUIDidDismiss(_:)),
+            name: .selectionSystemUIDidDismiss,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
             selector: #selector(addressBarPositionDidChange),
             name: .addressBarPositionDidChange,
             object: nil
@@ -984,6 +991,17 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
         return nil
     }
     
+    @objc private func selectionSystemUIDidDismiss(_ notification: Notification) {
+        guard let source = notification.object as? UIView,
+              let session = tabManager.selectedTab?.session,
+              let engineView = session.engineView,
+              source.isDescendant(of: engineView) else {
+            return
+        }
+
+        requestContentKeyboardFocus(for: session)
+    }
+
     @objc private func keyboardFrameWillChange(_ notification: Notification) {
         guard let frameValue = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else {
             return
