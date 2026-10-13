@@ -12,12 +12,14 @@ extension BrowserViewController: TabManagerDelegate {
     func tabManagerDidChangeTabs(_ tabManager: TabManager) {
         if let selectedTab = tabManager.selectedTab {
             if !contentView.isDisplaying(session: selectedTab.session) {
+                browserChrome.addressBar.clearKeyCommandHint()
                 contentView.setTab(
                     selectedTab,
                     pageBackgroundColor: sessionManager.pageBackgroundColor(for: selectedTab.session)
                 )
             }
         } else {
+            browserChrome.addressBar.clearKeyCommandHint()
             contentView.setTab(nil)
         }
         refreshAddressBar()
@@ -52,6 +54,7 @@ extension BrowserViewController: TabManagerDelegate {
     }
     
     func tabManager(_ tabManager: TabManager, didSelectTabAt index: Int, previousIndex: Int?) {
+        browserChrome.addressBar.clearKeyCommandHint()
         toolbarController.unlock(for: .pageNavigation)
         toolbarController.reset()
         tabBar.setPendingExpansion(at: nil)
@@ -96,6 +99,7 @@ extension BrowserViewController: TabManagerDelegate {
     }
     
     func tabManager(_ tabManager: TabManager, didReplaceSelectedSession previousSession: GeckoSession, with replacementSession: GeckoSession) {
+        browserChrome.addressBar.clearKeyCommandHint()
         if contentView.isDisplaying(session: previousSession) {
             contentView.setTab(
                 tabManager.selectedTab,
@@ -182,6 +186,8 @@ extension BrowserViewController: TabManagerDelegate {
             
         case .location:
             if index == tabManager.selectedTabIndex {
+                contentView.keyCommandDelegate = self
+                browserChrome.addressBar.clearKeyCommandHint()
                 contentView.resetScrollTracking()
                 toolbarController.reset(preserveManualCollapse: true)
                 contentView.noteHistoryLocationChange()
