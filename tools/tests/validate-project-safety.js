@@ -627,9 +627,39 @@ for (const workflowName of fs.readdirSync(path.join(root, ".github/workflows")))
   if (checkoutCount !== persistedCount) {
     throw new Error(`${workflowName} has a checkout that persists the GitHub token`);
   }
-  if (workflowName !== "build.yml" && !workflowText.includes("\nconcurrency:\n")) {
+  // Reusable workflows inherit the caller's concurrency group.
+  const reusableOnly = /^on:\n  workflow_call:\n/m.test(workflowText);
+  if (!reusableOnly && !workflowText.includes("\nconcurrency:\n")) {
     throw new Error(`${workflowName} has no concurrency group`);
   }
+}
+// Gecko is compiled once per flavor, stays inside the 6 hour job limit, and
+// its compiler cache stays below the repository's 10 GB Actions cache quota.
+const sharedBuildWorkflow = read(".github/workflows/build.yml");
+const geckoWorkflow = read(".github/workflows/build-gecko.yml");
+for (const caller of [formalReleaseWorkflow, nightlyWorkflow, read(".github/workflows/build-three-ipa.yml")]) {
+  requireText(caller, "uses: ./.github/workflows/build.yml", "a release, nightly or three-variant build no longer uses the shared build pipeline");
+}
+for (const flavor of ["gecko-standard", "gecko-nojemalloc", "gecko-standard-resume", "gecko-nojemalloc-resume"]) {
+  requireText(sharedBuildWorkflow, `  ${flavor}:\n`, `build.yml has no ${flavor} job`);
+}
+if ((sharedBuildWorkflow.match(/uses: \.\/\.github\/workflows\/build-gecko\.yml/g) ?? []).length !== 4) {
+  throw new Error("build.yml must build each Gecko flavor through build-gecko.yml (one pass plus one resume)");
+}
+rejectText(sharedBuildWorkflow, "tools/development/build-gecko.sh", "packaging jobs compile Gecko again instead of using the Gecko artifact");
+requireText(sharedBuildWorkflow, "name: gecko-dist-${{ matrix.variant }}", "packaging jobs do not consume the Gecko artifact");
+requireText(sharedBuildWorkflow, "--disable-jemalloc --use-sccache --auto-clobber", "the jailbroken Gecko flavor lost --disable-jemalloc");
+requireText(geckoWorkflow, "timeout-minutes: 355", "Gecko jobs can run into GitHub's 6 hour limit");
+requireText(geckoWorkflow, "        timeout-minutes: 315\n", "the Gecko compile step has no time budget");
+requireText(geckoWorkflow, "GECKO_BUILD_MINUTES: 315", "the resume decision does not match the Gecko step budget");
+requireText(geckoWorkflow, "SCCACHE_CACHE_SIZE:", "the local sccache directory is not size capped");
+requireText(geckoWorkflow, "uses: actions/cache/save@", "Gecko jobs do not save their compiler cache after a timeout");
+requireText(geckoWorkflow, "key: gecko-dist-v2-", "Gecko jobs do not reuse an identical prebuilt Gecko");
+for (const workflowText of [sharedBuildWorkflow, geckoWorkflow]) {
+  rejectText(workflowText, "SCCACHE_GHA_ENABLED", "the per-object sccache Actions backend is back and floods the cache quota");
+}
+if (/name: Reynard[^\n]*gecko/i.test(geckoWorkflow)) {
+  throw new Error("Gecko artifacts must not match build-release.yml's Reynard*.*ipa download pattern");
 }
 rejectText(
   unsignedPackage,

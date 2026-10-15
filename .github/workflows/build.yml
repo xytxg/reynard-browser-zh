@@ -44,6 +44,8 @@ jobs:
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       should_build: ${{ steps.matrix.outputs.should_build }}
+      build_standard: ${{ steps.matrix.outputs.build_standard }}
+      build_nojemalloc: ${{ steps.matrix.outputs.build_nojemalloc }}
     steps:
       - name: Select matrix
         id: matrix
@@ -54,45 +56,102 @@ jobs:
           BUILD_JAILBROKEN_IPA: ${{ inputs.build_jailbroken_ipa }}
         with:
           script: |
+            // Standard and TrollStore packages share one Gecko build. Jailbroken
+            // needs its own Gecko because --disable-jemalloc changes
+            // mozilla-config.h and therefore every compiled object.
             const variants = [];
-
-            if (
+            const standard =
               process.env.BUILD_NORMAL_IPA === 'true' ||
-              process.env.BUILD_TROLLSTORE_TIPA === 'true'
-            ) {
-              variants.push({
-                variant: 'standard',
-                build_args: '--use-sccache --auto-clobber',
-                sccache_namespace: 'standard',
-              });
+              process.env.BUILD_TROLLSTORE_TIPA === 'true';
+            const nojemalloc = process.env.BUILD_JAILBROKEN_IPA === 'true';
+
+            if (standard) {
+              variants.push({ variant: 'standard' });
             }
 
-            if (
-              process.env.BUILD_JAILBROKEN_IPA === 'true'
-            ) {
-              variants.push({
-                variant: 'nojemalloc',
-                build_args: '--disable-jemalloc --use-sccache --auto-clobber',
-                sccache_namespace: 'nojemalloc',
-              });
+            if (nojemalloc) {
+              variants.push({ variant: 'nojemalloc' });
             }
 
             core.setOutput('matrix', JSON.stringify({ include: variants }));
             core.setOutput('should_build', String(variants.length > 0));
+            core.setOutput('build_standard', String(standard));
+            core.setOutput('build_nojemalloc', String(nojemalloc));
+
+  # Each Gecko flavor is compiled exactly once per run, in parallel. A pass
+  # that reaches its time budget saves its compiler cache and the matching
+  # resume job finishes the build, so no job runs into the 6 hour limit.
+  gecko-standard:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.build_standard == 'true' }}
+    uses: ./.github/workflows/build-gecko.yml
+    with:
+      checkout_ref: ${{ inputs.checkout_ref }}
+      flavor: standard
+      build_args: --use-sccache --auto-clobber
+
+  gecko-standard-resume:
+    needs: [prepare, gecko-standard]
+    if: ${{ !cancelled() && needs.gecko-standard.result == 'success' && needs.gecko-standard.outputs.resume == 'true' }}
+    uses: ./.github/workflows/build-gecko.yml
+    with:
+      checkout_ref: ${{ inputs.checkout_ref }}
+      flavor: standard
+      build_args: --use-sccache --auto-clobber
+      pass: 2
+      final_pass: true
+
+  gecko-nojemalloc:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.build_nojemalloc == 'true' }}
+    uses: ./.github/workflows/build-gecko.yml
+    with:
+      checkout_ref: ${{ inputs.checkout_ref }}
+      flavor: nojemalloc
+      build_args: --disable-jemalloc --use-sccache --auto-clobber
+
+  gecko-nojemalloc-resume:
+    needs: [prepare, gecko-nojemalloc]
+    if: ${{ !cancelled() && needs.gecko-nojemalloc.result == 'success' && needs.gecko-nojemalloc.outputs.resume == 'true' }}
+    uses: ./.github/workflows/build-gecko.yml
+    with:
+      checkout_ref: ${{ inputs.checkout_ref }}
+      flavor: nojemalloc
+      build_args: --disable-jemalloc --use-sccache --auto-clobber
+      pass: 2
+      final_pass: true
 
   build:
-    needs: prepare
-    if: ${{ needs.prepare.outputs.should_build == 'true' }}
-    name: "${{ matrix.variant == 'standard' && 'Build Standard / TrollStore' || 'Build Jailbroken' }}"
+    needs:
+      - prepare
+      - gecko-standard
+      - gecko-standard-resume
+      - gecko-nojemalloc
+      - gecko-nojemalloc-resume
+    # Runs after whichever Gecko jobs ran; each leg checks its own flavor, so
+    # one broken flavor does not block the other variant's packages.
+    if: ${{ !cancelled() && needs.prepare.outputs.should_build == 'true' }}
+    name: "${{ matrix.variant == 'standard' && 'Package Standard / TrollStore' || 'Package Jailbroken' }}"
     runs-on: macos-26
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
-    env:
-      SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_GHA_VERSION: ${{ matrix.sccache_namespace }}
 
     steps:
+      - name: Require a finished Gecko build
+        env:
+          VARIANT: ${{ matrix.variant }}
+          STANDARD_COMPLETE: ${{ needs.gecko-standard.outputs.complete == 'true' || needs.gecko-standard-resume.outputs.complete == 'true' }}
+          NOJEMALLOC_COMPLETE: ${{ needs.gecko-nojemalloc.outputs.complete == 'true' || needs.gecko-nojemalloc-resume.outputs.complete == 'true' }}
+        run: |
+          set -euo pipefail
+          if [[ "$VARIANT" == "standard" ]]; then complete="$STANDARD_COMPLETE"; else complete="$NOJEMALLOC_COMPLETE"; fi
+          if [[ "$complete" != "true" ]]; then
+            echo "Gecko $VARIANT did not finish; see its Gecko jobs." >&2
+            exit 1
+          fi
+
       - name: Check out repository
         uses: actions/checkout@v4
         with:
@@ -106,6 +165,8 @@ jobs:
         with:
           xcode-version: latest
 
+      # Same toolchain as the Gecko jobs, so idevice keeps building with the
+      # compilers it always used.
       - name: Install build dependencies
         run: |
           set -euo pipefail
@@ -114,18 +175,31 @@ jobs:
           echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"
           echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
 
-      - name: Initialize submodules
+      - name: Download Gecko packaging inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: gecko-dist-${{ matrix.variant }}
+          path: ${{ runner.temp }}/gecko-dist
+
+      - name: Restore Gecko into the source layout
         run: |
           set -euo pipefail
-          git submodule sync --recursive
+          stage="$RUNNER_TEMP/gecko-dist"
+          gecko_dist="engine/firefox/obj-aarch64-apple-ios/dist"
+          default_theme="engine/firefox/toolkit/mozapps/extensions/default-theme"
+          mkdir -p "$gecko_dist/bin" "$gecko_dist/include" "$default_theme"
+          rsync -a "$stage/bin/" "$gecko_dist/bin/"
+          rsync -a "$stage/include/" "$gecko_dist/include/"
+          rsync -a "$stage/default-theme/" "$default_theme/"
+          test -s "$gecko_dist/bin/XUL"
+          test -d "$gecko_dist/include/GeckoView"
+          test -n "$(find "$default_theme" -type f -print -quit)"
+
+      - name: Initialize idevice submodule
+        run: |
+          set -euo pipefail
+          git submodule sync --recursive -- support/idevice
           git submodule update --init --recursive support/idevice
-          git submodule update --init --depth 1 engine/firefox
-
-      - name: Update Gecko source
-        run: ./tools/development/update-gecko.sh
-
-      - name: Apply Gecko patches
-        run: ./tools/development/apply-patches.sh
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -136,17 +210,6 @@ jobs:
         id: rust_toolchain
         run: echo "hash=$(rustc -Vv | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
 
-      - name: Restore Gecko dependency cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.mozbuild
-          key: buildcache-gecko-deps-${{ matrix.variant }}-${{ steps.rust_toolchain.outputs.hash }}-${{ hashFiles('engine/release.txt') }}
-          restore-keys: |
-            buildcache-gecko-deps-${{ matrix.variant }}-${{ steps.rust_toolchain.outputs.hash }}-
-
       - name: Restore idevice build cache
         uses: actions/cache@v4
         with:
@@ -156,16 +219,6 @@ jobs:
           key: buildcache-idevice-${{ steps.rust_toolchain.outputs.hash }}-${{ hashFiles('support/idevice/Cargo.lock', 'support/idevice/Cargo.toml', 'tools/development/build-idevice.sh') }}
           restore-keys: |
             buildcache-idevice-${{ steps.rust_toolchain.outputs.hash }}-
-
-      - name: Set up sccache
-        uses: mozilla-actions/sccache-action@v0.0.11
-
-      - name: Build Gecko
-        env:
-          CC: clang
-          CXX: clang++
-          LD: ld64.lld
-        run: ./tools/development/build-gecko.sh ${{ matrix.build_args }}
 
       - name: Build idevice support library
         run: ./tools/development/build-idevice.sh

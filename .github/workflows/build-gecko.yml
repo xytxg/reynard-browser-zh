@@ -1,0 +1,311 @@
+name: Build Gecko
+
+# Builds one Gecko flavor once and hands its packaging inputs (dist/bin,
+# dist/include and the default theme) to the IPA packaging jobs as an artifact.
+#
+# A cold Gecko build (new Firefox release or new toolchain) can take longer
+# than GitHub's 6 hour job limit on macos-26. The first pass therefore stops
+# the compiler before the job limit, saves its sccache directory and reports
+# `resume=true`; build.yml then runs a second pass that restores that cache,
+# so already compiled objects are cache hits and the build finishes in time.
+on:
+  workflow_call:
+    inputs:
+      checkout_ref:
+        description: Git ref to build
+        required: true
+        type: string
+      flavor:
+        description: Gecko flavor (standard or nojemalloc)
+        required: true
+        type: string
+      build_args:
+        description: Arguments for tools/development/build-gecko.sh
+        required: true
+        type: string
+      pass:
+        description: 1 for the first attempt, 2 for the resume pass
+        required: false
+        default: 1
+        type: number
+      final_pass:
+        description: Fail instead of requesting a resume when the build step times out
+        required: false
+        default: false
+        type: boolean
+    outputs:
+      complete:
+        description: "'true' when gecko-dist-<flavor> was uploaded"
+        value: ${{ jobs.gecko.outputs.complete }}
+      resume:
+        description: "'true' when the build stopped at its time budget and should resume"
+        value: ${{ jobs.gecko.outputs.resume }}
+
+permissions:
+  contents: read
+
+jobs:
+  gecko:
+    name: "Gecko ${{ inputs.flavor }} · pass ${{ inputs.pass }}"
+    runs-on: macos-26
+    # Below GitHub's 360 minute hard limit, so the cache save and the
+    # resume decision below always get to run.
+    timeout-minutes: 355
+    outputs:
+      complete: ${{ steps.result.outputs.complete }}
+      resume: ${{ steps.result.outputs.resume }}
+    env:
+      # Local-disk sccache, restored and saved as one Actions cache entry per
+      # flavor (SCCACHE_DIR is set below). The per-object GitHub Actions backend created ~4,700 cache
+      # entries per build, pushed the repository past its 10 GB cache limit
+      # and could not survive a cancelled job; one capped directory can.
+      SCCACHE_CACHE_SIZE: 3500M
+      SCCACHE_IDLE_TIMEOUT: "0"
+      # Compile time budget for this pass (keep equal to the Build Gecko step
+      # timeout-minutes). ~15 minutes of setup before it and
+      # the sccache save after it must still fit inside timeout-minutes.
+      GECKO_BUILD_MINUTES: 315
+
+    steps:
+      - name: Set cache paths
+        run: |
+          echo "SCCACHE_DIR=$RUNNER_TEMP/sccache" >> "$GITHUB_ENV"
+          echo "GECKO_STAGE=$RUNNER_TEMP/gecko-dist" >> "$GITHUB_ENV"
+
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.checkout_ref }}
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Set up latest Xcode
+        uses: maxim-lobanov/setup-xcode@1242409711ff5721add51979e9e11e23ebb7e5a4 # v1
+        with:
+          xcode-version: latest
+
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+          brew install python@3.12 lld cbindgen llvm
+          echo "$(brew --prefix python@3.12)/libexec/bin" >> "$GITHUB_PATH"
+          echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"
+          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Fingerprint toolchain and Gecko inputs
+        id: fp
+        env:
+          BUILD_ARGS: ${{ inputs.build_args }}
+          GECKO_SOURCES: ${{ hashFiles('engine/release.txt', 'patches/**', 'tools/development/build-gecko.sh', 'tools/development/update-gecko.sh', 'tools/development/apply-patches.sh') }}
+        run: |
+          set -euo pipefail
+          {
+            xcodebuild -version
+            xcrun --sdk iphoneos --show-sdk-version
+            python3 --version
+            clang --version
+            ld64.lld --version
+            cbindgen --version
+            rustc -Vv
+          } | tee "$RUNNER_TEMP/gecko-toolchain.log"
+          toolchain="$(shasum -a 256 "$RUNNER_TEMP/gecko-toolchain.log" | cut -c1-16)"
+          firefox="$(tr -d '\000\r\n[:space:]' < engine/release.txt)"
+          sources="$(printf '%s\n%s\n' "$GECKO_SOURCES" "$BUILD_ARGS" | shasum -a 256 | cut -c1-16)"
+          {
+            echo "toolchain=$toolchain"
+            echo "firefox=$firefox"
+            echo "sources=$sources"
+          } >> "$GITHUB_OUTPUT"
+
+      # Exact match only: a prebuilt Gecko is reused only when the Firefox tag,
+      # every patch, the build scripts, the build arguments and the toolchain
+      # are all identical. Most commits change only the app, so they skip the
+      # multi-hour Gecko build entirely.
+      - name: Restore prebuilt Gecko distribution
+        id: dist
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/gecko-dist
+          key: gecko-dist-v2-${{ inputs.flavor }}-${{ steps.fp.outputs.toolchain }}-${{ steps.fp.outputs.firefox }}-${{ steps.fp.outputs.sources }}
+
+      - name: Initialize Gecko source
+        if: steps.dist.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          git submodule sync -- engine/firefox
+          git submodule update --init --depth 1 engine/firefox
+
+      - name: Update Gecko source
+        if: steps.dist.outputs.cache-hit != 'true'
+        run: ./tools/development/update-gecko.sh
+
+      - name: Apply Gecko patches
+        if: steps.dist.outputs.cache-hit != 'true'
+        run: ./tools/development/apply-patches.sh
+
+      # Both flavors use the same bootstrap toolchains, so they share one entry.
+      - name: Restore Gecko dependency cache
+        id: deps
+        if: steps.dist.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.mozbuild
+          key: gecko-deps-v3-${{ steps.fp.outputs.toolchain }}-${{ steps.fp.outputs.firefox }}
+          restore-keys: |
+            gecko-deps-v3-${{ steps.fp.outputs.toolchain }}-
+
+      # Objects are only reusable with the same compiler, so never fall back
+      # across toolchains. Prefer the same Gecko sources (an earlier pass of
+      # this run or an earlier run), then the same Firefox release.
+      - name: Restore sccache directory
+        id: sccache
+        if: steps.dist.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/sccache
+          key: sccache-v2-${{ inputs.flavor }}-${{ steps.fp.outputs.toolchain }}-${{ steps.fp.outputs.firefox }}-${{ steps.fp.outputs.sources }}-${{ github.run_id }}-${{ github.run_attempt }}-p${{ inputs.pass }}
+          restore-keys: |
+            sccache-v2-${{ inputs.flavor }}-${{ steps.fp.outputs.toolchain }}-${{ steps.fp.outputs.firefox }}-${{ steps.fp.outputs.sources }}-
+            sccache-v2-${{ inputs.flavor }}-${{ steps.fp.outputs.toolchain }}-${{ steps.fp.outputs.firefox }}-
+            sccache-v2-${{ inputs.flavor }}-${{ steps.fp.outputs.toolchain }}-
+
+      - name: Set up sccache
+        if: steps.dist.outputs.cache-hit != 'true'
+        uses: mozilla-actions/sccache-action@fd02668681acd5f960e1372061bee5e3e987195c # v0.0.11
+
+      - name: Record Gecko build start
+        if: steps.dist.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$SCCACHE_DIR"
+          echo "GECKO_BUILD_STARTED=$(date +%s)" >> "$GITHUB_ENV"
+          du -sh "$SCCACHE_DIR" || true
+
+      - name: Build Gecko
+        id: gecko
+        if: steps.dist.outputs.cache-hit != 'true'
+        timeout-minutes: 315
+        continue-on-error: true
+        env:
+          CC: clang
+          CXX: clang++
+          LD: ld64.lld
+        run: ./tools/development/build-gecko.sh ${{ inputs.build_args }}
+
+      - name: Report sccache statistics
+        if: ${{ !cancelled() && steps.dist.outputs.cache-hit != 'true' }}
+        run: |
+          sccache --show-stats || true
+          sccache --stop-server >/dev/null 2>&1 || true
+          du -sh "$SCCACHE_DIR" || true
+
+      # Saved after a timeout as well, so the resume pass (and the next run)
+      # starts from everything this pass compiled.
+      - name: Save sccache directory
+        if: ${{ !cancelled() && steps.dist.outputs.cache-hit != 'true' && steps.gecko.outcome != 'skipped' }}
+        continue-on-error: true
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/sccache
+          key: ${{ steps.sccache.outputs.cache-primary-key }}
+
+      - name: Save Gecko dependency cache
+        if: >-
+          ${{ !cancelled() && inputs.flavor == 'standard' &&
+              steps.gecko.outcome == 'success' && steps.deps.outputs.cache-hit != 'true' }}
+        continue-on-error: true
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.mozbuild
+          key: ${{ steps.deps.outputs.cache-primary-key }}
+
+      - name: Stage Gecko packaging inputs
+        id: stage
+        if: ${{ !cancelled() && steps.gecko.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          gecko_dist="engine/firefox/obj-aarch64-apple-ios/dist"
+          default_theme="engine/firefox/toolkit/mozapps/extensions/default-theme"
+          rm -rf "$GECKO_STAGE"
+          mkdir -p "$GECKO_STAGE/bin" "$GECKO_STAGE/include" "$GECKO_STAGE/default-theme"
+          # dist contains symlinks into the object and source trees. Dereference
+          # them so the packaging job works on a fresh runner without either.
+          # Xcode only needs bin and include; dist/lib holds large intermediates.
+          for directory in bin include; do
+            rsync -aL "$gecko_dist/$directory/" "$GECKO_STAGE/$directory/"
+          done
+          rsync -aL "$default_theme/" "$GECKO_STAGE/default-theme/"
+          du -sh "$GECKO_STAGE"
+
+      - name: Verify Gecko packaging inputs
+        id: verify
+        if: ${{ !cancelled() && (steps.dist.outputs.cache-hit == 'true' || steps.stage.outcome == 'success') }}
+        run: |
+          set -euo pipefail
+          test -s "$GECKO_STAGE/bin/XUL"
+          test -d "$GECKO_STAGE/include/GeckoView"
+          test -n "$(find "$GECKO_STAGE/default-theme" -type f -print -quit)"
+
+      - name: Save prebuilt Gecko distribution
+        if: ${{ steps.stage.outcome == 'success' && steps.verify.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/gecko-dist
+          key: ${{ steps.dist.outputs.cache-primary-key }}
+
+      - name: Upload Gecko packaging inputs
+        if: ${{ steps.verify.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: gecko-dist-${{ inputs.flavor }}
+          path: ${{ runner.temp }}/gecko-dist
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Decide whether the build must resume
+        id: result
+        if: ${{ !cancelled() }}
+        env:
+          DIST_HIT: ${{ steps.dist.outputs.cache-hit }}
+          GECKO_OUTCOME: ${{ steps.gecko.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          FINAL_PASS: ${{ inputs.final_pass }}
+        run: |
+          set -euo pipefail
+          if [[ "$VERIFY_OUTCOME" == "success" ]]; then
+            echo "complete=true" >> "$GITHUB_OUTPUT"
+            echo "resume=false" >> "$GITHUB_OUTPUT"
+            if [[ "$DIST_HIT" == "true" ]]; then
+              echo "### Gecko ${{ inputs.flavor }}: reused prebuilt distribution" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            exit 0
+          fi
+          echo "complete=false" >> "$GITHUB_OUTPUT"
+          elapsed=$(( $(date +%s) - ${GECKO_BUILD_STARTED:-$(date +%s)} ))
+          budget=$(( GECKO_BUILD_MINUTES * 60 ))
+          # Only a build that ran into its time budget is resumed; a compiler or
+          # patch error fails right here instead of being retried for hours.
+          if [[ "$GECKO_OUTCOME" == "failure" && "$elapsed" -ge $(( budget - 180 )) && "$FINAL_PASS" != "true" ]]; then
+            echo "resume=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Gecko ${{ inputs.flavor }}: time budget reached after $(( elapsed / 60 )) min"
+              echo
+              echo "Compiled objects were saved to sccache; a resume pass will finish the build."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "resume=false" >> "$GITHUB_OUTPUT"
+          echo "Gecko ${{ inputs.flavor }} failed (outcome: $GECKO_OUTCOME, $(( elapsed / 60 )) min)." >&2
+          exit 1
