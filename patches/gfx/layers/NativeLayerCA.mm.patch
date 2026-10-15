@@ -1,5 +1,5 @@
 diff --git a/gfx/layers/NativeLayerCA.mm b/gfx/layers/NativeLayerCA.mm
-index 0d8cd5a8f8e6..71bffadcdb62 100644
+index 0d8cd5a8f8e6..0ae6085c3aa9 100644
 --- a/gfx/layers/NativeLayerCA.mm
 +++ b/gfx/layers/NativeLayerCA.mm
 @@ -244,6 +244,15 @@ static void EmitTelemetryForVideoLowPower(VideoLowPowerType aVideoLowPower) {
@@ -18,18 +18,33 @@ index 0d8cd5a8f8e6..71bffadcdb62 100644
  void NativeLayerRootCA::SetBackingScale(float aBackingScale) {
    MutexAutoLock lock(mMutex);
  
-@@ -275,6 +284,10 @@ static void EmitTelemetryForVideoLowPower(VideoLowPowerType aVideoLowPower) {
+@@ -275,8 +284,25 @@ static void EmitTelemetryForVideoLowPower(VideoLowPowerType aVideoLowPower) {
  }
  
  bool NativeLayerRootCA::CommitToScreen() {
 +#if defined(MOZ_WIDGET_UIKIT)
 +  AutoCATransaction transaction;
++  ReleasableMutexAutoLock layerUpdateLock(mLayerUpdateMutex);
 +#endif
 +
    MutexAutoLock lock(mMutex);
  
++#ifdef MOZ_WIDGET_UIKIT
++  if (NS_IsMainThread()) {
++    mMainThreadCommitScheduled = false;
++  } else if (mOnscreenCommitData && mMainThreadCommitCallback) {
++    if (!mMainThreadCommitScheduled) {
++      mMainThreadCommitScheduled = true;
++      mMainThreadCommitCallback();
++    }
++    return false;
++  }
++#endif
++
    if (!NS_IsMainThread() && mOffMainThreadCommitsSuspended) {
-@@ -287,6 +300,10 @@ static void EmitTelemetryForVideoLowPower(VideoLowPowerType aVideoLowPower) {
+     mCommitPending = true;
+     return false;
+@@ -287,6 +313,10 @@ static void EmitTelemetryForVideoLowPower(VideoLowPowerType aVideoLowPower) {
                         mWindowIsFullscreen);
    mMutatedOnscreenLayerStructure = false;
  
@@ -40,16 +55,19 @@ index 0d8cd5a8f8e6..71bffadcdb62 100644
    mCommitPending = false;
  
    if (StaticPrefs::gfx_webrender_debug_dump_native_layer_tree_to_file()) {
-@@ -320,6 +337,16 @@ static void EmitTelemetryForVideoLowPower(VideoLowPowerType aVideoLowPower) {
+@@ -320,6 +350,19 @@ static void EmitTelemetryForVideoLowPower(VideoLowPowerType aVideoLowPower) {
      EmitTelemetryForVideoLowPower(videoLowPower);
    }
  
 +#ifdef MOZ_WIDGET_UIKIT
 +  if (mOnscreenCommitData) {
 +    auto data = mOnscreenCommitData.extract();
++    auto callback = mOnscreenCommitCallback;
 +    MutexAutoUnlock unlock(mMutex);
-+    if (mOnscreenCommitCallback) {
-+      mOnscreenCommitCallback(std::move(data));
++    layerUpdateLock.Unlock();
++    if (callback) {
++      MOZ_ASSERT(NS_IsMainThread());
++      callback(std::move(data));
 +    }
 +  }
 +#endif
@@ -57,7 +75,7 @@ index 0d8cd5a8f8e6..71bffadcdb62 100644
    return true;
  }
  
-@@ -360,6 +387,19 @@ static void EmitTelemetryForVideoLowPower(VideoLowPowerType aVideoLowPower) {
+@@ -360,6 +403,26 @@ static void EmitTelemetryForVideoLowPower(VideoLowPowerType aVideoLowPower) {
    mMutatedOffscreenLayerStructure = false;
  }
  
@@ -72,12 +90,19 @@ index 0d8cd5a8f8e6..71bffadcdb62 100644
 +  MOZ_ASSERT(NS_IsMainThread());
 +  mOnscreenCommitCallback = std::move(aCallback);
 +}
++
++void NativeLayerRootCA::SetMainThreadCommitCallback(
++    std::function<void()> aCallback) {
++  MOZ_ASSERT(NS_IsMainThread());
++  MutexAutoLock lock(mMutex);
++  mMainThreadCommitCallback = std::move(aCallback);
++}
 +#endif
 +
  void NativeLayerRootCA::SetMutatedLayerStructure() {
    mMutatedOnscreenLayerStructure = true;
    mMutatedOffscreenLayerStructure = true;
-@@ -428,6 +468,19 @@ static void EmitTelemetryForVideoLowPower(VideoLowPowerType aVideoLowPower) {
+@@ -428,6 +491,19 @@ static void EmitTelemetryForVideoLowPower(VideoLowPowerType aVideoLowPower) {
    if (mustRebuild) {
      aRootCALayer.sublayers = sublayers;
    }
@@ -97,7 +122,7 @@ index 0d8cd5a8f8e6..71bffadcdb62 100644
  }
  
  SnapshotterCADelegate::~SnapshotterCADelegate() = default;
-@@ -1527,6 +1580,14 @@ CGColorRef CGColorCreateForDeviceColor(const gfx::DeviceColor& aColor) {
+@@ -1527,6 +1603,14 @@ CGColorRef CGColorCreateForDeviceColor(const gfx::DeviceColor& aColor) {
    return updateSucceeded;
  }
  
@@ -112,7 +137,7 @@ index 0d8cd5a8f8e6..71bffadcdb62 100644
  CALayer* NativeLayerCA::UnderlyingCALayer(WhichRepresentation aRepresentation) {
    MutexAutoLock lock(mMutex);
    return GetRepresentation(aRepresentation).UnderlyingCALayer();
-@@ -1539,7 +1600,8 @@ CGColorRef CGColorCreateForDeviceColor(const gfx::DeviceColor& aColor) {
+@@ -1539,7 +1623,8 @@ CGColorRef CGColorCreateForDeviceColor(const gfx::DeviceColor& aColor) {
    AVSampleBufferDisplayLayer* videoLayer =
        (AVSampleBufferDisplayLayer*)mContentCALayer;
  
@@ -122,7 +147,7 @@ index 0d8cd5a8f8e6..71bffadcdb62 100644
      if (videoLayer.requiresFlushToResumeDecoding) {
        [videoLayer flush];
      }
-@@ -1645,6 +1707,11 @@ CGColorRef CGColorCreateForDeviceColor(const gfx::DeviceColor& aColor) {
+@@ -1645,6 +1730,11 @@ CGColorRef CGColorCreateForDeviceColor(const gfx::DeviceColor& aColor) {
    if (osValue != noErr) {
      MOZ_ASSERT(sampleBuffer == nullptr,
                 "Failed call shouldn't allocate memory.");
