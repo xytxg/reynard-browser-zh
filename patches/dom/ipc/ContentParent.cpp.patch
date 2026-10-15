@@ -1,8 +1,8 @@
 diff --git a/dom/ipc/ContentParent.cpp b/dom/ipc/ContentParent.cpp
-index 92ba1e947bef..37a169f394d5 100644
+index 202f922d9773..ae5f87d217a0 100644
 --- a/dom/ipc/ContentParent.cpp
 +++ b/dom/ipc/ContentParent.cpp
-@@ -2943,14 +2943,15 @@ bool ContentParent::InitInternal(ProcessPriority aInitialPriority) {
+@@ -2944,14 +2944,15 @@ bool ContentParent::InitInternal(ProcessPriority aInitialPriority) {
    Endpoint<PVRManagerChild> vrBridge;
    Endpoint<PRemoteMediaManagerChild> videoManager;
    AutoTArray<uint32_t, 4> namespaces;
@@ -20,7 +20,7 @@ index 92ba1e947bef..37a169f394d5 100644
    } else {
      // This can fail if we've already started shutting down the compositor
      // thread. See Bug 1562763 comment 8. On Android this can fail we are are
-@@ -3122,16 +3123,17 @@ void ContentParent::OnCompositorUnexpectedShutdown() {
+@@ -3123,16 +3124,17 @@ void ContentParent::OnCompositorUnexpectedShutdown() {
    Endpoint<PVRManagerChild> vrBridge;
    Endpoint<PRemoteMediaManagerChild> videoManager;
    AutoTArray<uint32_t, 4> namespaces;
@@ -40,7 +40,7 @@ index 92ba1e947bef..37a169f394d5 100644
  }
  
  void ContentParent::OnCompositorDeviceReset() {
-@@ -3887,9 +3889,16 @@ ContentParent::Observe(nsISupports* aSubject, const char* aTopic,
+@@ -3888,9 +3890,16 @@ ContentParent::Observe(nsISupports* aSubject, const char* aTopic,
  
    // listening for memory pressure event
    if (!strcmp(aTopic, "memory-pressure")) {
@@ -58,7 +58,7 @@ index 92ba1e947bef..37a169f394d5 100644
    } else if (!strcmp(aTopic, "application-background")) {
      (void)SendApplicationBackground();
    } else if (!strcmp(aTopic, "application-foreground")) {
-@@ -8159,6 +8168,17 @@ IPCResult ContentParent::RecvKillGPUProcess() {
+@@ -8161,6 +8170,17 @@ IPCResult ContentParent::RecvKillGPUProcess() {
  }
  #endif
  

@@ -1,5 +1,5 @@
 diff --git a/dom/ipc/ProcessPriorityManager.cpp b/dom/ipc/ProcessPriorityManager.cpp
-index e59fce862c1b..09775f0480ff 100644
+index ed04a4a6d8a4..96e47d635c39 100644
 --- a/dom/ipc/ProcessPriorityManager.cpp
 +++ b/dom/ipc/ProcessPriorityManager.cpp
 @@ -46,6 +46,11 @@ using namespace mozilla::hal;
@@ -14,7 +14,7 @@ index e59fce862c1b..09775f0480ff 100644
  #ifdef LOG
  #  undef LOG
  #endif
-@@ -256,6 +261,9 @@ class ProcessPriorityManagerChild final : public nsIObserver {
+@@ -243,6 +248,9 @@ class ProcessPriorityManagerChild final : public nsIObserver {
    ~ProcessPriorityManagerChild() = default;
  
    void Init();
@@ -24,7 +24,7 @@ index e59fce862c1b..09775f0480ff 100644
  
    hal::ProcessPriority mCachedPriority;
  };
-@@ -761,7 +769,7 @@ ProcessPriority ParticularProcessPriorityManager::ComputePriority() {
+@@ -749,7 +757,7 @@ ProcessPriority ParticularProcessPriorityManager::ComputePriority() {
    return PROCESS_PRIORITY_BACKGROUND;
  }
  
@@ -33,7 +33,7 @@ index e59fce862c1b..09775f0480ff 100644
  // Method used for setting QoS levels on background main threads.
  static bool PriorityUsesLowPowerMainThread(
      const hal::ProcessPriority& aPriority) {
-@@ -819,8 +827,8 @@ void ParticularProcessPriorityManager::SetPriorityNow(
+@@ -807,8 +815,8 @@ void ParticularProcessPriorityManager::SetPriorityNow(
      ProcessPriorityManagerImpl::GetSingleton()->NotifyProcessPriorityChanged(
          this, oldPriority);
  
@@ -44,7 +44,7 @@ index e59fce862c1b..09775f0480ff 100644
      // can go ahead and put the main thread in the background here. If the new
      // priority is the background priority, we can tell the OS to put the main
      // thread on low-power cores. Alternately, if we are changing from the
-@@ -961,6 +969,34 @@ void ProcessPriorityManagerChild::Init() {
+@@ -949,6 +957,34 @@ void ProcessPriorityManagerChild::Init() {
    }
  }
  
@@ -79,7 +79,7 @@ index e59fce862c1b..09775f0480ff 100644
  NS_IMETHODIMP
  ProcessPriorityManagerChild::Observe(nsISupports* aSubject, const char* aTopic,
                                       const char16_t* aData) {
-@@ -974,6 +1010,9 @@ ProcessPriorityManagerChild::Observe(nsISupports* aSubject, const char* aTopic,
+@@ -962,6 +998,9 @@ ProcessPriorityManagerChild::Observe(nsISupports* aSubject, const char* aTopic,
    NS_ENSURE_TRUE(ProcessPriority(priority) != PROCESS_PRIORITY_UNKNOWN, NS_OK);
  
    mCachedPriority = static_cast<ProcessPriority>(priority);
