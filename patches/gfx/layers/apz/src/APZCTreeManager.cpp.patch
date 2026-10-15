@@ -1,5 +1,5 @@
 diff --git a/gfx/layers/apz/src/APZCTreeManager.cpp b/gfx/layers/apz/src/APZCTreeManager.cpp
-index b17a25de70dc..35c5902ef746 100644
+index b17a25de70dc..6cbe959def56 100644
 --- a/gfx/layers/apz/src/APZCTreeManager.cpp
 +++ b/gfx/layers/apz/src/APZCTreeManager.cpp
 @@ -4,11 +4,13 @@
@@ -229,7 +229,7 @@ index b17a25de70dc..35c5902ef746 100644
          mTouchBlockHitResult.mTargetApzc->IsInPanningState() &&
          BuildOverscrollHandoffChain(mTouchBlockHitResult.mTargetApzc)
              ->HasOverscrolledApzc()) {
-@@ -2251,17 +2298,8 @@ void APZCTreeManager::ProcessTouchInput(InputHandlingState& aState,
+@@ -2251,63 +2298,31 @@ void APZCTreeManager::ProcessTouchInput(InputHandlingState& aState,
                                     : Some(std::move(touchBehaviors)),
            initialTouchMove);
  
@@ -249,7 +249,11 @@ index b17a25de70dc..35c5902ef746 100644
  
        for (size_t i = 0; i < aInput.mTouches.Length(); i++) {
          SingleTouchData& touchData = aInput.mTouches[i];
-@@ -2272,42 +2310,19 @@ void APZCTreeManager::ProcessTouchInput(InputHandlingState& aState,
+-        Maybe<ScreenIntPoint> untransformedScreenPoint =
++        auto untransformedScreenPoint =
+             UntransformBy(outTransform, touchData.mScreenPoint);
+         if (!untransformedScreenPoint) {
+           aState.mResult.SetStatusAsIgnore();
            return;
          }
          touchData.mScreenPoint = *untransformedScreenPoint;
