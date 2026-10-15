@@ -441,7 +441,17 @@ requireText(mediaSession, "artworkRequestID", "stale media artwork requests can 
 const imagePreviewLoader = read(
   "browser/Reynard/Client/Interface/ContextMenu/ImagePreview/ImagePreviewLoader.swift"
 );
-requireText(imagePreviewLoader, "BoundedURLDataLoader", "image previews are not capped while streaming");
+requireText(imagePreviewLoader, "fetchImageData", "image previews no longer use Gecko networking");
+requireText(
+  imagePreviewLoader,
+  "data.count <= maximumSourceDataSize",
+  "image previews fetched through Gecko are not size capped"
+);
+requireText(
+  read("patches/mobile/shared/actors/GeckoViewContentChild.sys.mjs.patch"),
+  "MAX_FETCH_IMAGE_BYTES",
+  "the content process does not cap context menu image fetches before base64 encoding"
+);
 requireText(imagePreviewLoader, "maximumPreviewPixelSize", "image previews are not downsampled");
 
 const zipArchiveReader = read("browser/Reynard/Client/Utilities/ZipArchiveReader.swift");
@@ -601,6 +611,12 @@ requireText(formalReleaseWorkflow, ".sha256", "formal releases do not publish SH
 requireText(formalReleaseWorkflow, "reynard-update-build:", "formal releases do not expose their build number");
 const nightlyWorkflow = read(".github/workflows/build-nightly.yml");
 requireText(nightlyWorkflow, "should_build", "nightly builds do not skip unchanged commits");
+requireText(nightlyWorkflow, "## Nightly skipped", "skipped nightlies are not reported in the run summary");
+const threeIpaTriggers = read(".github/workflows/build-three-ipa.yml").split("\njobs:")[0];
+if (/^\s*-\s*main\s*$/m.test(threeIpaTriggers)) {
+  throw new Error("build-three-ipa.yml rebuilds every main push in addition to nightly and release builds");
+}
+requireText(threeIpaTriggers, "- sync/**", "build-three-ipa.yml no longer builds sync branches before merge");
 for (const workflowName of fs.readdirSync(path.join(root, ".github/workflows"))) {
   if (!workflowName.endsWith(".yml")) {
     continue;
