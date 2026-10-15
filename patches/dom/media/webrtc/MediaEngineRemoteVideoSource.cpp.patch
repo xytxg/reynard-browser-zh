@@ -1,5 +1,5 @@
 diff --git a/dom/media/webrtc/MediaEngineRemoteVideoSource.cpp b/dom/media/webrtc/MediaEngineRemoteVideoSource.cpp
-index c7878d081c91..851cffbec199 100644
+index c7878d081c91..1d5932cb8c64 100644
 --- a/dom/media/webrtc/MediaEngineRemoteVideoSource.cpp
 +++ b/dom/media/webrtc/MediaEngineRemoteVideoSource.cpp
 @@ -184,9 +184,10 @@ MediaEngineRemoteVideoSource::MediaEngineRemoteVideoSource(
@@ -67,7 +67,7 @@ index c7878d081c91..851cffbec199 100644
  
    std::function<void()> callback_unused = []() {};
    webrtc::scoped_refptr<webrtc::I420BufferInterface> buffer =
-@@ -734,25 +693,87 @@ int MediaEngineRemoteVideoSource::DeliverFrame(
+@@ -734,25 +693,96 @@ int MediaEngineRemoteVideoSource::DeliverFrame(
      rec.Record();
    }
  
@@ -84,7 +84,7 @@ index c7878d081c91..851cffbec199 100644
 +  // media.webrtc.capture.apply-rotation makes the parent straighten a quarter
 +  // turn, leaving the frame with its dimensions swapped relative to the
 +  // capability it was negotiated against.
-+  const bool dimensionsSwapped =
++  bool dimensionsSwapped =
 +      aProps.rotationApplied() &&
 +      (aProps.originalRotationRequired() == VideoRotation::kDegree_90 ||
 +       aProps.originalRotationRequired() == VideoRotation::kDegree_270);
@@ -96,6 +96,15 @@ index c7878d081c91..851cffbec199 100644
 +    mIncomingImageSize = {aProps.width(), aProps.height()};
 +    const int32_t& cw = mCapability.width;
 +    const int32_t& ch = mCapability.height;
++
++#ifdef MOZ_WIDGET_UIKIT
++    // AVFoundation rotates camera buffers before delivering them.
++    if (mCapEngine == camera::CameraEngine && cw && ch) {
++      dimensionsSwapped =
++          (cw > ch && aProps.width() < aProps.height()) ||
++          (cw < ch && aProps.width() > aProps.height());
++    }
++#endif
 +
 +    input = {
 +        .mConstraints = *mConstraints,
@@ -162,7 +171,7 @@ index c7878d081c91..851cffbec199 100644
            updated->mValue = true;
            // Since mImageSize was initialized to (0,0), we end up here on the
            // arrival of the first frame. We resolve the promise representing
-@@ -766,7 +787,7 @@ int MediaEngineRemoteVideoSource::DeliverFrame(
+@@ -766,7 +796,7 @@ int MediaEngineRemoteVideoSource::DeliverFrame(
      MutexAutoLock lock(mMutex);
      MOZ_ASSERT(mState == kStarted);
      VideoSegment segment;
@@ -171,7 +180,7 @@ index c7878d081c91..851cffbec199 100644
      segment.AppendWebrtcLocalFrame(
          image.forget(), mScaledImageSize, mPrincipal,
          /* aForceBlack */ false, TimeStamp::Now(), aProps.captureTime(),
-@@ -788,6 +809,54 @@ uint32_t MediaEngineRemoteVideoSource::GetDistance(
+@@ -788,6 +818,54 @@ uint32_t MediaEngineRemoteVideoSource::GetDistance(
    return GetFitnessDistance(aCandidate, aConstraints);
  }
  
@@ -226,7 +235,7 @@ index c7878d081c91..851cffbec199 100644
  uint32_t MediaEngineRemoteVideoSource::GetFitnessDistance(
      const webrtc::CaptureCapability& aCandidate,
      const NormalizedConstraintSet& aConstraints) const {
-@@ -806,9 +875,7 @@ uint32_t MediaEngineRemoteVideoSource::GetFitnessDistance(
+@@ -806,9 +884,7 @@ uint32_t MediaEngineRemoteVideoSource::GetFitnessDistance(
                     ? H::FitnessDistance(int32_t(aCandidate.height),
                                          aConstraints.mHeight)
                     : 0) +
@@ -237,7 +246,7 @@ index c7878d081c91..851cffbec199 100644
    return uint32_t(std::min(distance, uint64_t(UINT32_MAX)));
  }
  
-@@ -831,10 +898,8 @@ uint32_t MediaEngineRemoteVideoSource::GetFeasibilityDistance(
+@@ -831,10 +907,8 @@ uint32_t MediaEngineRemoteVideoSource::GetFeasibilityDistance(
                     ? H::FeasibilityDistance(int32_t(aCandidate.height),
                                              aConstraints.mHeight)
                     : 0) +
@@ -250,7 +259,7 @@ index c7878d081c91..851cffbec199 100644
    return uint32_t(std::min(distance, uint64_t(UINT32_MAX)));
  }
  
-@@ -1153,6 +1218,13 @@ bool MediaEngineRemoteVideoSource::ChooseCapability(
+@@ -1153,6 +1227,13 @@ bool MediaEngineRemoteVideoSource::ChooseCapability(
  
    aCapability = candidateSet[0].mCapability;
  

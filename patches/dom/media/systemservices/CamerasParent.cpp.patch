@@ -1,5 +1,5 @@
 diff --git a/dom/media/systemservices/CamerasParent.cpp b/dom/media/systemservices/CamerasParent.cpp
-index a107bc4f0eb3..7e6516e84257 100644
+index a107bc4f0eb3..aa44e5180c5e 100644
 --- a/dom/media/systemservices/CamerasParent.cpp
 +++ b/dom/media/systemservices/CamerasParent.cpp
 @@ -35,6 +35,11 @@
@@ -339,7 +339,7 @@ index a107bc4f0eb3..7e6516e84257 100644
      return EnsureVideoCaptureFactory()->UpdateCameraAvailability()->Then(
          GetCurrentSerialEventTarget(),
          "CamerasParent::RequestCameraAccess update camera availability",
-@@ -1763,52 +1941,107 @@ auto CamerasParent::RequestCameraAccess(bool aAllowPermissionRequest)
+@@ -1763,52 +1941,87 @@ auto CamerasParent::RequestCameraAccess(bool aAllowPermissionRequest)
          });
    }
  
@@ -352,35 +352,15 @@ index a107bc4f0eb3..7e6516e84257 100644
 -            [](nsresult aRv) mutable {
 -              MOZ_ASSERT(NS_SUCCEEDED(aRv));
 -              ClearCameraDeviceInfo();
-+  if (!aRequestCamera) {
-+#ifdef MOZ_WIDGET_UIKIT
-+    if (aRequestMicrophone) {
-+      return RequestAVCaptureAccess(false, true)
-+          ->Then(
-+              GetCurrentSerialEventTarget(), __func__,
-+              [](CamerasAccessStatus aStatus) {
-+                return CameraAccessRequestPromise::CreateAndResolve(
-+                    aStatus,
-+                    "CamerasParent::RequestCameraAccess microphone-only "
-+                    "resolve");
-+              },
-+              [](nsresult) {
-+                return CameraAccessRequestPromise::CreateAndResolve(
-+                    CamerasAccessStatus::Error,
-+                    "CamerasParent::RequestCameraAccess microphone-only "
-+                    "reject");
-+              });
-+    }
-+#endif
-+
-+    return CameraAccessRequestPromise::CreateAndResolve(
-+        CamerasAccessStatus::Granted,
-+        "CamerasParent::RequestCameraAccess no camera backend init required");
-+  }
-+
 +  auto requestCameraBackendAccess =
 +      [aAllowPermissionRequest, aRequestCamera,
 +       aRequestMicrophone]() -> RefPtr<CameraAccessRequestPromise> {
++    if (!aRequestCamera) {
++      return CameraAccessRequestPromise::CreateAndResolve(
++          CamerasAccessStatus::Granted,
++          "CamerasParent::RequestCameraAccess no camera backend init required");
++    }
++
 +    static StaticRefPtr<CameraAccessRequestPromise> sCameraAccessRequestPromise;
 +    if (!sCameraAccessRequestPromise) {
 +      sCameraAccessRequestPromise = RefPtr<CameraAccessRequestPromise>(
