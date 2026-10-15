@@ -1,5 +1,5 @@
 diff --git a/gfx/layers/apz/src/AsyncPanZoomController.cpp b/gfx/layers/apz/src/AsyncPanZoomController.cpp
-index 386125dded7b..edc5ab526bf0 100644
+index 386125dded7b..e4c17a764c56 100644
 --- a/gfx/layers/apz/src/AsyncPanZoomController.cpp
 +++ b/gfx/layers/apz/src/AsyncPanZoomController.cpp
 @@ -41,9 +41,10 @@
@@ -237,7 +237,7 @@ index 386125dded7b..edc5ab526bf0 100644
                   ToString(scrollUpdate.GetDestination()).c_str());
 -        destination = scrollUpdate.GetDestination();
 +        destination = Metrics().AdjustScrollDestinationForTopInset(
-+            scrollUpdate.GetDestination());
++            scrollUpdate.GetDestination() - Metrics().GetObscuredTopOffset());
        }
  
        ScrollAnimationKind animationKind =
