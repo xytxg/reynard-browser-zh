@@ -204,6 +204,12 @@
             "state": "new",
             "value": "%1$@ again to %2$@…"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再按一次 %1$@ 即可%2$@…"
+          }
         }
       }
     },
