@@ -1,9 +1,9 @@
 diff --git a/toolkit/system/iosproxy/nsIOSSystemProxySettings.mm b/toolkit/system/iosproxy/nsIOSSystemProxySettings.mm
 new file mode 100644
-index 000000000000..865fab331c89
+index 000000000000..5ea069565cd3
 --- /dev/null
 +++ b/toolkit/system/iosproxy/nsIOSSystemProxySettings.mm
-@@ -0,0 +1,171 @@
+@@ -0,0 +1,181 @@
 +/* This Source Code Form is subject to the terms of the Mozilla Public
 + * License, v. 2.0. If a copy of the MPL was not distributed with this
 + * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -55,16 +55,26 @@ index 000000000000..865fab331c89
 +    CFRunLoopStop(CFRunLoopGetCurrent());
 +  };
 +
-+  CFRunLoopSourceRef source;
++  // A PAC entry without its URL or script, or a PAC run CFNetwork could not
++  // start, resolves to no proxies instead of crashing the PAC thread.
++  // [reynard-browser-zh]
++  CFRunLoopSourceRef source = nullptr;
 +  if ([aProxy[(NSString*)kCFProxyTypeKey]
 +          isEqual:(NSString*)kCFProxyTypeAutoConfigurationURL]) {
-+    source = CFNetworkExecuteProxyAutoConfigurationURL(
-+        (CFURLRef)aProxy[(NSString*)kCFProxyAutoConfigurationURLKey],
-+        (CFURLRef)aURL, callback, &context);
++    id pacURL = aProxy[(NSString*)kCFProxyAutoConfigurationURLKey];
++    if ([pacURL isKindOfClass:[NSURL class]]) {
++      source = CFNetworkExecuteProxyAutoConfigurationURL(
++          (CFURLRef)pacURL, (CFURLRef)aURL, callback, &context);
++    }
 +  } else {
-+    source = CFNetworkExecuteProxyAutoConfigurationScript(
-+        (CFStringRef)aProxy[(NSString*)kCFProxyAutoConfigurationJavaScriptKey],
-+        (CFURLRef)aURL, callback, &context);
++    id script = aProxy[(NSString*)kCFProxyAutoConfigurationJavaScriptKey];
++    if ([script isKindOfClass:[NSString class]]) {
++      source = CFNetworkExecuteProxyAutoConfigurationScript(
++          (CFStringRef)script, (CFURLRef)aURL, callback, &context);
++    }
++  }
++  if (!source) {
++    return result;
 +  }
 +
 +  auto runLoopSource =
