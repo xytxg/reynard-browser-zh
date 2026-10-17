@@ -3,11 +3,14 @@ name: Build Gecko
 # Builds one Gecko flavor once and hands its packaging inputs (dist/bin,
 # dist/include and the default theme) to the IPA packaging jobs as an artifact.
 #
-# A cold Gecko build (new Firefox release or new toolchain) can take longer
-# than GitHub's 6 hour job limit on macos-26. The first pass therefore stops
-# the compiler before the job limit, saves its sccache directory and reports
-# `resume=true`; build.yml then runs a second pass that restores that cache,
-# so already compiled objects are cache hits and the build finishes in time.
+# A cold Gecko build (new Firefox release or new toolchain) takes longer than
+# GitHub's 6 hour job limit on macos-26 (3 cores): the Rust LTO of gkrust alone
+# runs for hours, cannot be cached by sccache, and the XUL link comes after it.
+# A pass therefore stops cleanly before its time budget, uploads the whole
+# object directory (plus its sccache) as an artifact and reports
+# `resume=true`. The next pass (build.yml chains up to four) restores that
+# object directory on the same toolchain, so make and cargo continue exactly
+# where the previous pass stopped instead of starting over.
 on:
   workflow_call:
     inputs:
@@ -24,22 +27,38 @@ on:
         required: true
         type: string
       pass:
-        description: 1 for the first attempt, 2 for the resume pass
+        description: 1 for the first attempt, 2-4 for resume passes
         required: false
         default: 1
         type: number
       final_pass:
-        description: Fail instead of requesting a resume when the build step times out
+        description: Fail instead of requesting another pass when the time budget runs out
         required: false
         default: false
         type: boolean
+      rust_toolchain:
+        description: Exact Rust version chosen by pass 1 (empty for pass 1)
+        required: false
+        default: ""
+        type: string
+      xcode_version:
+        description: Exact Xcode version chosen by pass 1 (empty for pass 1)
+        required: false
+        default: ""
+        type: string
     outputs:
       complete:
         description: "'true' when gecko-dist-<flavor> was uploaded"
         value: ${{ jobs.gecko.outputs.complete }}
       resume:
-        description: "'true' when the build stopped at its time budget and should resume"
+        description: "'true' when the build stopped at its time budget and another pass should continue it"
         value: ${{ jobs.gecko.outputs.resume }}
+      rust_toolchain:
+        description: Rust version this pass built with; later passes must use the same one
+        value: ${{ jobs.gecko.outputs.rust_toolchain }}
+      xcode_version:
+        description: Xcode version this pass built with; later passes must use the same one
+        value: ${{ jobs.gecko.outputs.xcode_version }}
 
 permissions:
   contents: read
@@ -48,29 +67,38 @@ jobs:
   gecko:
     name: "Gecko ${{ inputs.flavor }} · pass ${{ inputs.pass }}"
     runs-on: macos-26
-    # Below GitHub's 360 minute hard limit, so the cache save and the
-    # resume decision below always get to run.
+    # Below GitHub's 360 minute hard limit. The build stops itself after
+    # GECKO_PASS_MINUTES (counted from the start of the job), which leaves
+    # time to archive and upload the object directory.
     timeout-minutes: 355
     outputs:
       complete: ${{ steps.result.outputs.complete }}
       resume: ${{ steps.result.outputs.resume }}
+      rust_toolchain: ${{ steps.fp.outputs.rust_toolchain }}
+      xcode_version: ${{ steps.fp.outputs.xcode_version }}
     env:
-      # Local-disk sccache, restored and saved as one Actions cache entry per
-      # flavor (SCCACHE_DIR is set below). The per-object GitHub Actions backend created ~4,700 cache
-      # entries per build, pushed the repository past its 10 GB cache limit
-      # and could not survive a cancelled job; one capped directory can.
+      # Local-disk sccache, saved as one Actions cache entry per flavor once a
+      # build completes (SCCACHE_DIR is set below). Two flavors at this size,
+      # the shared gecko-deps entry and two gecko-dist entries stay below the
+      # repository's 10 GB cache quota. Between passes of one run sccache
+      # travels with the object directory artifact instead.
       SCCACHE_CACHE_SIZE: 3500M
       SCCACHE_IDLE_TIMEOUT: "0"
-      # Compile time budget for this pass (keep equal to the Build Gecko step
-      # timeout-minutes). ~15 minutes of setup before it and
-      # the sccache save after it must still fit inside timeout-minutes.
-      GECKO_BUILD_MINUTES: 315
+      # Minutes from job start until the build is stopped for the next pass.
+      # Stopping, archiving and uploading take < 30 minutes, inside the job's
+      # 355 minute timeout.
+      GECKO_PASS_MINUTES: 300
+      # Every Gecko source file gets this timestamp in every pass, so objects
+      # restored from an earlier pass are never older than their sources.
+      GECKO_SOURCE_MTIME: "202001010000"
 
     steps:
       - name: Set cache paths
         run: |
+          echo "GECKO_JOB_STARTED=$(date +%s)" >> "$GITHUB_ENV"
           echo "SCCACHE_DIR=$RUNNER_TEMP/sccache" >> "$GITHUB_ENV"
           echo "GECKO_STAGE=$RUNNER_TEMP/gecko-dist" >> "$GITHUB_ENV"
+          echo "GECKO_STATE=$RUNNER_TEMP/gecko-state" >> "$GITHUB_ENV"
 
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -80,7 +108,18 @@ jobs:
           submodules: false
           persist-credentials: false
 
-      - name: Set up latest Xcode
+      # Resume passes must build with the same Xcode (SDK headers) as pass 1.
+      # If a newer runner image no longer has it, fall back to the latest one;
+      # the fingerprint check below then discards the incompatible objects.
+      - name: Set up Xcode
+        id: xcode
+        continue-on-error: ${{ inputs.xcode_version != '' }}
+        uses: maxim-lobanov/setup-xcode@1242409711ff5721add51979e9e11e23ebb7e5a4 # v1
+        with:
+          xcode-version: ${{ inputs.xcode_version != '' && inputs.xcode_version || 'latest' }}
+
+      - name: Set up latest Xcode (pass 1 Xcode unavailable)
+        if: ${{ steps.xcode.outcome == 'failure' }}
         uses: maxim-lobanov/setup-xcode@1242409711ff5721add51979e9e11e23ebb7e5a4 # v1
         with:
           xcode-version: latest
@@ -93,46 +132,82 @@ jobs:
           echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"
           echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
 
+      # Pass 1 takes the current stable release; resume passes install exactly
+      # that version, because cargo rebuilds every crate for another rustc.
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
         with:
+          toolchain: ${{ inputs.rust_toolchain != '' && inputs.rust_toolchain || 'stable' }}
           targets: aarch64-apple-ios
 
       - name: Fingerprint toolchain and Gecko inputs
         id: fp
         env:
           BUILD_ARGS: ${{ inputs.build_args }}
+          FLAVOR: ${{ inputs.flavor }}
+          PASS: ${{ inputs.pass }}
           GECKO_SOURCES: ${{ hashFiles('engine/release.txt', 'patches/**', 'tools/development/build-gecko.sh', 'tools/development/update-gecko.sh', 'tools/development/apply-patches.sh') }}
         run: |
           set -euo pipefail
+          # What Gecko's objects depend on: with --enable-bootstrap configure
+          # compiles with Mozilla's own clang and cbindgen from ~/.mozbuild,
+          # fixed by the Firefox tag; the rest is the Xcode iOS SDK and rustc.
+          # Homebrew's LLVM/LLD and Python differ between runner images (run
+          # 38825617242 got LLVM 23.1.0 and 23.1.3 in two passes) and are only
+          # logged, so they cannot invalidate a resume or a finished Gecko.
           {
             xcodebuild -version
             xcrun --sdk iphoneos --show-sdk-version
+            rustc -Vv
+          } | tee "$RUNNER_TEMP/gecko-compile-toolchain.log"
+          {
             python3 --version
-            clang --version
+            clang --version | head -1
             ld64.lld --version
             cbindgen --version
-            rustc -Vv
-          } | tee "$RUNNER_TEMP/gecko-toolchain.log"
-          toolchain="$(shasum -a 256 "$RUNNER_TEMP/gecko-toolchain.log" | cut -c1-16)"
+          } || true
+          compile="$(shasum -a 256 "$RUNNER_TEMP/gecko-compile-toolchain.log" | cut -c1-16)"
           firefox="$(tr -d '\000\r\n[:space:]' < engine/release.txt)"
           sources="$(printf '%s\n%s\n' "$GECKO_SOURCES" "$BUILD_ARGS" | shasum -a 256 | cut -c1-16)"
           {
-            echo "toolchain=$toolchain"
+            echo "compile=$compile"
             echo "firefox=$firefox"
             echo "sources=$sources"
+            echo "objdir=$FLAVOR-$compile-$firefox-$sources"
+            echo "previous_pass=$(( PASS - 1 ))"
+            echo "rust_toolchain=$(rustc --version | awk '{print $2}')"
+            echo "xcode_version=$(xcodebuild -version | awk 'NR == 1 {print $2}')"
           } >> "$GITHUB_OUTPUT"
 
       # Exact match only: a prebuilt Gecko is reused only when the Firefox tag,
-      # every patch, the build scripts, the build arguments and the toolchain
-      # are all identical. Most commits change only the app, so they skip the
+      # every patch, the build scripts, the build arguments, Xcode/SDK and
+      # rustc are all identical. Most commits change only the app, so they skip the
       # multi-hour Gecko build entirely.
       - name: Restore prebuilt Gecko distribution
         id: dist
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ runner.temp }}/gecko-dist
-          key: gecko-dist-v2-${{ inputs.flavor }}-${{ steps.fp.outputs.toolchain }}-${{ steps.fp.outputs.firefox }}-${{ steps.fp.outputs.sources }}
+          key: gecko-dist-v3-${{ inputs.flavor }}-${{ steps.fp.outputs.compile }}-${{ steps.fp.outputs.firefox }}-${{ steps.fp.outputs.sources }}
+
+      - name: Show free disk space
+        if: steps.dist.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          df -h "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
+          # The source tree, object directory and its archive need room. Other
+          # Xcode installations are not used by this job; remove them in the
+          # background if the runner is short on space.
+          available_kb="$(df -Pk "$GITHUB_WORKSPACE" | awk 'NR == 2 {print $4}')"
+          if [ "$available_kb" -lt $(( 60 * 1024 * 1024 )) ]; then
+            selected="$(xcode-select -p | sed 's#/Contents/Developer$##')"
+            for app in /Applications/Xcode*.app; do
+              if [ "$app" != "$selected" ] && [ ! -L "$app" ]; then
+                echo "Removing unused $app"
+                (sudo rm -rf "$app" >/dev/null 2>&1 &)
+              fi
+            done
+          fi
 
       - name: Initialize Gecko source
         if: steps.dist.outputs.cache-hit != 'true'
@@ -149,6 +224,10 @@ jobs:
         if: steps.dist.outputs.cache-hit != 'true'
         run: ./tools/development/apply-patches.sh
 
+      - name: Normalize Gecko source timestamps
+        if: steps.dist.outputs.cache-hit != 'true'
+        run: ./tools/development/build-gecko-pass.sh normalize-sources
+
       # Both flavors use the same bootstrap toolchains, so they share one entry.
       - name: Restore Gecko dependency cache
         id: deps
@@ -159,46 +238,71 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ~/.mozbuild
-          key: gecko-deps-v3-${{ steps.fp.outputs.toolchain }}-${{ steps.fp.outputs.firefox }}
+          key: gecko-deps-v4-${{ steps.fp.outputs.compile }}-${{ steps.fp.outputs.firefox }}
           restore-keys: |
-            gecko-deps-v3-${{ steps.fp.outputs.toolchain }}-
+            gecko-deps-v4-${{ steps.fp.outputs.compile }}-
 
-      # Objects are only reusable with the same compiler, so never fall back
-      # across toolchains. Prefer the same Gecko sources (an earlier pass of
-      # this run or an earlier run), then the same Firefox release.
+      # Pass 1 only: start from the closest earlier run. sccache keys every
+      # object by its compiler and inputs, so a partial match is safe. The
+      # sccache-v2 fallback reuses entries saved by the previous CI layout.
       - name: Restore sccache directory
         id: sccache
-        if: steps.dist.outputs.cache-hit != 'true'
+        if: ${{ steps.dist.outputs.cache-hit != 'true' && inputs.pass == 1 }}
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ runner.temp }}/sccache
-          key: sccache-v2-${{ inputs.flavor }}-${{ steps.fp.outputs.toolchain }}-${{ steps.fp.outputs.firefox }}-${{ steps.fp.outputs.sources }}-${{ github.run_id }}-${{ github.run_attempt }}-p${{ inputs.pass }}
+          key: sccache-v3-${{ inputs.flavor }}-${{ steps.fp.outputs.compile }}-${{ steps.fp.outputs.firefox }}-${{ steps.fp.outputs.sources }}
           restore-keys: |
-            sccache-v2-${{ inputs.flavor }}-${{ steps.fp.outputs.toolchain }}-${{ steps.fp.outputs.firefox }}-${{ steps.fp.outputs.sources }}-
-            sccache-v2-${{ inputs.flavor }}-${{ steps.fp.outputs.toolchain }}-${{ steps.fp.outputs.firefox }}-
-            sccache-v2-${{ inputs.flavor }}-${{ steps.fp.outputs.toolchain }}-
+            sccache-v3-${{ inputs.flavor }}-${{ steps.fp.outputs.compile }}-${{ steps.fp.outputs.firefox }}-
+            sccache-v3-${{ inputs.flavor }}-${{ steps.fp.outputs.compile }}-
+            sccache-v2-${{ inputs.flavor }}-
+
+      - name: Download object directory from the previous pass
+        if: ${{ steps.dist.outputs.cache-hit != 'true' && inputs.pass > 1 }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: gecko-objdir-${{ inputs.flavor }}-p${{ steps.fp.outputs.previous_pass }}
+          path: ${{ runner.temp }}/gecko-state
+
+      - name: Restore object directory from the previous pass
+        if: ${{ steps.dist.outputs.cache-hit != 'true' && inputs.pass > 1 }}
+        env:
+          OBJDIR_FINGERPRINT: ${{ steps.fp.outputs.objdir }}
+        run: |
+          set -euo pipefail
+          ./tools/development/build-gecko-pass.sh restore "$GECKO_STATE" "$OBJDIR_FINGERPRINT"
+          rm -rf "$GECKO_STATE"
+          df -h "$GITHUB_WORKSPACE"
 
       - name: Set up sccache
         if: steps.dist.outputs.cache-hit != 'true'
         uses: mozilla-actions/sccache-action@fd02668681acd5f960e1372061bee5e3e987195c # v0.0.11
 
-      - name: Record Gecko build start
-        if: steps.dist.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p "$SCCACHE_DIR"
-          echo "GECKO_BUILD_STARTED=$(date +%s)" >> "$GITHUB_ENV"
-          du -sh "$SCCACHE_DIR" || true
-
       - name: Build Gecko
         id: gecko
         if: steps.dist.outputs.cache-hit != 'true'
-        timeout-minutes: 315
-        continue-on-error: true
+        # Backstop only: the pass script stops the build itself at
+        # GECKO_PASS_MINUTES after the job started.
+        timeout-minutes: 330
         env:
           CC: clang
           CXX: clang++
           LD: ld64.lld
-        run: ./tools/development/build-gecko.sh ${{ inputs.build_args }}
+          BUILD_ARGS: ${{ inputs.build_args }}
+        run: |
+          set -uo pipefail
+          mkdir -p "$SCCACHE_DIR"
+          du -sh "$SCCACHE_DIR" || true
+          deadline=$(( GECKO_JOB_STARTED + GECKO_PASS_MINUTES * 60 ))
+          status=0
+          # shellcheck disable=SC2086 # build_args is a list of flags
+          ./tools/development/build-gecko-pass.sh run "$deadline" $BUILD_ARGS || status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" -eq 75 ]; then
+            echo "Gecko ${{ inputs.flavor }} pass ${{ inputs.pass }} reached its time budget; the build will resume."
+            exit 0
+          fi
+          exit "$status"
 
       - name: Report sccache statistics
         if: ${{ !cancelled() && steps.dist.outputs.cache-hit != 'true' }}
@@ -207,32 +311,33 @@ jobs:
           sccache --stop-server >/dev/null 2>&1 || true
           du -sh "$SCCACHE_DIR" || true
 
-      # Saved after a timeout as well, so the resume pass (and the next run)
-      # starts from everything this pass compiled.
-      - name: Save sccache directory
-        if: ${{ !cancelled() && steps.dist.outputs.cache-hit != 'true' && steps.gecko.outcome != 'skipped' }}
-        continue-on-error: true
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ${{ runner.temp }}/sccache
-          key: ${{ steps.sccache.outputs.cache-primary-key }}
+      - name: Archive object directory for the next pass
+        id: archive
+        if: ${{ steps.gecko.outcome == 'success' && steps.gecko.outputs.status == '75' && !inputs.final_pass }}
+        env:
+          OBJDIR_FINGERPRINT: ${{ steps.fp.outputs.objdir }}
+        run: |
+          set -euo pipefail
+          df -h "$GITHUB_WORKSPACE"
+          ./tools/development/build-gecko-pass.sh save "$GECKO_STATE" "$OBJDIR_FINGERPRINT"
 
-      - name: Save Gecko dependency cache
-        if: >-
-          ${{ !cancelled() && inputs.flavor == 'standard' &&
-              steps.gecko.outcome == 'success' && steps.deps.outputs.cache-hit != 'true' }}
-        continue-on-error: true
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      # Artifacts do not count against the 10 GB Actions cache quota. They are
+      # only read by the next pass of this run.
+      - name: Upload object directory for the next pass
+        id: upload_state
+        if: ${{ steps.archive.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.mozbuild
-          key: ${{ steps.deps.outputs.cache-primary-key }}
+          name: gecko-objdir-${{ inputs.flavor }}-p${{ inputs.pass }}
+          path: ${{ runner.temp }}/gecko-state
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          overwrite: true
 
       - name: Stage Gecko packaging inputs
         id: stage
-        if: ${{ !cancelled() && steps.gecko.outcome == 'success' }}
+        if: ${{ steps.gecko.outcome == 'success' && steps.gecko.outputs.status == '0' }}
         run: |
           set -euo pipefail
           gecko_dist="engine/firefox/obj-aarch64-apple-ios/dist"
@@ -257,6 +362,31 @@ jobs:
           test -d "$GECKO_STAGE/include/GeckoView"
           test -n "$(find "$GECKO_STAGE/default-theme" -type f -print -quit)"
 
+      # Saved only from a finished build: the server is stopped and nothing
+      # writes into the directory any more, and one entry per flavor holds the
+      # objects of every pass (they travel between passes in the artifact).
+      - name: Save sccache directory
+        if: ${{ steps.verify.outcome == 'success' && steps.dist.outputs.cache-hit != 'true' }}
+        continue-on-error: true
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/sccache
+          key: sccache-v3-${{ inputs.flavor }}-${{ steps.fp.outputs.compile }}-${{ steps.fp.outputs.firefox }}-${{ steps.fp.outputs.sources }}
+
+      - name: Save Gecko dependency cache
+        if: >-
+          ${{ !cancelled() && inputs.flavor == 'standard' &&
+              steps.verify.outcome == 'success' && steps.dist.outputs.cache-hit != 'true' &&
+              steps.deps.outputs.cache-hit != 'true' }}
+        continue-on-error: true
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.mozbuild
+          key: ${{ steps.deps.outputs.cache-primary-key }}
+
       - name: Save prebuilt Gecko distribution
         if: ${{ steps.stage.outcome == 'success' && steps.verify.outcome == 'success' }}
         continue-on-error: true
@@ -273,6 +403,7 @@ jobs:
           path: ${{ runner.temp }}/gecko-dist
           if-no-files-found: error
           retention-days: 3
+          overwrite: true
 
       - name: Decide whether the build must resume
         id: result
@@ -280,32 +411,47 @@ jobs:
         env:
           DIST_HIT: ${{ steps.dist.outputs.cache-hit }}
           GECKO_OUTCOME: ${{ steps.gecko.outcome }}
+          GECKO_STATUS: ${{ steps.gecko.outputs.status }}
           VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          UPLOAD_STATE_OUTCOME: ${{ steps.upload_state.outcome }}
           FINAL_PASS: ${{ inputs.final_pass }}
+          FLAVOR: ${{ inputs.flavor }}
+          PASS: ${{ inputs.pass }}
         run: |
           set -euo pipefail
+          minutes=$(( ($(date +%s) - GECKO_JOB_STARTED) / 60 ))
           if [[ "$VERIFY_OUTCOME" == "success" ]]; then
             echo "complete=true" >> "$GITHUB_OUTPUT"
             echo "resume=false" >> "$GITHUB_OUTPUT"
             if [[ "$DIST_HIT" == "true" ]]; then
-              echo "### Gecko ${{ inputs.flavor }}: reused prebuilt distribution" >> "$GITHUB_STEP_SUMMARY"
+              echo "### Gecko $FLAVOR: reused prebuilt distribution" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "### Gecko $FLAVOR: built in pass $PASS ($minutes min in this job)" >> "$GITHUB_STEP_SUMMARY"
             fi
             exit 0
           fi
           echo "complete=false" >> "$GITHUB_OUTPUT"
-          elapsed=$(( $(date +%s) - ${GECKO_BUILD_STARTED:-$(date +%s)} ))
-          budget=$(( GECKO_BUILD_MINUTES * 60 ))
-          # Only a build that ran into its time budget is resumed; a compiler or
+          # Only a build stopped at its time budget resumes; a compiler or
           # patch error fails right here instead of being retried for hours.
-          if [[ "$GECKO_OUTCOME" == "failure" && "$elapsed" -ge $(( budget - 180 )) && "$FINAL_PASS" != "true" ]]; then
+          if [[ "$GECKO_OUTCOME" == "success" && "$GECKO_STATUS" == "75" ]]; then
+            if [[ "$FINAL_PASS" == "true" ]]; then
+              echo "resume=false" >> "$GITHUB_OUTPUT"
+              echo "Gecko $FLAVOR is still unfinished after pass $PASS, the last allowed pass." >&2
+              exit 1
+            fi
+            if [[ "$UPLOAD_STATE_OUTCOME" != "success" ]]; then
+              echo "resume=false" >> "$GITHUB_OUTPUT"
+              echo "Gecko $FLAVOR pass $PASS could not upload its object directory." >&2
+              exit 1
+            fi
             echo "resume=true" >> "$GITHUB_OUTPUT"
             {
-              echo "### Gecko ${{ inputs.flavor }}: time budget reached after $(( elapsed / 60 )) min"
+              echo "### Gecko $FLAVOR: pass $PASS reached its time budget after $minutes min"
               echo
-              echo "Compiled objects were saved to sccache; a resume pass will finish the build."
+              echo "The object directory was uploaded; pass $(( PASS + 1 )) continues the build."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           echo "resume=false" >> "$GITHUB_OUTPUT"
-          echo "Gecko ${{ inputs.flavor }} failed (outcome: $GECKO_OUTCOME, $(( elapsed / 60 )) min)." >&2
+          echo "Gecko $FLAVOR failed in pass $PASS (outcome: $GECKO_OUTCOME, status: ${GECKO_STATUS:-none})." >&2
           exit 1

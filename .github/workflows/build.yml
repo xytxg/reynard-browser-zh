@@ -79,9 +79,11 @@ jobs:
             core.setOutput('build_nojemalloc', String(nojemalloc));
 
   # Each Gecko flavor is compiled exactly once per run, in parallel. A pass
-  # that reaches its time budget saves its compiler cache and the matching
-  # resume job finishes the build, so no job runs into the 6 hour limit.
-  gecko-standard:
+  # that reaches its time budget uploads its object directory and the next
+  # pass continues the same build, so no job runs into the 6 hour limit. A
+  # cold build (new Firefox or toolchain) needs two or three passes; the
+  # fourth is the last one allowed and fails if Gecko is still unfinished.
+  gecko-standard-p1:
     needs: prepare
     if: ${{ needs.prepare.outputs.build_standard == 'true' }}
     uses: ./.github/workflows/build-gecko.yml
@@ -90,18 +92,44 @@ jobs:
       flavor: standard
       build_args: --use-sccache --auto-clobber
 
-  gecko-standard-resume:
-    needs: [prepare, gecko-standard]
-    if: ${{ !cancelled() && needs.gecko-standard.result == 'success' && needs.gecko-standard.outputs.resume == 'true' }}
+  gecko-standard-p2:
+    needs: [prepare, gecko-standard-p1]
+    if: ${{ !cancelled() && needs.gecko-standard-p1.result == 'success' && needs.gecko-standard-p1.outputs.resume == 'true' }}
     uses: ./.github/workflows/build-gecko.yml
     with:
       checkout_ref: ${{ inputs.checkout_ref }}
       flavor: standard
       build_args: --use-sccache --auto-clobber
       pass: 2
+      rust_toolchain: ${{ needs.gecko-standard-p1.outputs.rust_toolchain }}
+      xcode_version: ${{ needs.gecko-standard-p1.outputs.xcode_version }}
+
+  gecko-standard-p3:
+    needs: [prepare, gecko-standard-p1, gecko-standard-p2]
+    if: ${{ !cancelled() && needs.gecko-standard-p2.result == 'success' && needs.gecko-standard-p2.outputs.resume == 'true' }}
+    uses: ./.github/workflows/build-gecko.yml
+    with:
+      checkout_ref: ${{ inputs.checkout_ref }}
+      flavor: standard
+      build_args: --use-sccache --auto-clobber
+      pass: 3
+      rust_toolchain: ${{ needs.gecko-standard-p1.outputs.rust_toolchain }}
+      xcode_version: ${{ needs.gecko-standard-p1.outputs.xcode_version }}
+
+  gecko-standard-p4:
+    needs: [prepare, gecko-standard-p1, gecko-standard-p2, gecko-standard-p3]
+    if: ${{ !cancelled() && needs.gecko-standard-p3.result == 'success' && needs.gecko-standard-p3.outputs.resume == 'true' }}
+    uses: ./.github/workflows/build-gecko.yml
+    with:
+      checkout_ref: ${{ inputs.checkout_ref }}
+      flavor: standard
+      build_args: --use-sccache --auto-clobber
+      pass: 4
+      rust_toolchain: ${{ needs.gecko-standard-p1.outputs.rust_toolchain }}
+      xcode_version: ${{ needs.gecko-standard-p1.outputs.xcode_version }}
       final_pass: true
 
-  gecko-nojemalloc:
+  gecko-nojemalloc-p1:
     needs: prepare
     if: ${{ needs.prepare.outputs.build_nojemalloc == 'true' }}
     uses: ./.github/workflows/build-gecko.yml
@@ -110,24 +138,54 @@ jobs:
       flavor: nojemalloc
       build_args: --disable-jemalloc --use-sccache --auto-clobber
 
-  gecko-nojemalloc-resume:
-    needs: [prepare, gecko-nojemalloc]
-    if: ${{ !cancelled() && needs.gecko-nojemalloc.result == 'success' && needs.gecko-nojemalloc.outputs.resume == 'true' }}
+  gecko-nojemalloc-p2:
+    needs: [prepare, gecko-nojemalloc-p1]
+    if: ${{ !cancelled() && needs.gecko-nojemalloc-p1.result == 'success' && needs.gecko-nojemalloc-p1.outputs.resume == 'true' }}
     uses: ./.github/workflows/build-gecko.yml
     with:
       checkout_ref: ${{ inputs.checkout_ref }}
       flavor: nojemalloc
       build_args: --disable-jemalloc --use-sccache --auto-clobber
       pass: 2
+      rust_toolchain: ${{ needs.gecko-nojemalloc-p1.outputs.rust_toolchain }}
+      xcode_version: ${{ needs.gecko-nojemalloc-p1.outputs.xcode_version }}
+
+  gecko-nojemalloc-p3:
+    needs: [prepare, gecko-nojemalloc-p1, gecko-nojemalloc-p2]
+    if: ${{ !cancelled() && needs.gecko-nojemalloc-p2.result == 'success' && needs.gecko-nojemalloc-p2.outputs.resume == 'true' }}
+    uses: ./.github/workflows/build-gecko.yml
+    with:
+      checkout_ref: ${{ inputs.checkout_ref }}
+      flavor: nojemalloc
+      build_args: --disable-jemalloc --use-sccache --auto-clobber
+      pass: 3
+      rust_toolchain: ${{ needs.gecko-nojemalloc-p1.outputs.rust_toolchain }}
+      xcode_version: ${{ needs.gecko-nojemalloc-p1.outputs.xcode_version }}
+
+  gecko-nojemalloc-p4:
+    needs: [prepare, gecko-nojemalloc-p1, gecko-nojemalloc-p2, gecko-nojemalloc-p3]
+    if: ${{ !cancelled() && needs.gecko-nojemalloc-p3.result == 'success' && needs.gecko-nojemalloc-p3.outputs.resume == 'true' }}
+    uses: ./.github/workflows/build-gecko.yml
+    with:
+      checkout_ref: ${{ inputs.checkout_ref }}
+      flavor: nojemalloc
+      build_args: --disable-jemalloc --use-sccache --auto-clobber
+      pass: 4
+      rust_toolchain: ${{ needs.gecko-nojemalloc-p1.outputs.rust_toolchain }}
+      xcode_version: ${{ needs.gecko-nojemalloc-p1.outputs.xcode_version }}
       final_pass: true
 
   build:
     needs:
       - prepare
-      - gecko-standard
-      - gecko-standard-resume
-      - gecko-nojemalloc
-      - gecko-nojemalloc-resume
+      - gecko-standard-p1
+      - gecko-standard-p2
+      - gecko-standard-p3
+      - gecko-standard-p4
+      - gecko-nojemalloc-p1
+      - gecko-nojemalloc-p2
+      - gecko-nojemalloc-p3
+      - gecko-nojemalloc-p4
     # Runs after whichever Gecko jobs ran; each leg checks its own flavor, so
     # one broken flavor does not block the other variant's packages.
     if: ${{ !cancelled() && needs.prepare.outputs.should_build == 'true' }}
@@ -142,8 +200,8 @@ jobs:
       - name: Require a finished Gecko build
         env:
           VARIANT: ${{ matrix.variant }}
-          STANDARD_COMPLETE: ${{ needs.gecko-standard.outputs.complete == 'true' || needs.gecko-standard-resume.outputs.complete == 'true' }}
-          NOJEMALLOC_COMPLETE: ${{ needs.gecko-nojemalloc.outputs.complete == 'true' || needs.gecko-nojemalloc-resume.outputs.complete == 'true' }}
+          STANDARD_COMPLETE: ${{ needs.gecko-standard-p1.outputs.complete == 'true' || needs.gecko-standard-p2.outputs.complete == 'true' || needs.gecko-standard-p3.outputs.complete == 'true' || needs.gecko-standard-p4.outputs.complete == 'true' }}
+          NOJEMALLOC_COMPLETE: ${{ needs.gecko-nojemalloc-p1.outputs.complete == 'true' || needs.gecko-nojemalloc-p2.outputs.complete == 'true' || needs.gecko-nojemalloc-p3.outputs.complete == 'true' || needs.gecko-nojemalloc-p4.outputs.complete == 'true' }}
         run: |
           set -euo pipefail
           if [[ "$VARIANT" == "standard" ]]; then complete="$STANDARD_COMPLETE"; else complete="$NOJEMALLOC_COMPLETE"; fi

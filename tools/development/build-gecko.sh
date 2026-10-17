@@ -96,6 +96,14 @@ trap 'exit 143' TERM
 	fi
 } > "$MOZCONFIG"
 
+# CI resumes a build in a later job from a saved object directory. It gives
+# every source file the same fixed timestamp in each job, so the regenerated
+# mozconfig must not look newer than the objects either, or mach would
+# reconfigure and make would treat finished objects as stale.
+if [ -n "${GECKO_SOURCE_MTIME:-}" ]; then
+	touch -t "$GECKO_SOURCE_MTIME" "$MOZCONFIG"
+fi
+
 if ! rustup target list | grep -q "^$TARGET (installed)"; then
 	rustup target add "$TARGET"
 fi
