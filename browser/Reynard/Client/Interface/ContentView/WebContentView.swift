@@ -54,6 +54,11 @@ final class WebContentView: UIView, UIScrollViewDelegate {
     var onHistorySwipeDidEnd: (() -> Void)?
     var onVerticalScroll: ((CGFloat, CGFloat) -> Void)?
     
+    var keyCommandDelegate: GeckoViewKeyCommandDelegate? {
+        get { return webView.keyCommandDelegate }
+        set { webView.keyCommandDelegate = newValue }
+    }
+    
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureHierarchy()
@@ -156,11 +161,11 @@ final class WebContentView: UIView, UIScrollViewDelegate {
             refreshIndicator.bottomAnchor.constraint(equalTo: refreshIndicatorContainer.bottomAnchor),
         ])
     }
-
+    
     func positionErrorLabel(below topAnchor: NSLayoutYAxisAnchor) {
         errorLabel.topAnchor.constraint(equalTo: topAnchor, constant: UX.errorTopInset).isActive = true
     }
-
+    
     func positionRefreshIndicator(below topAnchor: NSLayoutYAxisAnchor) {
         refreshIndicatorContainer.topAnchor.constraint(
             equalTo: topAnchor,

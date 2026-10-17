@@ -441,7 +441,17 @@ requireText(mediaSession, "artworkRequestID", "stale media artwork requests can 
 const imagePreviewLoader = read(
   "browser/Reynard/Client/Interface/ContextMenu/ImagePreview/ImagePreviewLoader.swift"
 );
-requireText(imagePreviewLoader, "BoundedURLDataLoader", "image previews are not capped while streaming");
+requireText(imagePreviewLoader, "fetchImageData", "image previews no longer use Gecko networking");
+requireText(
+  imagePreviewLoader,
+  "data.count <= maximumSourceDataSize",
+  "image previews fetched through Gecko are not size capped"
+);
+requireText(
+  read("patches/mobile/shared/actors/GeckoViewContentChild.sys.mjs.patch"),
+  "MAX_FETCH_IMAGE_BYTES",
+  "the content process does not cap context menu image fetches before base64 encoding"
+);
 requireText(imagePreviewLoader, "maximumPreviewPixelSize", "image previews are not downsampled");
 
 const zipArchiveReader = read("browser/Reynard/Client/Utilities/ZipArchiveReader.swift");
@@ -601,6 +611,12 @@ requireText(formalReleaseWorkflow, ".sha256", "formal releases do not publish SH
 requireText(formalReleaseWorkflow, "reynard-update-build:", "formal releases do not expose their build number");
 const nightlyWorkflow = read(".github/workflows/build-nightly.yml");
 requireText(nightlyWorkflow, "should_build", "nightly builds do not skip unchanged commits");
+requireText(nightlyWorkflow, "## Nightly skipped", "skipped nightlies are not reported in the run summary");
+const threeIpaTriggers = read(".github/workflows/build-three-ipa.yml").split("\njobs:")[0];
+if (/^\s*-\s*main\s*$/m.test(threeIpaTriggers)) {
+  throw new Error("build-three-ipa.yml rebuilds every main push in addition to nightly and release builds");
+}
+requireText(threeIpaTriggers, "- sync/**", "build-three-ipa.yml no longer builds sync branches before merge");
 for (const workflowName of fs.readdirSync(path.join(root, ".github/workflows"))) {
   if (!workflowName.endsWith(".yml")) {
     continue;
@@ -611,9 +627,75 @@ for (const workflowName of fs.readdirSync(path.join(root, ".github/workflows")))
   if (checkoutCount !== persistedCount) {
     throw new Error(`${workflowName} has a checkout that persists the GitHub token`);
   }
-  if (workflowName !== "build.yml" && !workflowText.includes("\nconcurrency:\n")) {
+  // Reusable workflows inherit the caller's concurrency group.
+  const reusableOnly = /^on:\n  workflow_call:\n/m.test(workflowText);
+  if (!reusableOnly && !workflowText.includes("\nconcurrency:\n")) {
     throw new Error(`${workflowName} has no concurrency group`);
   }
+}
+// Gecko is compiled once per flavor, stays inside the 6 hour job limit, and
+// its compiler cache stays below the repository's 10 GB Actions cache quota.
+const sharedBuildWorkflow = read(".github/workflows/build.yml");
+const geckoWorkflow = read(".github/workflows/build-gecko.yml");
+for (const caller of [formalReleaseWorkflow, nightlyWorkflow, read(".github/workflows/build-three-ipa.yml")]) {
+  requireText(caller, "uses: ./.github/workflows/build.yml", "a release, nightly or three-variant build no longer uses the shared build pipeline");
+}
+for (const flavor of ["standard", "nojemalloc"]) {
+  for (const pass of [1, 2, 3, 4]) {
+    requireText(sharedBuildWorkflow, `  gecko-${flavor}-p${pass}:\n`, `build.yml has no gecko-${flavor}-p${pass} job`);
+  }
+  // Resume passes must reuse pass 1's exact compilers, or cargo and make
+  // would rebuild everything the earlier passes produced.
+  requireText(
+    sharedBuildWorkflow,
+    `rust_toolchain: \${{ needs.gecko-${flavor}-p1.outputs.rust_toolchain }}`,
+    `resume passes of ${flavor} do not pin pass 1's Rust toolchain`
+  );
+  requireText(
+    sharedBuildWorkflow,
+    `xcode_version: \${{ needs.gecko-${flavor}-p1.outputs.xcode_version }}`,
+    `resume passes of ${flavor} do not pin pass 1's Xcode`
+  );
+  requireText(
+    sharedBuildWorkflow,
+    `needs.gecko-${flavor}-p4.outputs.complete == 'true'`,
+    `packaging ignores the last ${flavor} pass`
+  );
+}
+if ((sharedBuildWorkflow.match(/uses: \.\/\.github\/workflows\/build-gecko\.yml/g) ?? []).length !== 8) {
+  throw new Error("build.yml must build each Gecko flavor through build-gecko.yml in at most four passes");
+}
+if ((sharedBuildWorkflow.match(/final_pass: true/g) ?? []).length !== 2) {
+  throw new Error("each Gecko flavor needs exactly one final pass that fails instead of resuming");
+}
+rejectText(sharedBuildWorkflow, "tools/development/build-gecko.sh", "packaging jobs compile Gecko again instead of using the Gecko artifact");
+requireText(sharedBuildWorkflow, "name: gecko-dist-${{ matrix.variant }}", "packaging jobs do not consume the Gecko artifact");
+requireText(sharedBuildWorkflow, "--disable-jemalloc --use-sccache --auto-clobber", "the jailbroken Gecko flavor lost --disable-jemalloc");
+requireText(geckoWorkflow, "timeout-minutes: 355", "Gecko jobs can run into GitHub's 6 hour limit");
+requireText(geckoWorkflow, "GECKO_PASS_MINUTES: 300", "Gecko passes do not stop early enough to save their object directory");
+requireText(geckoWorkflow, "        timeout-minutes: 330\n", "the Gecko compile step has no backstop timeout");
+requireText(geckoWorkflow, "build-gecko-pass.sh run", "Gecko passes are not stopped cleanly at their time budget");
+requireText(geckoWorkflow, "build-gecko-pass.sh normalize-sources", "resumed Gecko builds would treat restored objects as stale");
+requireText(geckoWorkflow, "build-gecko-pass.sh save", "Gecko passes do not keep their object directory for the next pass");
+requireText(geckoWorkflow, "build-gecko-pass.sh restore", "Gecko resume passes do not restore the previous object directory");
+requireText(geckoWorkflow, "name: gecko-objdir-${{ inputs.flavor }}-p${{ inputs.pass }}", "the object directory artifact is not per flavor and pass");
+requireText(geckoWorkflow, "SCCACHE_CACHE_SIZE:", "the local sccache directory is not size capped");
+requireText(geckoWorkflow, "uses: actions/cache/save@", "Gecko jobs do not save their compiler cache");
+requireText(geckoWorkflow, "key: gecko-dist-v3-", "Gecko jobs do not reuse an identical prebuilt Gecko");
+// sccache is saved only from a finished build: saving the directory while
+// the killed build's compilers still wrote into it made `tar` fail.
+const sccacheSave = geckoWorkflow.split("- name: Save sccache directory\n")[1]?.split("\n      - name:")[0] ?? "";
+requireText(sccacheSave, "steps.verify.outcome == 'success'", "sccache is saved from an unfinished or still running build");
+const geckoPass = read("tools/development/build-gecko-pass.sh");
+requireText(geckoPass, "--stop-server", "the pass script archives sccache while its server can still write");
+requireText(geckoPass, "-newer \"$marker\"", "the pass script keeps outputs that were being written when it stopped");
+requireText(geckoPass, "RESUMABLE=75", "the pass script does not report a resumable stop separately from a build failure");
+requireText(geckoBuild, 'touch -t "$GECKO_SOURCE_MTIME" "$MOZCONFIG"', "a regenerated mozconfig would force resumed builds to reconfigure");
+for (const workflowText of [sharedBuildWorkflow, geckoWorkflow]) {
+  rejectText(workflowText, "SCCACHE_GHA_ENABLED", "the per-object sccache Actions backend is back and floods the cache quota");
+}
+if (/name: Reynard[^\n]*gecko/i.test(geckoWorkflow)) {
+  throw new Error("Gecko artifacts must not match build-release.yml's Reynard*.*ipa download pattern");
 }
 rejectText(
   unsignedPackage,
