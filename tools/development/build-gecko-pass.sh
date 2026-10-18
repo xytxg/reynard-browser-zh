@@ -13,8 +13,15 @@
 #                      freshly checked out source file
 #   run DEADLINE ARGS  run build-gecko.sh ARGS; at the DEADLINE (Unix time)
 #                      stop it cleanly and drop half-written outputs
-#   save DIR           archive the object directory and sccache into DIR
+#   check-toolchain    verify that every tool the object directory's
+#                      configuration points at (bootstrapped clang, cbindgen,
+#                      node, SDKs, sccache, rustc, Python) still exists; if
+#                      not, drop config.status so mach configures (and
+#                      bootstraps into the same paths) again
+#   save DIR           archive the object directory, ~/.mozbuild and sccache
+#                      into DIR
 #   restore DIR FP     unpack an archive from DIR if it was made with FP
+#                      in the same checkout and home directory
 #
 # `run` exits 0 when Gecko is built, 75 when it stopped at the deadline and can
 # resume, and with the build's own status for a real build failure.
@@ -26,6 +33,10 @@ ROOT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 FIREFOX_DIR="$ROOT_DIR/engine/firefox"
 OBJDIR_NAME="obj-aarch64-apple-ios"
 OBJDIR="$FIREFOX_DIR/$OBJDIR_NAME"
+# configure records absolute paths (topsrcdir, topobjdir, the bootstrapped
+# toolchains under the mach state directory, sccache, rustc), so a pass can
+# only continue another one at exactly the same locations.
+MOZBUILD_DIR="${MOZBUILD_STATE_PATH:-$HOME/.mozbuild}"
 SOURCE_MTIME="${GECKO_SOURCE_MTIME:-202001010000}"
 RESUMABLE=75
 
@@ -103,6 +114,88 @@ PY
 	rm -f "$marker"
 }
 
+# Prints every absolute tool path recorded in config.status.json that is
+# missing on this machine; exit status 3 means the object directory belongs
+# to another checkout or objdir path and cannot be continued at all.
+missing_tools() {
+	python3 - "$OBJDIR/config.status.json" "$FIREFOX_DIR" "$OBJDIR" "$HOME" <<'PY'
+import json, os, shlex, sys
+
+status, srcdir, objdir, home = sys.argv[1:5]
+with open(status, encoding="utf-8") as fh:
+    config = json.load(fh)
+
+def same(a, b):
+    return os.path.normpath(a or "") == os.path.normpath(b)
+
+if not same(config.get("topsrcdir"), srcdir) or not same(config.get("topobjdir"), objdir):
+    print(f"recorded topsrcdir {config.get('topsrcdir')}, topobjdir {config.get('topobjdir')}", file=sys.stderr)
+    sys.exit(3)
+
+# Locations that hold tools, not build outputs: the mach state directory
+# and rustup under $HOME, the runner tool cache (sccache), Xcode and
+# Homebrew. Paths inside the source or object tree are build outputs.
+roots = [home, os.environ.get("RUNNER_TOOL_CACHE", ""), "/Applications", "/opt/homebrew"]
+roots = tuple(os.path.normpath(r) + os.sep for r in roots if r)
+inside = (os.path.normpath(srcdir) + os.sep, os.path.normpath(objdir) + os.sep)
+# Tools a resumed build runs directly. Their recorded path must exist
+# wherever it is.
+required = {"CC", "CXX", "HOST_CC", "HOST_CXX", "CCACHE", "RUSTC", "CARGO",
+            "CBINDGEN", "PYTHON3", "NODEJS", "MOZ_LIBCLANG_PATH"}
+
+def tokens(value):
+    if isinstance(value, str):
+        try:
+            return shlex.split(value)
+        except ValueError:
+            return value.split()
+    if isinstance(value, (list, tuple)):
+        return [t for item in value for t in tokens(item)]
+    return []
+
+missing = set()
+for key, value in config.get("substs", {}).items():
+    for token in tokens(value):
+        if not token.startswith("/"):
+            continue
+        path = os.path.normpath(token)
+        if path.startswith(inside):
+            continue
+        if (key in required or path.startswith(roots)) and not os.path.exists(path):
+            missing.add(f"{key}={path}")
+for line in sorted(missing):
+    print(line)
+PY
+}
+
+check_toolchain() {
+	if [ ! -f "$OBJDIR/config.status.json" ]; then
+		log "no configured object directory; configure will bootstrap the toolchains"
+		return 0
+	fi
+	local missing rc=0
+	missing="$(missing_tools)" || rc=$?
+	if [ "$rc" -eq 3 ]; then
+		log "object directory was configured for another checkout path; starting clean"
+		rm -rf "$OBJDIR"
+		return 0
+	elif [ "$rc" -ne 0 ]; then
+		echo "Could not read $OBJDIR/config.status.json" >&2
+		return "$rc"
+	fi
+	if [ -z "$missing" ]; then
+		log "all toolchain paths recorded by configure exist"
+		return 0
+	fi
+	log "toolchain paths recorded by configure are missing on this runner:"
+	printf '%s\n' "$missing" | sed 's/^/  /'
+	# Without config.status mach runs configure again, which bootstraps the
+	# same toolchains into the same $MOZBUILD_DIR paths. configure writes its
+	# outputs only when their content changes, so finished objects stay valid.
+	log "removing config.status so mach reconfigures and bootstraps them again"
+	rm -f "$OBJDIR/config.status"
+}
+
 run_pass() {
 	local deadline="$1" pid rc
 	shift
@@ -112,6 +205,8 @@ run_pass() {
 			exit 2
 			;;
 	esac
+
+	check_toolchain
 
 	# Job control puts the build into its own process group, so the whole
 	# mach/make/cargo tree can be signalled at once.
@@ -146,6 +241,11 @@ compressor() {
 	fi
 }
 
+# Where this pass builds; a saved object directory is only usable here.
+location_file() {
+	printf 'srcdir=%s\nobjdir=%s\nmozbuild=%s\n' "$FIREFOX_DIR" "$OBJDIR" "$MOZBUILD_DIR"
+}
+
 save_state() {
 	local out="$1" fingerprint="$2"
 	local zstd_bin
@@ -153,8 +253,17 @@ save_state() {
 	mkdir -p "$out"
 	test -d "$OBJDIR"
 	printf '%s\n' "$fingerprint" > "$out/fingerprint"
+	location_file > "$out/location"
 	# pax keeps sub-second timestamps, which make and cargo compare.
 	tar --format pax -C "$FIREFOX_DIR" -cf - "$OBJDIR_NAME" | "$zstd_bin" -T0 -3 -q -o "$out/objdir.tar.zst"
+	# The bootstrapped toolchains the objects were compiled with (clang and
+	# its headers, SDKs, cbindgen, node) and mach's virtualenvs. A fresh
+	# runner has none of them, and config.status points at these exact paths.
+	# toolchains/ only holds the downloaded archives and is left out.
+	if [ -d "$MOZBUILD_DIR" ]; then
+		tar --format pax -C "$(dirname "$MOZBUILD_DIR")" --exclude "$(basename "$MOZBUILD_DIR")/toolchains" \
+			-cf - "$(basename "$MOZBUILD_DIR")" | "$zstd_bin" -T0 -3 -q -o "$out/mozbuild.tar.zst"
+	fi
 	if [ -n "${SCCACHE_DIR:-}" ] && [ -d "$SCCACHE_DIR" ]; then
 		tar --format pax -C "$(dirname "$SCCACHE_DIR")" -cf - "$(basename "$SCCACHE_DIR")" |
 			"$zstd_bin" -T0 -1 -q -o "$out/sccache.tar.zst"
@@ -176,13 +285,29 @@ restore_state() {
 		echo "No saved Gecko object directory in $in" >&2
 		exit 1
 	fi
+	if [ "$(cat "$in/location" 2>/dev/null || true)" != "$(location_file)" ]; then
+		log "saved object directory was built at another location; starting clean"
+		log "saved:   $(tr '\n' ' ' < "$in/location" 2>/dev/null || echo none)"
+		log "current: $(location_file | tr '\n' ' ')"
+		rm -f "$in/objdir.tar.zst" "$in/mozbuild.tar.zst"
+		return 0
+	fi
 	if [ "$(cat "$in/fingerprint" 2>/dev/null || true)" != "$fingerprint" ]; then
 		# A different compiler, SDK or source set would mix incompatible objects.
 		log "saved object directory was built with a different toolchain or source; starting clean"
 		log "saved:   $(cat "$in/fingerprint" 2>/dev/null || echo none)"
 		log "current: $fingerprint"
-		rm -f "$in/objdir.tar.zst"
+		rm -f "$in/objdir.tar.zst" "$in/mozbuild.tar.zst"
 		return 0
+	fi
+	if [ -f "$in/mozbuild.tar.zst" ]; then
+		# Exactly the toolchains (and file timestamps) the objects were built
+		# with, at the paths config.status records.
+		rm -rf "$MOZBUILD_DIR"
+		mkdir -p "$(dirname "$MOZBUILD_DIR")"
+		"$zstd_bin" -dc "$in/mozbuild.tar.zst" | tar -xpf - -C "$(dirname "$MOZBUILD_DIR")"
+		rm -f "$in/mozbuild.tar.zst"
+		log "restored $(du -sh "$MOZBUILD_DIR" | cut -f1) mach state directory $MOZBUILD_DIR"
 	fi
 	rm -rf "$OBJDIR"
 	"$zstd_bin" -dc "$in/objdir.tar.zst" | tar -xpf - -C "$FIREFOX_DIR"
@@ -196,6 +321,9 @@ case "$command" in
 	normalize-sources)
 		normalize_sources
 		;;
+	check-toolchain)
+		check_toolchain
+		;;
 	run)
 		run_pass "$@"
 		;;
@@ -206,7 +334,7 @@ case "$command" in
 		restore_state "${1:?restore needs an input directory}" "${2:?restore needs a fingerprint}"
 		;;
 	*)
-		echo "Usage: $0 normalize-sources | run DEADLINE [build args] | save DIR FINGERPRINT | restore DIR FINGERPRINT" >&2
+		echo "Usage: $0 normalize-sources | check-toolchain | run DEADLINE [build args] | save DIR FINGERPRINT | restore DIR FINGERPRINT" >&2
 		exit 2
 		;;
 esac

@@ -690,6 +690,22 @@ const geckoPass = read("tools/development/build-gecko-pass.sh");
 requireText(geckoPass, "--stop-server", "the pass script archives sccache while its server can still write");
 requireText(geckoPass, "-newer \"$marker\"", "the pass script keeps outputs that were being written when it stopped");
 requireText(geckoPass, "RESUMABLE=75", "the pass script does not report a resumable stop separately from a build failure");
+// configure records absolute tool paths; a resume pass on a fresh runner
+// must get the same toolchains at the same paths (run 39025087956 failed
+// with "sccache: cannot find binary path" because ~/.mozbuild was missing).
+requireText(geckoPass, 'mozbuild.tar.zst', "the object directory artifact does not carry the bootstrapped toolchains");
+requireText(geckoPass, "location_file", "a resume pass does not verify it builds at the same checkout and home paths");
+requireText(geckoPass, "config.status.json", "a resume pass does not check the tool paths configure recorded");
+requireText(geckoPass, 'rm -f "$OBJDIR/config.status"', "missing toolchains do not trigger a reconfigure and bootstrap");
+requireText(geckoPass, "\tcheck_toolchain\n", "the pass does not check recorded tool paths before building");
+const sccacheSetup = geckoWorkflow.split("- name: Set up sccache\n")[1]?.split("\n      - name:")[0] ?? "";
+if (!/version: v\d+\.\d+\.\d+/.test(sccacheSetup)) {
+  throw new Error("sccache is not pinned; its recorded path would change between passes");
+}
+requireText(geckoWorkflow, "toolchain: ${{ steps.rust.outputs.toolchain }}", "pass 1 installs Rust under a moving channel name");
+const depsSave = geckoWorkflow.split("- name: Save Gecko dependency cache\n")[1]?.split("\n      - name:")[0] ?? "";
+requireText(depsSave, "steps.bootstrap.outputs.ready == 'true'", "~/.mozbuild is not saved once its toolchains are bootstrapped");
+rejectText(depsSave, "steps.verify.outcome", "~/.mozbuild is only saved after a finished build");
 requireText(geckoBuild, 'touch -t "$GECKO_SOURCE_MTIME" "$MOZCONFIG"', "a regenerated mozconfig would force resumed builds to reconfigure");
 for (const workflowText of [sharedBuildWorkflow, geckoWorkflow]) {
   rejectText(workflowText, "SCCACHE_GHA_ENABLED", "the per-object sccache Actions backend is back and floods the cache quota");
