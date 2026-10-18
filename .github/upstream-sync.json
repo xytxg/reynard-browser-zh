@@ -1,11 +1,11 @@
 {
   "repository": "https://github.com/minh-ton/reynard-browser",
-  "previous_commit": "6114ed617d02f1ec470ba4af947f04904b493f48",
-  "commit": "55919a66a6cfb2efe5246a93b48139333b999edd",
+  "previous_commit": "55919a66a6cfb2efe5246a93b48139333b999edd",
+  "commit": "860bb6f4d0ff2b5d45f7dbe48eca8f39ee88a4fa",
   "gecko_release": "FIREFOX_158_0_RELEASE",
   "gecko_commit": "3c71aeacdb296402e41fb2084b13e797d1770642",
-  "integration_date": "2026-10-17",
+  "integration_date": "2026-10-18",
   "previous_fork_head": "1f991c3f831f10ee1358ffaeadaf9e6503b75738",
   "integration_base": "6114ed61",
-  "integration_method": "git format-patch 6114ed61..25aa6da1 (2026-10-15) and 25aa6da1..55919a66 (2026-10-17) + git am -3 (upstream authorship preserved); independent repository histories"
+  "integration_method": "git format-patch 6114ed61..25aa6da1 (2026-10-15), 25aa6da1..55919a66 (2026-10-17) and 55919a66..860bb6f4 (2026-10-18) + git am -3 (upstream authorship preserved); independent repository histories"
 }
