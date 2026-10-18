@@ -580,6 +580,11 @@ final class ContentView: UIView, UIGestureRecognizerDelegate {
     
     // MARK: - Interaction
     
+    var keyCommandDelegate: GeckoViewKeyCommandDelegate? {
+        get { return webContentView.keyCommandDelegate }
+        set { webContentView.keyCommandDelegate = newValue }
+    }
+    
     func addWebViewInteraction(_ interaction: UIInteraction) {
         webContentView.addWebViewInteraction(interaction)
     }

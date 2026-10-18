@@ -10,13 +10,15 @@ Reynard 是最低支持 iOS 13、并持续验证 iOS 27 SDK 兼容性的 Gecko �
 
 ## 上游同步状态
 
-当前维护代码已合并原作者仓库截至 `6114ed617d02f1ec470ba4af947f04904b493f48`
-（2026-10-11，Reynard 0.17.0）的更新，Gecko 为 `FIREFOX_157_0_1_RELEASE`，固定源码提交为
-`0c469c2352451630bc69fc328c9f0c589c6c534d`。在上游代码基础上保留中文分支的下载安全、
+当前维护代码已合并原作者仓库截至 `860bb6f4d0ff2b5d45f7dbe48eca8f39ee88a4fa`
+（2026-10-18，Reynard 0.18.0）的更新，Gecko 为 `FIREFOX_158_0_RELEASE`，固定源码提交为
+`3c71aeacdb296402e41fb2084b13e797d1770642`。在上游代码基础上保留中文分支的下载安全、
 私密会话保护、iOS 13 最低版本、iOS 27 SDK 编译验证与未签名 IPA 构建。
 
-近期同步包括 Firefox 157.0.1、原生文本输入重写、硬件键盘标签页切换与地址栏自动聚焦、
-剪贴板图片粘贴、DNS over HTTPS、远程调试、阅读模式与动态工具栏；
+近期同步包括 Firefox 158.0、浏览器界面视口的触摸命中坐标修复、about:memory 内存图块 NaN 修复、跟随系统代理与 PAC 设置、语音输入与音频会话改进、相机方向修复、
+JIT 内存预留在 iOS 13 等小地址空间设备上的自动降级、进程 CPU/内存统计、iOS 15 以下文本编辑自动滚动崩溃修复、网页文字原生选择与编辑菜单、
+合成器线程光标崩溃修复、滚动采样改进、通过 Gecko 网络获取上下文菜单图片（支持需登录的图片与 WebP）、
+桌面网站模式改用 macOS Firefox 标识，以及原生文本输入重写、硬件键盘标签页切换与地址栏自动聚焦；
 中文分支另修复私密标签页数据落盘、历史清理竞态、后台会话强制写入和动态边框颜色问题。
 
 具体基线见 `.github/upstream-sync.json`，当前更新见 `CHANGELOG.md`，早期合并记录见
@@ -106,7 +108,9 @@ TrollStore；不再把未经校验的下载地址直接交给 TrollStore。没�
 并附三个安装包的 SHA-256 校验文件和哈希；安装说明保留在本说明文档。
 **Build unsigned IPA from source** 不再响应标签，生成的 IPA 文件名格式为
 `Reynard-<版本>-<提交短 SHA>-unsigned.ipa`；只有在 `main` 上手动运行时才会创建
-`build-<运行编号>` 预发行版，应用内更新器不会提供预发行版。Nightly 在没有新提交时自动跳过。
+`build-<运行编号>` 预发行版，应用内更新器不会提供预发行版。Nightly 在没有新提交时自动跳过
+（运行仍显示成功，摘要中会注明未构建）。**Build three unsigned IPA variants** 只在 `sync/**`
+分支推送或手动运行时构建，`main` 的推送不再重复完整构建（合并前已在同步分支构建过）。
 Pull Request 默认只运行快速检查；需要按需验证完整包时，可在
 PR 标题中加入 `[build ipa]`，但 PR 构建不会创建发行版，以防未合并代码取得发布权限。
 旧的上游 AltStore 元数据刷新工作流只允许手动运行，不会再被每个中文构建发行版触发，也不会
@@ -167,9 +171,13 @@ AltStore、SideStore 或个人证书安装是否能启用 JIT，取决于 iOS �
   网页重新发起。扩展下载仅在底层提供控制接口时显示暂停操作。
 - 当前普通下载仍使用前台 `URLSession`。在没有验证任务重关联、目标路径恢复和 Gecko 捕获
   兼容性前，不会声称支持系统终止后的后台续传。
-- GitHub 托管 macOS Runner 首次构建 Gecko 会很慢，并可能因磁盘、六小时任务上限、上游下载
-  或缓存大小失败。工作流会保留实际日志，不会生成空 IPA；编译使用 sccache，成功的 Gecko 分发文件按源码和工具链精确缓存。若持续超过托管 Runner 限制，建议
-  使用至少 100 GB 可用空间的 self-hosted macOS Runner。
+- GitHub 托管 macOS Runner 冷编译 Gecko（升级 Firefox 或工具链后）单个任务做不完：仅 gkrust 的
+  Rust LTO 就要数小时且无法被 sccache 缓存。CI 因此把每种 Gecko 拆成最多 4 段：每段约 5 小时后
+  干净停止，把整个对象目录、`~/.mozbuild` 引导工具链和 sccache 打包为 artifact，下一段在相同路径、
+  同一 Xcode/Rust/sccache 版本下恢复，并在编译前校验 configure 记录的工具路径（缺失则重新引导），
+  再由 make/cargo 接着编译；冷编译通常需要 2–3 段（约 11–17 小时墙钟），每个任务都低于 6 小时。成功的 Gecko 分发文件
+  按源码和工具链精确缓存，只改 App 的提交约 30–40 分钟完成。工作流会保留实际日志，不会生成空 IPA。
+  若仍超过托管 Runner 限制，建议使用至少 100 GB 可用空间的 self-hosted macOS Runner。
 - Gecko 对部分网站权限或 iOS 能力没有可用接口时，Reynard 不会提供无效开关。
 
 ## 常见构建失败

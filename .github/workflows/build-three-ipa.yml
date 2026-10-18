@@ -2,11 +2,13 @@ name: Build three unsigned IPA variants
 
 run-name: Three IPA variants · ${{ github.ref_name }} · ${{ github.event_name }}
 
+# Pushes to main are not built here: a merged sync branch has already been
+# built on sync/**, build-release.yml builds every v* tag, and Build Nightly
+# builds main once a day when it changed. Dispatch manually to rebuild main.
 on:
   workflow_dispatch:
   push:
     branches:
-      - main
       - sync/**
 
 permissions:
