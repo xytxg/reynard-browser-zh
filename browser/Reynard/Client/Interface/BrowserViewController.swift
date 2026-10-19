@@ -346,6 +346,9 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
         contentView.onHistorySwipeBegan = { [weak self] in
             self?.captureOutgoingHistoryThumbnail()
         }
+        contentView.onErrorAction = { [weak self] action in
+            self?.performErrorPageAction(action)
+        }
         browserChrome.onSidebar = { [weak self] in
             self?.sidebarCoordinator.toggle(animated: true)
         }
@@ -998,10 +1001,10 @@ final class BrowserViewController: UIViewController, GeckoScreenOrientationDeleg
               source.isDescendant(of: engineView) else {
             return
         }
-
+        
         requestContentKeyboardFocus(for: session)
     }
-
+    
     @objc private func keyboardFrameWillChange(_ notification: Notification) {
         guard let frameValue = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else {
             return
