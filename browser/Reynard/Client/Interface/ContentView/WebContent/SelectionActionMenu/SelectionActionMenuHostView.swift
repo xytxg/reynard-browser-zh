@@ -151,6 +151,14 @@ final class SelectionActionMenuHostView: UITextView {
             configuration.preferredArrowDirection = .down
             interaction.presentEditMenu(with: configuration)
         } else {
+            // [reynard-browser-zh] Private selector: only call it where UIKit
+            // implements it, so older iOS versions do not crash.
+            let selectionViewSelector = NSSelectorFromString("selectionView")
+            if responds(to: selectionViewSelector) {
+                let selectionView = perform(selectionViewSelector)?.takeUnretainedValue() as? UIView
+                selectionView?.isHidden = true
+            }
+            
             let menuController = UIMenuController.shared
             menuController.hideMenu(from: self)
             menuController.arrowDirection = .down

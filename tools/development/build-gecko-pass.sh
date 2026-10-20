@@ -142,6 +142,10 @@ inside = (os.path.normpath(srcdir) + os.sep, os.path.normpath(objdir) + os.sep)
 # wherever it is.
 required = {"CC", "CXX", "HOST_CC", "HOST_CXX", "CCACHE", "RUSTC", "CARGO",
             "CBINDGEN", "PYTHON3", "NODEJS", "MOZ_LIBCLANG_PATH"}
+# Recorded defaults that are data locations, not tools, and normally do not
+# exist (the l10n checkout is only used for repacks). Missing ones must not
+# force a reconfigure.
+optional = {"L10NBASEDIR"}
 
 def tokens(value):
     if isinstance(value, str):
@@ -159,7 +163,7 @@ for key, value in config.get("substs", {}).items():
         if not token.startswith("/"):
             continue
         path = os.path.normpath(token)
-        if path.startswith(inside):
+        if path.startswith(inside) or key in optional:
             continue
         if (key in required or path.startswith(roots)) and not os.path.exists(path):
             missing.add(f"{key}={path}")

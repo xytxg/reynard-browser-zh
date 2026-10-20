@@ -89,9 +89,10 @@ jobs:
       SCCACHE_CACHE_SIZE: 3500M
       SCCACHE_IDLE_TIMEOUT: "0"
       # Minutes from job start until the build is stopped for the next pass.
-      # Stopping, archiving and uploading take < 30 minutes, inside the job's
-      # 355 minute timeout.
-      GECKO_PASS_MINUTES: 300
+      # Stopping, archiving and uploading took 4-5 minutes in the v0.18.0-zh.1
+      # release run (8.8 GB artifact); 320 keeps a 35 minute margin inside the
+      # job's 355 minute timeout.
+      GECKO_PASS_MINUTES: 320
       # Every Gecko source file gets this timestamp in every pass, so objects
       # restored from an earlier pass are never older than their sources.
       GECKO_SOURCE_MTIME: "202001010000"
