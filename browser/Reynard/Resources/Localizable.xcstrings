@@ -19404,6 +19404,12 @@
             "state": "translated",
             "value": "Page Stopped Working"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "页面已停止运行"
+          }
         }
       }
     },
@@ -21852,6 +21858,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "report the problem"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "报告此问题"
           }
         }
       }
@@ -26928,6 +26940,12 @@
             "state": "translated",
             "value": "The page stopped working unexpectedly.\n\nTry reloading the page. If this keeps happening, please %@."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "页面意外停止运行。\n\n请尝试重新加载页面。如果此问题反复出现，请%@。"
+          }
         }
       }
     },
@@ -28160,6 +28178,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Unable to Open Page"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法打开页面"
           }
         }
       }

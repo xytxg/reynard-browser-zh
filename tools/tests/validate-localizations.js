@@ -13,6 +13,10 @@ const settingsCatalogPath = path.join(
   root,
   "browser/Reynard/Client/Interface/Library/Settings/SettingsLocalizable.xcstrings"
 );
+const webContentErrorCatalogPath = path.join(
+  root,
+  "browser/Reynard/Client/Interface/ContentView/WebContentErrorLocalizable.xcstrings"
+);
 
 function fail(message) {
   console.error("Localization validation failed: " + message);
@@ -72,11 +76,22 @@ for (const [key, entry] of Object.entries(settingsCatalog.strings)) {
   }
 }
 
+const webContentErrorCatalog = JSON.parse(fs.readFileSync(webContentErrorCatalogPath, "utf8"));
+for (const [key, entry] of Object.entries(webContentErrorCatalog.strings)) {
+  const english = localizedValue(entry, "en") ?? key;
+  const chinese = localizedValue(entry, "zh-Hans");
+  if (!chinese) fail("missing error page zh-Hans translation: " + key);
+  if (placeholders(english).join("|") !== placeholders(chinese).join("|")) {
+    fail('error page placeholder mismatch for "' + key + '"');
+  }
+}
+
 // Validate source keys too: a catalog-only check misses new, untranslated UI text.
 const catalogs = {
   Localizable: mainCatalog,
   AddonLocalizable: addonCatalog,
   SettingsLocalizable: settingsCatalog,
+  WebContentErrorLocalizable: webContentErrorCatalog,
 };
 function validateSourceKeys(directory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -115,5 +130,5 @@ console.log(
     Object.keys(mainCatalog.strings).length +
     " app strings and " +
     Object.keys(addonCatalog.strings).length +
-    " add-on strings and " + Object.keys(settingsCatalog.strings).length + " settings strings"
+    " add-on strings and " + Object.keys(settingsCatalog.strings).length + " settings strings and " + Object.keys(webContentErrorCatalog.strings).length + " error page strings"
 );
