@@ -1548,7 +1548,7 @@ index c1c4c3deb341..0501b63b2df6 100644
  NS_IMPL_ISUPPORTS(IOSView, nsIGeckoViewEventDispatcher, nsIGeckoViewView)
  
  nsresult IOSView::GetInitData(JSContext* aCx,
-@@ -1248,6 +1856,141 @@ - (UIView*)view {
+@@ -1248,6 +1856,157 @@ - (UIView*)view {
    return mWindow ? (UIView*)mWindow->GetNativeData(NS_NATIVE_WIDGET) : nil;
  }
  
@@ -1673,7 +1673,23 @@ index c1c4c3deb341..0501b63b2df6 100644
 +- (BOOL)reloadWithHttpsOnlyExceptionForPageURI:(NSString*)aPageURI {
 +  RefPtr<dom::WindowGlobalParent> window =
 +      [self errorPageWindowForURI:aPageURI];
-+  return window && window->RecvReloadWithHttpsOnlyException();
++  if (!window) {
++    return NO;
++  }
++
++  // [reynard-browser-zh] RecvReloadWithHttpsOnlyException reports failures
++  // with IPC_FAIL, which kills the content process when it is called directly
++  // rather than from IPC. Only call it in the state it accepts.
++  nsCOMPtr<nsIURI> currentURI =
++      window->BrowsingContext()->Top()->GetCurrentURI();
++  dom::WindowGlobalParent* topWindow = window->TopWindowContext();
++  if (!currentURI ||
++      !(currentURI->SchemeIs("http") || currentURI->SchemeIs("https")) ||
++      !topWindow || !topWindow->DocumentPrincipal()) {
++    return NO;
++  }
++
++  return window->RecvReloadWithHttpsOnlyException() ? YES : NO;
 +}
 +
 +- (void)printToPDFWithBrowsingContextId:(NSNumber*)browsingContextId
@@ -1690,7 +1706,7 @@ index c1c4c3deb341..0501b63b2df6 100644
  - (void)close {
    if (mWindow) {
      if (IOSView* iosView = mWindow->GetIOSView()) {
-@@ -1261,6 +2004,7 @@ - (void)close {
+@@ -1261,6 +2020,7 @@ - (void)close {
      outerWin->ForceClose();
    }
  }

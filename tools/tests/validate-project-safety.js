@@ -70,7 +70,9 @@ if (!currentVersion) {
   throw new Error("Xcode project has no valid release version");
 }
 const releaseTag = read(".github/release-tag").trim();
-if (releaseTag !== `v${currentVersion}-zh.1`) {
+// A rebuild of the same app version gets the next -zh.N suffix; the updater
+// orders such releases by the build number written into the release notes.
+if (!new RegExp(`^v${currentVersion.replace(/\./g, "\\.")}-zh\\.[1-9][0-9]*$`).test(releaseTag)) {
   throw new Error("Release tag does not match the Xcode app version");
 }
 const formalReleaseWorkflow = read(".github/workflows/build-release.yml");
@@ -478,6 +480,46 @@ requireText(
 rejectText(ddiManager, "refs/heads/main", "Developer Disk Images still download from a mutable branch");
 requireText(ddiManager, "expectedSHA256", "Developer Disk Images are not SHA-256 verified");
 requireText(ddiManager, "expectedByteCount", "Developer Disk Image size is not verified");
+requireText(
+  ddiManager,
+  "05fd807da5e19f030fa4941f24800c965c6c77982ab572dd5d1ef778fb69f9ca",
+  "the personalized Developer Disk Image (iOS < 26.4) is not SHA-256 pinned"
+);
+requireText(ddiManager, "if #available(iOS 26.4, *)", "cryptex DDI mounting is not limited to iOS 26.4+");
+requireText(
+  read("browser/Reynard/Bridging/UIKit+Private.h"),
+  "API_AVAILABLE(ios(14.0))\n@interface _UIContextMenuStyle",
+  "the private _UIContextMenuStyle class is a hard launch dependency on iOS 13"
+);
+const contextMenuCoordinator = read("browser/Reynard/Client/Interface/ContextMenu/ContextMenuCoordinator.swift");
+requireText(
+  contextMenuCoordinator,
+  'NSClassFromString("_UIContextMenuStyle")',
+  "context menu style is used without checking the private class exists"
+);
+requireText(
+  contextMenuCoordinator,
+  "#selector(setter: _UIContextMenuStyle._preferredAnchor)",
+  "context menu anchor is set without checking the private setter exists"
+);
+requireText(
+  read("browser/Reynard/Client/Interface/ContentView/WebContent/SelectionActionMenu/SelectionActionMenuHostView.swift"),
+  "responds(to: selectionViewSelector)",
+  "the private selectionView selector is called without a responds(to:) check"
+);
+const webContentErrorView = read("browser/Reynard/Client/Interface/ContentView/WebContentErrorView.swift");
+rejectText(webContentErrorView, "as! String", "the error page force-casts the app display name");
+requireText(
+  webContentErrorView,
+  "linkRange.location != NSNotFound",
+  "the crash page link can raise when a translation drops the link text"
+);
+rejectText(webContentErrorView, "minh-ton/reynard-browser/issues", "crash reports from this build go to the upstream tracker");
+requireText(
+  read("patches/widget/uikit/nsWindow.mm.patch"),
+  "!topWindow || !topWindow->DocumentPrincipal()",
+  "HTTPS-only exceptions can hit IPC_FAIL (content process kill) when called directly"
+);
 
 const jitSettings = read(
   "browser/Reynard/Client/Interface/Library/Settings/Sections/JIT/JITSettingsSection.swift"
@@ -672,9 +714,20 @@ rejectText(sharedBuildWorkflow, "tools/development/build-gecko.sh", "packaging j
 requireText(sharedBuildWorkflow, "name: gecko-dist-${{ matrix.variant }}", "packaging jobs do not consume the Gecko artifact");
 requireText(sharedBuildWorkflow, "--disable-jemalloc --use-sccache --auto-clobber", "the jailbroken Gecko flavor lost --disable-jemalloc");
 requireText(geckoWorkflow, "timeout-minutes: 355", "Gecko jobs can run into GitHub's 6 hour limit");
-requireText(geckoWorkflow, "GECKO_PASS_MINUTES: 300", "Gecko passes do not stop early enough to save their object directory");
+{
+  const passMinutes = Number(geckoWorkflow.match(/GECKO_PASS_MINUTES: (\d+)/)?.[1]);
+  // The job timeout must leave time to stop, archive and upload the pass.
+  if (!(passMinutes >= 240 && passMinutes <= 325)) {
+    throw new Error("Gecko passes do not stop early enough to save their object directory");
+  }
+}
 requireText(geckoWorkflow, "        timeout-minutes: 330\n", "the Gecko compile step has no backstop timeout");
 requireText(geckoWorkflow, "build-gecko-pass.sh run", "Gecko passes are not stopped cleanly at their time budget");
+requireText(
+  read("tools/development/build-gecko-pass.sh"),
+  'optional = {"L10NBASEDIR"}',
+  "the never-created l10n directory still forces a reconfigure on every resumed pass"
+);
 requireText(geckoWorkflow, "build-gecko-pass.sh normalize-sources", "resumed Gecko builds would treat restored objects as stale");
 requireText(geckoWorkflow, "build-gecko-pass.sh save", "Gecko passes do not keep their object directory for the next pass");
 requireText(geckoWorkflow, "build-gecko-pass.sh restore", "Gecko resume passes do not restore the previous object directory");

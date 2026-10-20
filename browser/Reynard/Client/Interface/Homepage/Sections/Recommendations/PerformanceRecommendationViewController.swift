@@ -32,7 +32,7 @@ final class PerformanceRecommendationViewController: UIViewController, HomepageR
     private enum PerformanceRecommendationLink {
         static let enableInAppJITGuide = URL(string: "https://github.com/minh-ton/reynard-browser/wiki/Manually-Enabling-JIT")!
         static let installTrollStoreGuide = URL(string: "https://ios.cfw.guide/installing-trollstore/")!
-        static let downloadTrollStoreBuild = URL(string: "https://github.com/minh-ton/reynard-browser/releases/latest")!
+        static let downloadTrollStoreBuild = URL(string: "https://github.com/xytxg/reynard-browser-zh/releases/latest")!
     }
     
     private enum PerformanceRecommendationAction {

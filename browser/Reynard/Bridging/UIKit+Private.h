@@ -15,6 +15,9 @@ typedef struct {
     NSInteger gravity;
 } ContextMenuAnchor;
 
+// [reynard-browser-zh] Weakly linked: the private class must not be a hard
+// launch-time dependency on iOS 13, which predates the anchor customization.
+API_AVAILABLE(ios(14.0))
 @interface _UIContextMenuStyle : NSObject
 + (nonnull instancetype)defaultStyle;
 @property(nonatomic) ContextMenuAnchor _preferredAnchor;

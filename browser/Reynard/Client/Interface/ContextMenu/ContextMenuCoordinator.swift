@@ -198,6 +198,7 @@ final class ContextMenuCoordinator: NSObject {
 }
 
 extension ContextMenuCoordinator: UIContextMenuInteractionDelegate {
+    @available(iOS 14.0, *)
     @objc(_contextMenuInteraction:styleForMenuWithConfiguration:)
     func contextMenuInteraction(
         _ interaction: UIContextMenuInteraction,
@@ -211,7 +212,15 @@ extension ContextMenuCoordinator: UIContextMenuInteractionDelegate {
         }
         
         let alignment: UIRectEdge = context.point.x > sourceView.bounds.midX ? .right : .left
+        // [reynard-browser-zh] Private API: fall back to UIKit's default
+        // placement when this iOS version lacks the class or the anchor setter.
+        guard NSClassFromString("_UIContextMenuStyle") != nil else {
+            return nil
+        }
         let style = _UIContextMenuStyle.default()
+        guard style.responds(to: #selector(setter: _UIContextMenuStyle._preferredAnchor)) else {
+            return nil
+        }
         style._preferredAnchor = ContextMenuAnchor(
             attachment: .bottom,
             alignment: alignment,

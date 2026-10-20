@@ -239,11 +239,16 @@ final class WebContentErrorView: UIView, UITextViewDelegate {
         let attributedText = attributedMessage(message)
         if error.kind == .contentCrashed {
             let linkText = NSLocalizedString("report the problem", comment: "Inline link in the Page Stopped Working message")
-            attributedText.addAttribute(
-                .link,
-                value: URL(string: "https://github.com/minh-ton/reynard-browser/issues")!,
-                range: (message as NSString).range(of: linkText)
-            )
+            // [reynard-browser-zh] Reports for this build go to the fork; skip the
+            // link instead of raising when a translation drops the link text.
+            let linkRange = (message as NSString).range(of: linkText)
+            if linkRange.location != NSNotFound {
+                attributedText.addAttribute(
+                    .link,
+                    value: URL(string: "https://github.com/xytxg/reynard-browser-zh/issues")!,
+                    range: linkRange
+                )
+            }
         }
         messageView.attributedText = attributedText
         symbolView.image = content.symbol.flatMap {
@@ -337,7 +342,7 @@ final class WebContentErrorView: UIView, UITextViewDelegate {
         }
         
         let uri = error.uri ?? ""
-        let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as! String
+        let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Reynard"
         let text: String
         if error.kind == .badHSTSCertificate {
             text = String(
