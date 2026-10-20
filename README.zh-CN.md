@@ -10,12 +10,12 @@ Reynard 是最低支持 iOS 13、并持续验证 iOS 27 SDK 兼容性的 Gecko �
 
 ## 上游同步状态
 
-当前维护代码已合并原作者仓库截至 `860bb6f4d0ff2b5d45f7dbe48eca8f39ee88a4fa`
-（2026-10-18，Reynard 0.18.0）的更新，Gecko 为 `FIREFOX_158_0_RELEASE`，固定源码提交为
+当前维护代码已合并原作者仓库截至 `6e84bfca9c16b2204dc64c93d2089b5410039897`
+（2026-10-20，Reynard 0.18.0）的更新，Gecko 为 `FIREFOX_158_0_RELEASE`，固定源码提交为
 `3c71aeacdb296402e41fb2084b13e797d1770642`。在上游代码基础上保留中文分支的下载安全、
 私密会话保护、iOS 13 最低版本、iOS 27 SDK 编译验证与未签名 IPA 构建。
 
-近期同步包括 Firefox 158.0、浏览器界面视口的触摸命中坐标修复、about:memory 内存图块 NaN 修复、跟随系统代理与 PAC 设置、语音输入与音频会话改进、相机方向修复、
+近期同步包括原生网页加载错误页、iOS 26.4 以下的个性化 DDI 挂载、下拉刷新与上下文菜单位置修复、Firefox 158.0、浏览器界面视口的触摸命中坐标修复、about:memory 内存图块 NaN 修复、跟随系统代理与 PAC 设置、语音输入与音频会话改进、相机方向修复、
 JIT 内存预留在 iOS 13 等小地址空间设备上的自动降级、进程 CPU/内存统计、iOS 15 以下文本编辑自动滚动崩溃修复、网页文字原生选择与编辑菜单、
 合成器线程光标崩溃修复、滚动采样改进、通过 Gecko 网络获取上下文菜单图片（支持需登录的图片与 WebP）、
 桌面网站模式改用 macOS Firefox 标识，以及原生文本输入重写、硬件键盘标签页切换与地址栏自动聚焦；
@@ -29,7 +29,7 @@ JIT 内存预留在 iOS 13 等小地址空间设备上的自动降级、进程 C
 
 当 iOS 的首选语言为“简体中文”时，Reynard 会自动使用中文；英文资源仍然保留。
 主应用、OpenIn 扩展、Reynard Helper 扩展和附加组件界面都包含中文资源。可以运行
-`tools/tests/run-static-tests.sh` 检查主界面、附加组件和设置的缺失翻译、源码中的本地化键及格式化占位符。
+`tools/tests/run-static-tests.sh` 检查主界面、附加组件、设置和网页错误页的缺失翻译、源码中的本地化键及格式化占位符。
 
 ## 未签名 IPA 是什么
 
@@ -172,7 +172,7 @@ AltStore、SideStore 或个人证书安装是否能启用 JIT，取决于 iOS �
 - 当前普通下载仍使用前台 `URLSession`。在没有验证任务重关联、目标路径恢复和 Gecko 捕获
   兼容性前，不会声称支持系统终止后的后台续传。
 - GitHub 托管 macOS Runner 冷编译 Gecko（升级 Firefox 或工具链后）单个任务做不完：仅 gkrust 的
-  Rust LTO 就要数小时且无法被 sccache 缓存。CI 因此把每种 Gecko 拆成最多 4 段：每段约 5 小时后
+  Rust LTO 就要数小时且无法被 sccache 缓存。CI 因此把每种 Gecko 拆成最多 4 段：每段约 5 小时 20 分钟后
   干净停止，把整个对象目录、`~/.mozbuild` 引导工具链和 sccache 打包为 artifact，下一段在相同路径、
   同一 Xcode/Rust/sccache 版本下恢复，并在编译前校验 configure 记录的工具路径（缺失则重新引导），
   再由 make/cargo 接着编译；冷编译通常需要 2–3 段（约 11–17 小时墙钟），每个任务都低于 6 小时。成功的 Gecko 分发文件
