@@ -1,5 +1,7 @@
 # Reynard Browser 简体中文说明
 
+> **本分支做了什么：** 汉化范围与条数、修复与加固、与上游的差异及当前同步基线，见中英双语的 [docs/FORK.md](docs/FORK.md)。English: [README.md](README.md).
+
 Reynard 是最低支持 iOS 13、并持续验证 iOS 27 SDK 兼容性的 Gecko 浏览器。本分支保留原有 Gecko、JIT、应用扩展、
 标签页和侧载架构，并加入简体中文（`zh-Hans`）、下载安全修复、私密会话保护和源码构建
 未签名 IPA 的 GitHub Actions 流程。

@@ -2,6 +2,8 @@
 
 # Reynard Browser
 
+> **About this fork / 关于本分支:** see [docs/FORK.md](docs/FORK.md) for what this Simplified Chinese fork changes — localization counts, fixes and hardening, differences from upstream and the current sync baseline (Chinese and English). 中文说明见 [README.zh-CN.md](README.zh-CN.md)。
+
 Reynard is a **Gecko-based** web browser with an iOS 13 deployment target and iOS 27 SDK compatibility checks.
 
 > [!NOTE]
