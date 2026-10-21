@@ -465,7 +465,19 @@ const addonPackageSafety = read(
   "browser/Reynard/Client/Interface/Addons/AddonPackageSafety.swift"
 );
 requireText(addonPackageSafety, "maximumPackageSize", "add-on package files are not size limited");
-requireText(addonPackageSafety, "zipSignatures", "add-on packages are not checked for ZIP format");
+requireText(addonPackageSafety, "validateZip", "add-on packages need central-directory validation");
+requireText(addonPackageSafety, "maximumUnpackedSize", "add-on ZIP inflation is not bounded");
+requireText(addonPackageSafety, 'name == "manifest.json"', "add-on ZIP files must contain a root manifest");
+requireText(
+  read("browser/Reynard/Client/Stores/SitePermissionStore.swift"),
+  "migrateLegacyHostPermissionsLocked",
+  "legacy host-only site permissions are not isolated"
+);
+requireText(
+  read("browser/Reynard/Client/Shared/URLUtils.swift"),
+  "permissionOrigin(from rawURI:",
+  "web permissions are not normalized to complete origins"
+);
 
 const svgRenderer = read("browser/Reynard/Client/Utilities/SVGIconRenderer.swift");
 requireText(svgRenderer, "isSafeSVGDocument", "untrusted SVG icons are not screened before private parsing");
