@@ -1,0 +1,27 @@
+name: Track upstream localization changes
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '19 2 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Compare four catalogs against upstream main
+        run: node tools/tests/report-upstream-localization.js
+      - name: Upload report for human translation review
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: upstream-localization-report
+          path: upstream-localization-report.md
+          retention-days: 30
