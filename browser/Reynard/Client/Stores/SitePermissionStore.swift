@@ -155,6 +155,7 @@ final class SitePermissionStore {
             openDatabaseLocked()
             configureDatabaseLocked()
             createSchemaLocked()
+            migrateLegacyHostPermissionsLocked()
         }
     }
     
@@ -172,7 +173,10 @@ final class SitePermissionStore {
     // MARK: - Permissions
     
     func resolvedAction(for permission: SitePermission, host: String, session: GeckoSession) -> SitePermissionAction {
-        let host = URLUtils.normalizedHost(host) ?? ""
+        // Invalid or legacy host-only identifiers must never silently grant a permission.
+        guard let host = URLUtils.permissionOrigin(from: host) else {
+            return SiteSettingsUtils.defaultAction(for: permission)
+        }
         return stateQueue.sync {
             let resolvedAction: SitePermissionAction
             if session.isPrivateMode {
@@ -190,21 +194,24 @@ final class SitePermissionStore {
     }
     
     func scheduleActionUpdate(_ action: SitePermissionAction, for permission: SitePermission, host: String, session: GeckoSession) {
-        let host = URLUtils.normalizedHost(host) ?? ""
+        guard let host = URLUtils.permissionOrigin(from: host) else { return }
+        stateQueue.async {
         stateQueue.async {
             self.setActionLocked(action, for: permission, host: host, session: session)
         }
     }
     
     func updateAction(_ action: SitePermissionAction, for permission: SitePermission, host: String, session: GeckoSession) {
-        let host = URLUtils.normalizedHost(host) ?? ""
+        guard let host = URLUtils.permissionOrigin(from: host) else { return }
+        stateQueue.sync {
         stateQueue.sync {
             self.setActionLocked(action, for: permission, host: host, session: session)
         }
     }
     
     func removeAction(for permission: SitePermission, host: String, session: GeckoSession) {
-        let host = URLUtils.normalizedHost(host) ?? ""
+        guard let host = URLUtils.permissionOrigin(from: host) else { return }
+        stateQueue.sync {
         stateQueue.sync {
             if session.isPrivateMode {
                 self.removePrivateActionLocked(for: permission, host: host, session: session)
@@ -231,7 +238,8 @@ final class SitePermissionStore {
     }
     
     func removePersistedAction(for permission: SitePermission, host: String) {
-        let host = URLUtils.normalizedHost(host) ?? ""
+        guard let host = URLUtils.permissionOrigin(from: host) else { return }
+        stateQueue.sync {
         stateQueue.sync {
             _ = deleteActionLocked(for: permission, host: host)
         }
@@ -290,6 +298,42 @@ final class SitePermissionStore {
         _ = executeLocked(sql)
     }
     
+    // A hostname-only grant cannot safely be mapped to an origin: different
+    // schemes and ports are separate security principals. Preserve legacy rows
+    // in a separate table for diagnosis/rollback, but never use them to grant.
+    // This migration runs in one SQLite transaction and is idempotent.
+    private func migrateLegacyHostPermissionsLocked() {
+        guard database != nil else { return }
+        let hasLegacyRows = "SELECT COUNT(*) FROM site_permissions WHERE host NOT LIKE '%://%';"
+        guard let statement = prepareStatementLocked(hasLegacyRows) else { return }
+        let count: Int32 = sqlite3_step(statement) == SQLITE_ROW ? sqlite3_column_int(statement, 0) : 0
+        sqlite3_finalize(statement)
+        guard count > 0 else { return }
+
+        guard executeLocked("BEGIN IMMEDIATE TRANSACTION;") else { return }
+        let copied = executeLocked("""
+            CREATE TABLE IF NOT EXISTS legacy_site_permissions (
+                host TEXT NOT NULL, permission_key TEXT NOT NULL,
+                action TEXT NOT NULL, updated_at REAL NOT NULL,
+                PRIMARY KEY(host, permission_key)
+            );
+            """) && executeLocked("""
+            INSERT OR REPLACE INTO legacy_site_permissions
+                (host, permission_key, action, updated_at)
+            SELECT host, permission_key, action, updated_at
+            FROM site_permissions WHERE host NOT LIKE '%://%';
+            """)
+        let removed = copied && executeLocked(
+            "DELETE FROM site_permissions WHERE host NOT LIKE '%://%';"
+        )
+        if removed {
+            _ = executeLocked("COMMIT;")
+        } else {
+            _ = executeLocked("ROLLBACK;")
+            NSLog("SitePermissionStore: failed to migrate legacy hostname permissions")
+        }
+    }
+
     // MARK: - Schema Migration
     
     private func ensureColumnLocked(name: String, table: String, definition: String) {

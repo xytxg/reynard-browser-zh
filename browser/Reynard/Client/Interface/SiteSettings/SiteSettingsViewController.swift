@@ -575,8 +575,8 @@ final class SiteSettingsViewController: UITableViewController, UINavigationContr
             }
             
             seenPermissions.insert(sitePermission)
-            if SitePermissionStore.shared.resolvedAction(for: sitePermission, host: host, session: session) != action {
-                SitePermissionStore.shared.updateAction(action, for: sitePermission, host: host, session: session)
+            if SitePermissionStore.shared.resolvedAction(for: sitePermission, host: origin, session: session) != action {
+                SitePermissionStore.shared.updateAction(action, for: sitePermission, host: origin, session: session)
             }
         }
         
@@ -584,8 +584,8 @@ final class SiteSettingsViewController: UITableViewController, UINavigationContr
             let permission = row.permission
             if !SiteSettingsUtils.isSystemDisabled(permission),
                !seenPermissions.contains(permission),
-               SitePermissionStore.shared.resolvedAction(for: permission, host: host, session: session) != .askToAllow {
-                SitePermissionStore.shared.removeAction(for: permission, host: host, session: session)
+               SitePermissionStore.shared.resolvedAction(for: permission, host: origin, session: session) != .askToAllow {
+                SitePermissionStore.shared.removeAction(for: permission, host: origin, session: session)
             }
         }
     }
@@ -606,7 +606,7 @@ final class SiteSettingsViewController: UITableViewController, UINavigationContr
     }
     
     private func setAction(_ action: SitePermissionAction, for permission: SitePermission) {
-        SitePermissionStore.shared.updateAction(action, for: permission, host: host, session: session)
+        SitePermissionStore.shared.updateAction(action, for: permission, host: origin, session: session)
         let key = SiteSettingsUtils.geckoKey(for: permission)
         if action == .askToAllow, permission != .autoplay {
             PermissionDelegate.removePermission(
@@ -638,7 +638,7 @@ final class SiteSettingsViewController: UITableViewController, UINavigationContr
     
     private func selectedOptionIndex(for row: Row) -> Int {
         let permission = row.permission
-        switch SitePermissionStore.shared.resolvedAction(for: permission, host: host, session: session) {
+        switch SitePermissionStore.shared.resolvedAction(for: permission, host: origin, session: session) {
         case .allowed:
             return 0
         case .askToAllow:
@@ -722,7 +722,7 @@ final class SiteSettingsViewController: UITableViewController, UINavigationContr
         )
         
         for permission in SitePermission.allCases {
-            SitePermissionStore.shared.removeAction(for: permission, host: host, session: session)
+            SitePermissionStore.shared.removeAction(for: permission, host: origin, session: session)
         }
         loadedGeckoPermissions = []
         hasTrackingProtectionException = false

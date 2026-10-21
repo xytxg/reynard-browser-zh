@@ -197,10 +197,13 @@ extension FilePicker {
             return stagedURL
         }
         
-        guard let data = await loadDataRepresentation(
-            from: itemProvider,
-            typeIdentifier: typeIdentifier
-        ) else {
+        // Movies must be staged from a file representation: an in-memory
+        // representation of a large video can exhaust the process memory.
+        guard typeConforms(typeIdentifier, to: kUTTypeImage as String),
+              let data = await loadDataRepresentation(
+                  from: itemProvider,
+                  typeIdentifier: typeIdentifier
+              ), data.count <= 16 * 1024 * 1024 else {
             return nil
         }
         
@@ -278,7 +281,10 @@ extension FilePicker {
     ) async -> Data? {
         await withCheckedContinuation { continuation in
             itemProvider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { data, _ in
-                continuation.resume(returning: data)
+                // Data has already been materialized by NSItemProvider here.
+                // Reject large representations and prefer loadFileRepresentation.
+                // Limit fallback to images only; never load a video as one Data.
+                continuation.resume(returning: (data?.count ?? 0) <= 16 * 1024 * 1024 ? data : nil)
             }
         }
     }

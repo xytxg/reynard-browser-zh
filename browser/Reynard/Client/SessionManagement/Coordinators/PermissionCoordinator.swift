@@ -38,7 +38,6 @@ final class PermissionCoordinator: NSObject, PermissionEmbedderDelegate {
     func restorePermissions(for session: GeckoSession, at urlString: String?) {
         guard let urlString,
               let url = URL(string: urlString),
-              let host = URLUtils.normalizedHost(url.host),
               let origin = URLUtils.httpOriginString(for: url) else {
             return
         }
@@ -48,7 +47,7 @@ final class PermissionCoordinator: NSObject, PermissionEmbedderDelegate {
                 continue
             }
             
-            let action = permissionStore.resolvedAction(for: permission, host: host, session: session)
+            let action = permissionStore.resolvedAction(for: permission, host: origin, session: session)
             guard action != .askToAllow else {
                 continue
             }
@@ -77,11 +76,11 @@ final class PermissionCoordinator: NSObject, PermissionEmbedderDelegate {
     @MainActor
     func permissionDelegate(decideContentPermission permission: ContentPermission, session: GeckoSession) async -> ContentPermission.Value {
         guard let sitePermission = SitePermission(contentPermission: permission),
-              let host = URLUtils.normalizedHost(fromRawURI: permission.uri) else {
+              let origin = URLUtils.permissionOrigin(from: permission.uri) else {
             return .prompt
         }
         
-        let action = permissionStore.resolvedAction(for: sitePermission, host: host, session: session)
+        let action = permissionStore.resolvedAction(for: sitePermission, host: origin, session: session)
         if sitePermission == .autoplay {
             applyPermission(action, to: sitePermission, permission: permission)
             return ContentPermission.Value(rawValue: action.autoplayValue) ?? .deny
@@ -105,7 +104,7 @@ final class PermissionCoordinator: NSObject, PermissionEmbedderDelegate {
             )
             onPromptFinished?(session)
             let action: SitePermissionAction = allowed ? .allowed : .blocked
-            permissionStore.scheduleActionUpdate(action, for: sitePermission, host: host, session: session)
+            permissionStore.scheduleActionUpdate(action, for: sitePermission, host: origin, session: session)
             applyPermission(action, to: sitePermission, permission: permission)
             return action.contentPermissionValue
         }
@@ -114,15 +113,16 @@ final class PermissionCoordinator: NSObject, PermissionEmbedderDelegate {
     @MainActor
     func permissionDelegate(decideMediaPermission request: MediaPermissionRequest, session: GeckoSession) async -> Bool {
         let requestedPermissions = requestedPermissions(for: request)
-        guard !requestedPermissions.isEmpty else {
+        guard URLUtils.permissionOrigin(from: request.uri) != nil,
+              !requestedPermissions.isEmpty else {
             return false
         }
         
-        if requestedPermissions.contains(where: { permissionStore.resolvedAction(for: $0, host: request.host, session: session) == .blocked }) {
+        if requestedPermissions.contains(where: { permissionStore.resolvedAction(for: $0, host: request.uri, session: session) == .blocked }) {
             return false
         }
         
-        if requestedPermissions.allSatisfy({ permissionStore.resolvedAction(for: $0, host: request.host, session: session) == .allowed }) {
+        if requestedPermissions.allSatisfy({ permissionStore.resolvedAction(for: $0, host: request.uri, session: session) == .allowed }) {
             return true
         }
         
@@ -139,7 +139,7 @@ final class PermissionCoordinator: NSObject, PermissionEmbedderDelegate {
         onPromptFinished?(session)
         let action: SitePermissionAction = allowed ? .allowed : .blocked
         for permission in requestedPermissions {
-            permissionStore.scheduleActionUpdate(action, for: permission, host: request.host, session: session)
+            permissionStore.scheduleActionUpdate(action, for: permission, host: request.uri, session: session)
             applyPermission(action, to: permission, uri: request.uri, privateMode: session.isPrivateMode)
         }
         
