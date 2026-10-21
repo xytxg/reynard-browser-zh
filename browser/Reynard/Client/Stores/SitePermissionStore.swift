@@ -196,7 +196,6 @@ final class SitePermissionStore {
     func scheduleActionUpdate(_ action: SitePermissionAction, for permission: SitePermission, host: String, session: GeckoSession) {
         guard let host = URLUtils.permissionOrigin(from: host) else { return }
         stateQueue.async {
-        stateQueue.async {
             self.setActionLocked(action, for: permission, host: host, session: session)
         }
     }
@@ -204,14 +203,12 @@ final class SitePermissionStore {
     func updateAction(_ action: SitePermissionAction, for permission: SitePermission, host: String, session: GeckoSession) {
         guard let host = URLUtils.permissionOrigin(from: host) else { return }
         stateQueue.sync {
-        stateQueue.sync {
             self.setActionLocked(action, for: permission, host: host, session: session)
         }
     }
     
     func removeAction(for permission: SitePermission, host: String, session: GeckoSession) {
         guard let host = URLUtils.permissionOrigin(from: host) else { return }
-        stateQueue.sync {
         stateQueue.sync {
             if session.isPrivateMode {
                 self.removePrivateActionLocked(for: permission, host: host, session: session)
@@ -239,7 +236,6 @@ final class SitePermissionStore {
     
     func removePersistedAction(for permission: SitePermission, host: String) {
         guard let host = URLUtils.permissionOrigin(from: host) else { return }
-        stateQueue.sync {
         stateQueue.sync {
             _ = deleteActionLocked(for: permission, host: host)
         }
