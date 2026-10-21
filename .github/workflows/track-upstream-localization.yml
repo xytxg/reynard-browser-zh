@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: upstream-localization-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   report:
     runs-on: ubuntu-latest
