@@ -25,7 +25,23 @@ private struct IncomingBrowserURLTests {
         try testUnsafeSchemesAreRejected()
         try testInvalidWebURLsAreRejected()
         try testMultipleContextsAreDeterministic()
+        try testPermissionOriginIsolation()
         print("IncomingBrowserURLTests: all tests passed")
+    }
+
+    private static func testPermissionOriginIsolation() throws {
+        let a = URLUtils.permissionOrigin(from: "https://Example.COM/path")
+        let b = URLUtils.permissionOrigin(from: "https://example.com:8443/path")
+        let c = URLUtils.permissionOrigin(from: "http://example.com")
+        try expect(a == "https://example.com", "HTTPS origin normalization failed")
+        try expect(b == "https://example.com:8443", "Non-default port must be retained")
+        try expect(c == "http://example.com", "HTTP scheme must remain distinct")
+        try expect(a != b && a != c && b != c, "Permissions must not cross origins")
+        try expect(URLUtils.permissionOrigin(from: "https://example.com:443") == a, "HTTPS default port was not normalized")
+        try expect(URLUtils.permissionOrigin(from: "http://example.com:80") == c, "HTTP default port was not normalized")
+        try expect(URLUtils.permissionOrigin(from: "example.com") == nil, "Bare host cannot grant permissions")
+        try expect(URLUtils.permissionOrigin(from: "file:///private/test") == nil, "File URLs must not grant web permissions")
+        try expect(URLUtils.permissionOrigin(from: "https://[::1]:8443/path") == "https://[::1]:8443", "IPv6 origin normalization failed")
     }
 
     private static func testDirectWebURLs() throws {

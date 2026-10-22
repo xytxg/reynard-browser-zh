@@ -92,17 +92,27 @@ enum URLUtils {
         return !url.absoluteString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
+    // Permissions must be keyed by a complete web origin, never by hostname.
+    // Canonicalize default ports, preserve non-default ports and bracket IPv6.
+    static func permissionOrigin(from rawURI: String?) -> String? {
+        guard let rawURI, let url = URL(string: rawURI) else { return nil }
+        return httpOriginString(for: url)
+    }
+
     static func httpOriginString(for url: URL) -> String? {
         guard let scheme = url.scheme?.lowercased(),
               let host = normalizedHost(url.host),
-              scheme == "http" || scheme == "https" else {
+              (scheme == "http" || scheme == "https"),
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.user == nil, components.password == nil else {
             return nil
         }
-        
-        if let port = url.port {
-            return "\(scheme)://\(host):\(port)"
+        let authorityHost = host.contains(":") && !host.hasPrefix("[") ? "[\(host)]" : host
+        if let port = url.port,
+           !((scheme == "http" && port == 80) || (scheme == "https" && port == 443)) {
+            return "\(scheme)://\(authorityHost):\(port)"
         }
-        return "\(scheme)://\(host)"
+        return "\(scheme)://\(authorityHost)"
     }
     
     static func normalizedHost(fromRawURI rawURI: String?) -> String? {

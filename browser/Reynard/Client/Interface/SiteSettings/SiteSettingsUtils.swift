@@ -221,11 +221,9 @@ enum SiteSettingsUtils {
     }
     
     private static func permissionOrigins(for host: String) -> [String] {
-        guard let host = URLUtils.normalizedHost(host) else {
-            return []
-        }
-        
-        return ["http://\(host)", "https://\(host)"]
+        // Stored keys are complete origins. Never clear other schemes or ports.
+        guard let origin = URLUtils.permissionOrigin(from: host) else { return [] }
+        return [origin]
     }
     
     // MARK: - UI Helpers

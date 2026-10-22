@@ -44,4 +44,11 @@ trap 'rm -rf "$TEST_DIR"' EXIT
     "$ROOT_DIR/Tests/BrowserUpdatePolicyTests.swift" \
     -o "$TEST_DIR/BrowserUpdatePolicyTests"
 
+"${SWIFTC[@]}" \
+    "$ROOT_DIR/browser/Reynard/Client/Interface/Addons/AddonPackageSafety.swift" \
+    "$ROOT_DIR/Tests/AddonPackageSafetyTests.swift" \
+    -o "$TEST_DIR/AddonPackageSafetyTests"
+
+"$TEST_DIR/AddonPackageSafetyTests"
+
 "$TEST_DIR/BrowserUpdatePolicyTests"
