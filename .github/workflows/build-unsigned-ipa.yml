@@ -2,11 +2,9 @@ name: Build unsigned IPA from source
 
 run-name: Unsigned IPA · ${{ github.ref_name }} · ${{ github.event_name }}
 
-# Formal releases for `v*` tags are produced only by build-release.yml. This
-# workflow runs quality checks for pushes and pull requests, and builds an IPA
-# for same-repository `[build ipa]` pull requests or manual dispatches. Only a
-# manual dispatch on main publishes, and only as a prerelease that the in-app
-# updater ignores.
+# Tests run on every PR. Full builds use the same resumable workflow as Nightly.
+# Only same-repository PRs with [build ipa] in the title build packages.
+# Formal publishing is exclusively handled by build-release.yml.
 on:
   workflow_dispatch:
   pull_request:
@@ -51,321 +49,63 @@ jobs:
           path: dist/test-results
           retention-days: 30
 
+
+  # Reuse the tested Nightly/Release workflow, which checkpoints Gecko objects
+  # between macOS Jobs instead of hitting the six-hour single-Job limit.
   build-ipa:
-    name: Build Gecko and unsigned IPA
+    name: Resumable Gecko + standard/TrollStore packages
     needs: quality
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.head.repo.full_name == github.repository &&
        contains(github.event.pull_request.title, '[build ipa]'))
-    runs-on: macos-26
-    timeout-minutes: 360
-    permissions:
-      contents: write
-    env:
-      CI: "true"
-      CARGO_TERM_COLOR: always
-      SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_GHA_VERSION: unsigned-gecko-v1
-      SCCACHE_BASEDIRS: ${{ github.workspace }}
-      RUSTC_WRAPPER: sccache
+    uses: ./.github/workflows/build.yml
+    with:
+      checkout_ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      build_normal_ipa: true
+      build_trollstore_tipa: true
+      build_jailbroken_ipa: false
+      stage_ios27_input: true
+
+  verify-packages:
+    name: Verify built standard IPA and TrollStore TIPA
+    needs: build-ipa
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Check out source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Download IPA
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 1
-          submodules: false
-          persist-credentials: false
-
-      - name: Set up latest Xcode
-        uses: maxim-lobanov/setup-xcode@1242409711ff5721add51979e9e11e23ebb7e5a4 # v1
+          name: Reynard.ipa
+          path: dist/normal
+      - name: Download TIPA
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          xcode-version: latest
-
-      # Follow upstream's successful Firefox 155 toolchain. Mach bootstrap
-      # selects its matching WASI sysroot/compiler-rt instead of mixing LLVM versions.
-      - name: Install build dependencies
-        run: |
-          set -euo pipefail
-          brew install python@3.12 lld cbindgen llvm
-          echo "$(brew --prefix python@3.12)/libexec/bin" >> "$GITHUB_PATH"
-          echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"
-          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
-        with:
-          targets: aarch64-apple-ios
-
-      - name: Inspect and fingerprint build toolchain
-        id: toolchain
-        run: |
-          set -euo pipefail
-          mkdir -p dist/logs
-          {
-            xcodebuild -version
-            python3 --version
-            clang --version
-            ld64.lld --version
-            cbindgen --version
-            rustc -Vv
-          } | tee dist/logs/toolchain.log
-          echo "key=$(shasum -a 256 dist/logs/toolchain.log | cut -c1-20)" >> "$GITHUB_OUTPUT"
-          echo "idevice=$(git rev-parse HEAD:support/idevice)" >> "$GITHUB_OUTPUT"
-          df -h | tee dist/logs/disk-before.log
-
-      - name: Initialize idevice source
-        run: git submodule update --init --recursive --depth 1 support/idevice
-
-      - name: Restore build dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.mozbuild
-          key: gecko-deps-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('engine/release.txt') }}
-          restore-keys: |
-            gecko-deps-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-
-
-      - name: Restore idevice build cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: support/idevice/target
-          key: idevice-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ steps.toolchain.outputs.idevice }}-${{ hashFiles('tools/development/build-idevice.sh') }}
-
-      - name: Download exact Gecko source and apply project patches
-        run: |
-          set -euo pipefail
-          tools/development/update-gecko.sh 2>&1 | tee dist/logs/update-gecko.log
-          test "$(git -C engine/firefox rev-parse HEAD)" = "$(git rev-parse HEAD:engine/firefox)"
-          tools/development/apply-patches.sh 2>&1 | tee dist/logs/apply-patches.log
-
-      - name: Set up compiler cache
-        uses: mozilla-actions/sccache-action@fd02668681acd5f960e1372061bee5e3e987195c # v0.0.11
-
-      - name: Restore exact Gecko distribution cache
-        id: gecko-cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ${{ runner.temp }}/reynard-gecko-dist
-          key: gecko-dist-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('engine/release.txt', 'patches/**/*.patch', 'tools/development/build-gecko.sh') }}
-
-      - name: Build Gecko for iOS
-        env:
-          CC: clang
-          CXX: clang++
-          LD: ld64.lld
-          GECKO_CACHE_HIT: ${{ steps.gecko-cache.outputs.cache-hit }}
-        run: |
-          set -euo pipefail
-          gecko_dist="$GITHUB_WORKSPACE/engine/firefox/obj-aarch64-apple-ios/dist"
-          if [[ "$GECKO_CACHE_HIT" == "true" ]]; then
-            mkdir -p "$gecko_dist"
-            rsync -a "$RUNNER_TEMP/reynard-gecko-dist/" "$gecko_dist/"
-            echo "Restored source-built Gecko with exact source/toolchain cache key." | tee dist/logs/build-gecko.log
-          else
-            tools/development/build-gecko.sh --use-sccache --auto-clobber 2>&1 | tee dist/logs/build-gecko.log
-          fi
-          test -s "$gecko_dist/bin/XUL"
-          test -d "$gecko_dist/include/GeckoView"
-          if grep -E 'warning: .*only available on iOS .*newer.*\[-Wunguarded-availability-new\]' dist/logs/build-gecko.log; then
-            echo 'Gecko contains an API use that is unsafe for the iOS 13 deployment target.' >&2
-            exit 65
-          fi
-          df -h | tee dist/logs/disk-after-gecko.log
-
-      - name: Materialize self-contained Gecko distribution
-        id: materialize-gecko
-        if: steps.gecko-cache.outputs.cache-hit != 'true'
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/reynard-gecko-dist/bin" "$RUNNER_TEMP/reynard-gecko-dist/include"
-          # dist contains symlinks into generated object directories. Dereference
-          # them so a cached distribution works on a fresh runner without old objects.
-          # Xcode only needs bin and include. dist/lib contains large intermediate
-          # archives and copying them can exhaust the runner after a successful build.
-          for directory in bin include; do
-            rsync -aL --delete "engine/firefox/obj-aarch64-apple-ios/dist/$directory/" "$RUNNER_TEMP/reynard-gecko-dist/$directory/"
-          done
-          du -sh "$RUNNER_TEMP/reynard-gecko-dist"
-
-      - name: Save exact Gecko distribution cache
-        if: steps.materialize-gecko.outcome == 'success'
-        continue-on-error: true
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ${{ runner.temp }}/reynard-gecko-dist
-          key: ${{ steps.gecko-cache.outputs.cache-primary-key }}
-
-      - name: Build idevice support library
-        run: |
-          set -euo pipefail
-          tools/development/build-idevice.sh 2>&1 | tee dist/logs/build-idevice.log
-          test -s browser/Reynard/JIT/RPPairing/libidevice_ffi.a
-
-      - name: Stage Xcode 27 compatibility inputs
-        run: |
-          set -euo pipefail
-          compat_input="$RUNNER_TEMP/reynard-ios27-input"
-          gecko_dist="engine/firefox/obj-aarch64-apple-ios/dist"
-          rm -rf "$compat_input"
-          mkdir -p "$compat_input/gecko/bin" "$compat_input/gecko/include" \
-            "$compat_input/firefox/toolkit/mozapps/extensions/default-theme"
-          for directory in bin include; do
-            rsync -aL "$gecko_dist/$directory/" "$compat_input/gecko/$directory/"
-          done
-          rsync -aL \
-            "engine/firefox/toolkit/mozapps/extensions/default-theme/" \
-            "$compat_input/firefox/toolkit/mozapps/extensions/default-theme/"
-          test -n "$(find "$compat_input/firefox/toolkit/mozapps/extensions/default-theme" -type f -print -quit)"
-          install -m 0644 browser/Reynard/JIT/RPPairing/libidevice_ffi.a \
-            "$compat_input/libidevice_ffi.a"
-          du -sh "$compat_input" | tee dist/logs/ios27-input.log
-
-      - name: Upload Xcode 27 compatibility inputs
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: Reynard-ios27-input-${{ github.run_number }}
-          path: ${{ runner.temp }}/reynard-ios27-input
-          if-no-files-found: error
-          retention-days: 3
-          compression-level: 0
-
-      - name: Build unsigned Reynard.app
-        run: tools/release/build-unsigned-app.sh
-
-      - name: Package and verify unsigned IPA
-        id: package
-        run: |
-          set -euo pipefail
-          version="$(awk -F ' = ' '/^CURRENT_VERSION = / { print $2; exit }' browser/Configuration/Reynard.xcconfig)"
-          short_sha="$(git rev-parse --short=7 HEAD)"
-          ipa_name="Reynard-${version}-${short_sha}-unsigned.ipa"
-          tools/release/create-unsigned-ipa.sh dist/Reynard.app "dist/$ipa_name" 2>&1 | tee dist/logs/package-ipa.log
-          shasum -a 256 "dist/$ipa_name" | tee "dist/$ipa_name.sha256"
-          echo "ipa-name=$ipa_name" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Upload IPA and build diagnostics
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: Reynard-source-unsigned-${{ github.run_number }}
-          path: |
-            dist/*.ipa
-            dist/*.sha256
-            dist/logs
-          if-no-files-found: warn
-          retention-days: 30
-
+          name: Reynard-TrollStore.tipa
+          path: dist/trollstore
       - name: Require a real IPA artifact
-        env:
-          IPA_NAME: ${{ steps.package.outputs.ipa-name }}
         run: |
           set -euo pipefail
-          test -n "$IPA_NAME"
-          test -s "dist/$IPA_NAME"
-
-      - name: Publish successful build release
-        id: release
-        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          IPA_NAME: ${{ steps.package.outputs.ipa-name }}
-          VERSION: ${{ steps.package.outputs.version }}
-        run: |
-          set -euo pipefail
-          # Formal releases come from build-release.yml. A manual dispatch on
-          # main only publishes a test prerelease, which the updater skips.
-          if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" || "$GITHUB_REF" != "refs/heads/main" ]]; then
-            echo "Refusing to publish from $GITHUB_EVENT_NAME on $GITHUB_REF." >&2
-            exit 64
-          fi
-          release_tag="build-$GITHUB_RUN_NUMBER"
-          release_title="Reynard Browser 中文版 $VERSION · Build $GITHUB_RUN_NUMBER"
-          prerelease="true"
-
-          release_notes="$(
-            awk '
-              /^## / {
-                if (found) exit
-                found = 1
-                next
-              }
-              found { print }
-            ' CHANGELOG.md | sed '/./,$!d'
-          )"
-          test -n "$release_notes"
-          checksum="$(awk '{ print $1; exit }' "dist/$IPA_NAME.sha256")"
-          test "$checksum" = "$(printf '%s' "$checksum" | tr -cd '0-9a-f')"
-          test "${#checksum}" -eq 64
-          checksum_asset="$IPA_NAME.sha256"
-          checksum_url="https://github.com/$GITHUB_REPOSITORY/releases/download/$release_tag/$checksum_asset"
-
-          note_file="dist/release-notes.md"
+          test -s dist/normal/Reynard.ipa
+          test -s dist/trollstore/Reynard-TrollStore.tipa
+          test "$(stat -c %s dist/normal/Reynard.ipa)" -gt 1000000
+          test "$(stat -c %s dist/trollstore/Reynard-TrollStore.tipa)" -gt 1000000
+          sha256sum dist/normal/Reynard.ipa dist/trollstore/Reynard-TrollStore.tipa | tee dist/SHA256SUMS.txt
           {
-            printf '<!-- reynard-update-build: %s -->\n' "$GITHUB_RUN_NUMBER"
-            echo '## 更新日志'
-            echo
-            printf '%s\n' "$release_notes"
-            echo
-            echo '## SHA-256 校验'
-            echo
-            printf -- '- [下载 `%s`](%s)\n' "$checksum_asset" "$checksum_url"
-            printf -- '- `%s`\n' "$checksum"
-          } > "$note_file"
-
-          if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$release_tag" "dist/$IPA_NAME" "dist/$IPA_NAME.sha256" \
-              --repo "$GITHUB_REPOSITORY" --clobber
-            gh release edit "$release_tag" --repo "$GITHUB_REPOSITORY" \
-              --title "$release_title" --notes-file "$note_file"
-          else
-            release_args=(
-              "$release_tag"
-              "dist/$IPA_NAME#未签名 IPA"
-              "dist/$IPA_NAME.sha256#SHA-256 校验"
-              --repo "$GITHUB_REPOSITORY"
-              --target "$GITHUB_SHA"
-              --title "$release_title"
-              --notes-file "$note_file"
-            )
-            if [[ "$prerelease" == "true" ]]; then
-              release_args+=(--prerelease)
-            fi
-            gh release create "${release_args[@]}"
-          fi
-
-          release_url="https://github.com/$GITHUB_REPOSITORY/releases/tag/$release_tag"
-          echo "release-tag=$release_tag" >> "$GITHUB_OUTPUT"
-          echo "release-url=$release_url" >> "$GITHUB_OUTPUT"
-          echo "Published $release_url"
-
-      - name: Write build summary
-        if: always()
-        shell: bash
-        env:
-          IPA_NAME: ${{ steps.package.outputs.ipa-name }}
-          RELEASE_URL: ${{ steps.release.outputs.release-url }}
-        run: |
-          {
-            echo '## Reynard source build'
+            echo '## Resumable source build verified'
             echo
             echo "- Commit: $GITHUB_SHA"
-            echo "- IPA: ${IPA_NAME:-not produced}"
-            echo '- Signing: disabled; no certificate or provisioning profile is used.'
-            echo '- Installation: the IPA must be signed by a compatible sideloading method before normal installation.'
-            if [[ -n "${RELEASE_URL:-}" ]]; then
-              echo "- Release: $RELEASE_URL"
-            else
-              echo '- Release: not published (only manual dispatches on main publish a prerelease).'
-            fi
+            echo '- Verified: standard IPA and TrollStore TIPA'
+            echo '- These are unsigned CI artifacts, not a stable release.'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload checksums
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Reynard-PR-SHA256SUMS
+          path: dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
 
   ios27-compatibility:
     name: Xcode 27 / iOS 27 SDK compatibility
@@ -384,7 +124,7 @@ jobs:
       - name: Download source-built link inputs
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: Reynard-ios27-input-${{ github.run_number }}
+          name: Reynard-ios27-input
           path: ${{ runner.temp }}/reynard-ios27-input
 
       - name: Restore Gecko and idevice inputs

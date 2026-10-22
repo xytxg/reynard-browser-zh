@@ -23,35 +23,33 @@ function rejectText(value, fragment, message) {
 
 const workflow = read(".github/workflows/build-unsigned-ipa.yml");
 if ((workflow.match(/- name: Require a real IPA artifact/g) ?? []).length !== 1) {
-  throw new Error("IPA workflow must contain exactly one artifact requirement step");
+  throw new Error("PR pipeline does not verify a real IPA pair");
 }
-requireText(workflow, "tools/development/build-gecko.sh", "IPA workflow does not build Gecko from source");
-requireText(workflow, "tools/release/build-unsigned-app.sh", "IPA workflow does not build Reynard.app from source");
-requireText(workflow, "runs-on: xcode-27", "IPA workflow does not compile against the iOS 27 SDK");
-requireText(
-  workflow,
-  'REYNARD_DEPLOYMENT_TARGET_OVERRIDE: "15.0"',
-  "iOS 27 compatibility job does not use Xcode 27's supported minimum"
-);
-requireText(
-  workflow,
-  "Verify the shipping project still targets iOS 13",
-  "iOS 27 compatibility job does not preserve the shipping iOS 13 target"
-);
-requireText(workflow, 'test "$minimum_os" = "15.0"', "iOS 27 compatibility job does not verify its linked minimum");
-requireText(workflow, "xcrun vtool -show-build", "iOS 27 compatibility job does not inspect Mach-O load commands");
-requireText(
-  workflow,
-  "firefox/toolkit/mozapps/extensions/default-theme",
-  "iOS 27 compatibility inputs omit the Gecko default theme required by AddGecko.sh"
-);
-if (/(?:curl|wget)[^\n]*releases\/download/i.test(workflow)) {
-  throw new Error("IPA workflow downloads a release binary");
+requireText(workflow, "uses: ./.github/workflows/build.yml", "PR builds bypass resumable Gecko pipeline");
+requireText(workflow, 'checkout_ref: ${{ github.event.pull_request.head.sha || github.sha }}', "PR builds must check out the reviewed commit");
+requireText(workflow, "build_normal_ipa: true", "PR build omits normal IPA");
+requireText(workflow, "build_trollstore_tipa: true", "PR build omits TrollStore TIPA");
+requireText(workflow, "build_jailbroken_ipa: false", "PR build wastes resources on a second Gecko flavor");
+requireText(workflow, "stage_ios27_input: true", "PR build does not pass inputs to Xcode 27");
+requireText(workflow, "name: Reynard-ios27-input\n", "PR Xcode 27 job expects obsolete artifact name");
+requireText(workflow, "name: Reynard.ipa", "PR IPA artifact must be verified");
+requireText(workflow, "name: Reynard-TrollStore.tipa", "PR TIPA artifact must be verified");
+requireText(workflow, "runs-on: xcode-27", "PR lacks Xcode 27 compatibility");
+requireText(workflow, 'REYNARD_DEPLOYMENT_TARGET_OVERRIDE: "15.0"', "iOS 27 SDK compatibility minimum missing");
+requireText(workflow, "Verify the shipping project still targets iOS 13", "Shipping iOS 13 check is missing");
+requireText(workflow, 'test "$minimum_os" = "15.0"', "Linked iOS minimum not verified");
+requireText(workflow, "xcrun vtool -show-build", "iOS SDK Mach-O version not verified");
+requireText(workflow, "firefox/toolkit/mozapps/extensions/default-theme", "Gecko default theme omitted");
+rejectText(workflow, "SCCACHE_GHA_ENABLED", "PR source build should not use per-object sccache cloud backend");
+rejectText(workflow, "timeout-minutes: 360", "A monolithic Gecko job still reaches the six-hour limit");
+rejectText(workflow, "gh release create", "PR workflow must never publish stable releases");
+rejectText(workflow, "gh release upload", "PR workflow must never modify release artifacts");
+if (/(?:curl|wget)[^\\n]*releases\\/download/i.test(workflow)) {
+  throw new Error("PR builds may not use release binaries as source");
 }
-rejectText(workflow, "source.ipa", "IPA workflow accepts a prebuilt IPA as its source");
-for (const match of workflow.matchAll(/uses:\s+[^@\s]+@([^\s#]+)/g)) {
+for (const match of workflow.matchAll(/uses:\\s+[^@\\s]+@([^\\s#]+)/g)) {
   if (!/^[a-f0-9]{40}$/.test(match[1])) {
-    throw new Error("GitHub Actions dependency is not pinned to a full commit: " + match[0]);
+    throw new Error("Workflow action is not pinned: " + match[0]);
   }
 }
 
@@ -227,23 +225,13 @@ requireText(
   "small untrusted responses are not capped while streaming"
 );
 
-const releaseWorkflow = read(".github/workflows/build-unsigned-ipa.yml");
-requireText(
-  releaseWorkflow,
-  "reynard-update-build:",
-  "release notes do not expose a machine-readable build number to the updater"
-);
-requireText(releaseWorkflow, "'## 更新日志'", "release body does not include the latest changelog");
-requireText(releaseWorkflow, "'## SHA-256 校验'", "release body does not include checksum information");
-requireText(releaseWorkflow, "CHANGELOG.md", "release notes are not sourced from the project changelog");
-requireText(releaseWorkflow, "checksum_url", "release body does not link its SHA-256 sidecar");
-rejectText(releaseWorkflow, "release_kind=", "release body still publishes build-type metadata");
-rejectText(
-  releaseWorkflow,
-  "Unsigned build. This IPA is not signed",
-  "release body still contains the removed unsigned-build boilerplate"
-);
-
+// PR builds are test artifacts only; signed release metadata is controlled by build-release.yml.
+const releaseWorkflow = formalReleaseWorkflow;
+requireText(releaseWorkflow, "reynard-update-build:", "formal release body omits build number");
+requireText(releaseWorkflow, 'cat "$NOTES"', "formal release omits curated notes");
+requireText(releaseWorkflow, "## SHA-256 校验", "formal release notes omit checksums");
+requireText(releaseWorkflow, "dist/Reynard.ipa.sha256", "formal release lacks IPA checksum sidecar");
+rejectText(workflow, "gh release edit", "PR workflow must never edit releases");
 const changelog = read("CHANGELOG.md");
 const latestChangelogHeading = changelog.match(/^## (.+)$/m)?.[1] ?? "";
 if (!latestChangelogHeading.startsWith(`${currentVersion} `)) {
@@ -654,11 +642,6 @@ rejectText(
   releaseWorkflow,
   'tags: ["v*"]',
   "the unsigned IPA workflow still publishes tags alongside build-release.yml"
-);
-requireText(
-  releaseWorkflow,
-  "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'",
-  "the unsigned IPA workflow can publish from branches other than main"
 );
 requireText(formalReleaseWorkflow, "- 'v*'", "build-release.yml does not limit formal releases to v* tags");
 requireText(formalReleaseWorkflow, ".sha256", "formal releases do not publish SHA-256 sidecars for the updater");
