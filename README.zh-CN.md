@@ -1,14 +1,14 @@
-# Reynard Browser 简体中文说明
+# Reynard Browser ZH · 中文使用说明
 
-> **本分支做了什么：** 汉化范围与条数、修复与加固、与上游的差异及当前同步基线，见中英双语的 [docs/FORK.md](docs/FORK.md)。English: [README.md](README.md).
+> **基于 Firefox Gecko 的 iOS 浏览器 · 非官方简体中文维护版。** 上游项目为 [minh-ton/reynard-browser](https://github.com/minh-ton/reynard-browser)，本分支维护汉化、安全修复、构建与发布。保留原作者署名及现有开源许可。
 
-Reynard 是最低支持 iOS 13、并持续验证 iOS 27 SDK 兼容性的 Gecko 浏览器。本分支保留原有 Gecko、JIT、应用扩展、
-标签页和侧载架构，并加入简体中文（`zh-Hans`）、下载安全修复、私密会话保护和源码构建
-未签名 IPA 的 GitHub Actions 流程。
+**[正式版下载](https://github.com/xytxg/reynard-browser-zh/releases/latest)** · **[更新日志](CHANGELOG.md)** · **[分支差异与维护记录](docs/FORK.md)** · **[English README](README.md)**
 
-推送 `v*` 标签（或 `main` 上带 `[release]` 标记的提交）后，**Build Release** 会由
-`github-actions[bot]` 把三个安装包及各自的 SHA-256 校验文件发布到本仓库的
-[Releases](https://github.com/xytxg/reynard-browser-zh/releases) 页面。普通分支和 Pull Request 不具备发布权限。
+Reynard 保留 Gecko、JIT、应用扩展与侧载架构，正式构建最低支持 **iOS 13**，并独立执行 iOS 27 SDK 兼容性编译检查。中文维护工作包括主界面与设置翻译、网站权限来源隔离、下载与扩展安装包的安全检查，以及持续集成测试。
+
+**关于安装包：** GitHub 正式 Release 提供普通 IPA、TrollStore TIPA、越狱 IPA 及相应 SHA-256 校验文件；这些均是未签名构建，需要合适的签名或安装环境。PR 测试产物和 Nightly 构建不等于已发布正式版本，也不等于完成真机兼容性验收。
+
+正式版由 **Build Release** 工作流发布。常规 main 提交只运行质量检查；需要新版本时，还须遵循经核验的版本标记与发布流程。
 
 ## 上游同步状态
 

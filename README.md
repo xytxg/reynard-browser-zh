@@ -1,15 +1,26 @@
 <img width="100" height="100" src="https://github.com/user-attachments/assets/1c42dda2-b778-4342-9f94-8f852c3ad652" />
 
-# Reynard Browser
+# Reynard Browser ZH · 简体中文维护版
 
-> **About this fork / 关于本分支:** see [docs/FORK.md](docs/FORK.md) for what this Simplified Chinese fork changes — localization counts, fixes and hardening, differences from upstream and the current sync baseline (Chinese and English). 中文说明见 [README.zh-CN.md](README.zh-CN.md)。
+**在 iOS 上运行 Firefox Gecko 的开源浏览器。** Reynard Browser ZH 是 [Reynard Browser](https://github.com/minh-ton/reynard-browser) 的**非官方简体中文维护分支**，主要维护中文本地化、安全修复及自动化构建，而非重新开发一个浏览器内核。
 
-Reynard is a **Gecko-based** web browser with an iOS 13 deployment target and iOS 27 SDK compatibility checks.
+- **Gecko 内核：** 保留上游 Firefox Gecko、WebExtension 与 JIT 相关架构。
+- **中文与兼容性：** 简体中文界面，正式构建最低支持 iOS 13；独立检查 iOS 27 SDK 的源码与链接兼容性。
+- **隐私与可靠性：** 改进网站权限来源隔离、下载及扩展安装包检查，并持续维护回归测试。
+- **开放构建：** 发布普通 IPA、TrollStore TIPA 和越狱 IPA；均需符合对应设备环境的安装、签名要求。
 
-> [!NOTE]
-> This repository is the Simplified Chinese maintenance build. It preserves the upstream Gecko architecture
-> and publishes verified unsigned IPA source builds on this repository's
-> [Releases](https://github.com/xytxg/reynard-browser-zh/releases) page.
+**[下载正式版](https://github.com/xytxg/reynard-browser-zh/releases/latest)** · **[中文使用说明](README.zh-CN.md)** · **[本分支与上游差异](docs/FORK.md)** · **[更新日志](CHANGELOG.md)** · **[GitHub Actions](https://github.com/xytxg/reynard-browser-zh/actions)**
+
+> [!IMPORTANT]
+> 本项目处于实验阶段。CI 编译通过不代表所有 iOS 设备或侧载方法均已实机验证；未签名安装包不能直接在普通 iOS 环境安装。源码来自原作者 [minh-ton/reynard-browser](https://github.com/minh-ton/reynard-browser)，相关署名及开源许可保持不变。
+
+## English
+
+**Reynard Browser ZH** is an independent Simplified Chinese maintenance fork of [Reynard Browser](https://github.com/minh-ton/reynard-browser), an experimental Gecko-based web browser for iOS. This fork contributes localization, permission isolation, download and add-on package hardening, regression tests, and open-source iOS build automation. Its shipping builds target **iOS 13+**, with separate compilation checks against the **iOS 27 SDK**.
+
+- Download the [latest tagged release](https://github.com/xytxg/reynard-browser-zh/releases/latest) or inspect [Actions](https://github.com/xytxg/reynard-browser-zh/actions). Releases provide unsigned packages for compatible signing or sideloading methods.
+- Read the [Chinese installation guide](README.zh-CN.md) or the [bilingual fork notes](docs/FORK.md) for precise differences from upstream and current limitations.
+- All core browser architecture and Gecko port work originate with the upstream project; this fork preserves that attribution.
 
 Unlike other browsers on iOS that are forced to use Apple's **WebKit** engine (including Safari and all third-party browsers), Reynard uses **Gecko**. This is the same engine that powers the Firefox browser on desktop and Android devices.
 

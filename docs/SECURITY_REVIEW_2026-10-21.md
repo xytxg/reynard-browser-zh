@@ -12,8 +12,10 @@ Target: `xytxg/reynard-browser-zh` based on `a99a63c3`. Attribution to upstream 
 
 ## Verification checklist
 
-- [ ] macOS CI: static/Swift tests and compiler parsing
-- [ ] Native Gecko/iOS build, standard/TrollStore/jailbroken IPA
+- [x] macOS CI: static/Swift tests and compiler parsing — [PR #15 run](https://github.com/xytxg/reynard-browser-zh/actions/runs/39718816406), success on 2026-10-22.
+- [x] Native Gecko/iOS build, standard IPA and TrollStore TIPA — packages and SHA-256 checks verified in the same successful run.
+- [x] iOS 27 SDK compatibility — native compatibility job succeeded in the same run (not a substitute for on-device verification).
+- [ ] Jailbroken IPA built and tested for this change set (not selected in the PR verification workflow).
 - [ ] On-device: legacy site-permission migration and new grants
 - [ ] On-device: camera, microphone, location, autoplay on scheme/port variants
 - [ ] On-device: existing AMO add-on installs and malformed ZIP rejection
@@ -27,3 +29,7 @@ Target: `xytxg/reynard-browser-zh` based on `a99a63c3`. Attribution to upstream 
 - **Gecko CI time:** retain pinned toolchain and exact cache keys; first measure cache-hit behavior and expensive compilation steps before changing the release pipeline.
 
 **No claim of a full codebase security audit or device verification is made.** Changes should not be released as a stable version until the checklist is satisfied.
+
+## Merge and release status (2026-10-22)
+
+The changes were merged in [PR #15](https://github.com/xytxg/reynard-browser-zh/pull/15) (merge commit `e41236be`). Both main-branch static CI and the PR's standard/TrollStore native builds passed. This does **not** certify on-device behavior or a complete security audit. A stable release incorporating this change set has not been produced as part of PR #15; the on-device items above remain release verification gates.
