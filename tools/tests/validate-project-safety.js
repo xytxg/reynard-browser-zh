@@ -44,10 +44,12 @@ rejectText(workflow, "SCCACHE_GHA_ENABLED", "PR source build should not use per-
 rejectText(workflow, "timeout-minutes: 360", "A monolithic Gecko job still reaches the six-hour limit");
 rejectText(workflow, "gh release create", "PR workflow must never publish stable releases");
 rejectText(workflow, "gh release upload", "PR workflow must never modify release artifacts");
-if (/(?:curl|wget)[^\\n]*releases\\/download/i.test(workflow)) {
+if (workflow.includes("releases/download")) {
   throw new Error("PR builds may not use release binaries as source");
 }
-for (const match of workflow.matchAll(/uses:\\s+[^@\\s]+@([^\\s#]+)/g)) {
+for (const line of workflow.split("\n")) {
+  const match = line.match(/uses:\s+[^@\s]+@([^\s#]+)/);
+  if (!match) continue;
   if (!/^[a-f0-9]{40}$/.test(match[1])) {
     throw new Error("Workflow action is not pinned: " + match[0]);
   }
