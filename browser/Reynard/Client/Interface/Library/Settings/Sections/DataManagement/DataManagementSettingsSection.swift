@@ -11,6 +11,7 @@ struct DataManagementSettingsSection {
     enum Row: CaseIterable {
         case importData
         case exportData
+        case clearBrowsingData
     }
     
     var rowCount: Int {
@@ -27,6 +28,8 @@ struct DataManagementSettingsSection {
             return SettingsViewUtils.disclosureCell(title: NSLocalizedString("Import", comment: ""))
         case .exportData:
             return SettingsViewUtils.disclosureCell(title: NSLocalizedString("Export", comment: ""))
+        case .clearBrowsingData:
+            return SettingsViewUtils.disclosureCell(title: NSLocalizedString("Clear Browsing Data", comment: ""))
         }
     }
     
@@ -41,6 +44,8 @@ struct DataManagementSettingsSection {
             destination = ImportPreferencesViewController()
         case .exportData:
             destination = ExportPreferencesViewController()
+        case .clearBrowsingData:
+            destination = ClearBrowsingDataViewController()
         }
         viewController.navigationController?.pushViewController(destination, animated: true)
     }
