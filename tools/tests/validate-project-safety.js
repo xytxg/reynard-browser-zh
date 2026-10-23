@@ -78,7 +78,7 @@ if (!new RegExp(`^v${currentVersion.replace(/\./g, "\\.")}-zh\\.[1-9][0-9]*$`).t
 const formalReleaseWorkflow = read(".github/workflows/build-release.yml");
 requireText(
   formalReleaseWorkflow,
-  'title="Reynard Browser 中文版 ${VERSION}"',
+  'title="Reynard Browser 中文版 ${TAG}"',
   "Release title is not derived from the validated release tag"
 );
 requireText(
@@ -86,11 +86,13 @@ requireText(
   "does not match CURRENT_VERSION",
   "Release workflow does not verify the tag against the Xcode app version before building"
 );
-requireText(
-  read(`.github/release-notes/${releaseTag}.md`),
-  `# Reynard Browser 中文版 ${currentVersion}`,
-  "Release notes do not match the Xcode app version"
-);
+const activeReleaseNotes = read(`.github/release-notes/${releaseTag}.md`);
+if (
+  !activeReleaseNotes.includes(`# Reynard Browser 中文版 ${releaseTag}`) &&
+  !activeReleaseNotes.includes(`# Reynard Browser 中文版 ${currentVersion}`)
+) {
+  throw new Error("Release notes heading does not match the declared version or tag");
+}
 requireText(
   buildConfiguration,
   "IPHONEOS_DEPLOYMENT_TARGET = 13.0",

@@ -15,7 +15,8 @@ Target: `xytxg/reynard-browser-zh` based on `a99a63c3`. Attribution to upstream 
 - [x] macOS CI: static/Swift tests and compiler parsing — [PR #15 run](https://github.com/xytxg/reynard-browser-zh/actions/runs/39718816406), success on 2026-10-22.
 - [x] Native Gecko/iOS build, standard IPA and TrollStore TIPA — packages and SHA-256 checks verified in the same successful run.
 - [x] iOS 27 SDK compatibility — native compatibility job succeeded in the same run (not a substitute for on-device verification).
-- [ ] Jailbroken IPA built and tested for this change set (not selected in the PR verification workflow).
+- [x] Jailbroken IPA successfully **built and packaged** from main in [Nightly #39856424428](https://github.com/xytxg/reynard-browser-zh/actions/runs/39856424428), completed 2026-10-23; not yet device-tested.
+- [ ] Jailbroken IPA on-device installation and core browsing functionality
 - [ ] On-device: legacy site-permission migration and new grants
 - [ ] On-device: camera, microphone, location, autoplay on scheme/port variants
 - [ ] On-device: existing AMO add-on installs and malformed ZIP rejection
@@ -28,7 +29,7 @@ Target: `xytxg/reynard-browser-zh` based on `a99a63c3`. Attribution to upstream 
 - **Release authenticity:** detached SHA-256 files from the same release catch accidental corruption but do not prove independent authenticity. Signing requires a protected signing key and an auditable trust-rotation plan; do not embed a private key in the repository.
 - **Gecko CI time:** retain pinned toolchain and exact cache keys; first measure cache-hit behavior and expensive compilation steps before changing the release pipeline.
 
-**No claim of a full codebase security audit or device verification is made.** Changes should not be released as a stable version until the checklist is satisfied.
+**No claim of a full codebase security audit or device verification is made.** Nightly outputs are test artifacts. A stable release incorporating this change set should wait until essential on-device checks above are satisfied.
 
 ## Merge and release status (2026-10-22)
 

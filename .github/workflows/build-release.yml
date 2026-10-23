@@ -137,7 +137,7 @@ jobs:
           NOTES: ${{ needs.metadata.outputs.notes }}
         run: |
           set -euo pipefail
-          title="Reynard Browser 中文版 ${VERSION}"
+          title="Reynard Browser 中文版 ${TAG}"
           note_file="dist/release-notes.md"
           {
             # CFBundleVersion of these packages is this workflow's run number
