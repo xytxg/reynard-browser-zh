@@ -183,7 +183,7 @@ enum URLUtils {
         return String(lowered.dropFirst("www.".count))
     }
     
-    static func normalizedURLStringForMatching(from value: String) -> String {
+    nonisolated static func normalizedURLStringForMatching(from value: String) -> String {
         let remainder = removingSchemePrefix(from: value)
         guard let userInfoEnd = remainder.range(of: "@") else {
             return remainder.lowercased()
@@ -245,7 +245,7 @@ enum URLUtils {
         return [fullURL, schemeStrippedURL, normalizedURL]
     }
     
-    private static func removingSchemePrefix(from value: String) -> Substring {
+    nonisolated private static func removingSchemePrefix(from value: String) -> Substring {
         let prefix = value.prefix(64)
         guard let colon = prefix.firstIndex(of: ":") else {
             return value[...]
