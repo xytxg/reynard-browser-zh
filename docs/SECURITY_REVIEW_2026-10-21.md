@@ -29,8 +29,12 @@ Target: `xytxg/reynard-browser-zh` based on `a99a63c3`. Attribution to upstream 
 - **Release authenticity:** detached SHA-256 files from the same release catch accidental corruption but do not prove independent authenticity. Signing requires a protected signing key and an auditable trust-rotation plan; do not embed a private key in the repository.
 - **Gecko CI time:** retain pinned toolchain and exact cache keys; first measure cache-hit behavior and expensive compilation steps before changing the release pipeline.
 
-**No claim of a full codebase security audit or device verification is made.** Nightly outputs are test artifacts. A stable release incorporating this change set should wait until essential on-device checks above are satisfied.
+**No claim of a full codebase security audit or device verification is made.** Nightly outputs are test artifacts. The maintainer has explicitly authorized a stable release with the outstanding on-device verification listed above prominently disclosed in the release notes; do not represent those checks as completed.
 
 ## Merge and release status (2026-10-22)
 
-The changes were merged in [PR #15](https://github.com/xytxg/reynard-browser-zh/pull/15) (merge commit `e41236be`). Both main-branch static CI and the PR's standard/TrollStore native builds passed. This does **not** certify on-device behavior or a complete security audit. A stable release incorporating this change set has not been produced as part of PR #15; the on-device items above remain release verification gates.
+The changes were merged in [PR #15](https://github.com/xytxg/reynard-browser-zh/pull/15) (merge commit `e41236be`). Both main-branch static CI and the PR's standard/TrollStore native builds passed. This does **not** certify on-device behavior or a complete security audit. PR #15 did not publish a release. The subsequent v0.18.0-zh.3 release was authorized with the outstanding on-device tests disclosed as known limitations.
+
+## Release authorization (2026-10-23)
+
+The maintainer explicitly requested that v0.18.0-zh.3 be formally released for public project demonstration and Codex for OSS application. The workflow must rebuild all three variants, compute matching SHA-256 sidecars, and publish only if the build succeeds. Pending on-device checks above remain documented risks; releasing does not mark them passed.
