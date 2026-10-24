@@ -43,6 +43,38 @@ enum URLUtils {
         return true
     }
     
+    static func fixTLDTypo(in value: String) -> String {
+        let hasScheme = value.contains("://")
+        let prefixedValue = hasScheme ? value : "https://\(value)"
+        guard var components = URLComponents(string: prefixedValue),
+              let scheme = components.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              let host = components.host,
+              let dot = host.lastIndex(of: ".") else {
+            return value
+        }
+        
+        let suffix = host[host.index(after: dot)...].lowercased()
+        let correctedSuffix: String
+        switch suffix {
+        case "ocm", "con", "cmo", "xom", "vom", "cpm", "com'":
+            correctedSuffix = "com"
+        case "ent", "ner", "nte", "met":
+            correctedSuffix = "net"
+        case "rog", "ogr", "prg", "orh":
+            correctedSuffix = "org"
+        default:
+            return value
+        }
+        
+        components.host = String(host[...dot]) + correctedSuffix
+        guard let correctedValue = components.string else {
+            return value
+        }
+        
+        return hasScheme ? correctedValue : String(correctedValue.dropFirst("https://".count))
+    }
+    
     static func normalizedCustomURL(from value: String) -> URL? {
         let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard isWebURL(trimmedValue) else {

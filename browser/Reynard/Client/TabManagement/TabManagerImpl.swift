@@ -990,7 +990,7 @@ final class TabManagerImplementation: NSObject, TabManager {
         ) != nil
         
         if shouldNavigateDirectly {
-            loadURL(navigationInput, in: tab)
+            loadURL(URLUtils.fixTLDTypo(in: navigationInput), in: tab)
             return
         }
         
