@@ -27,7 +27,6 @@ protocol TabManager: AnyObject {
     var selectedTabIndex: Int { get }
     var selectedTab: Tab? { get }
     
-    func applicationWillResignActive()
     func applicationDidBecomeActive()
     func createInitialTab(openingScreen: HomepageOpeningScreen)
     @discardableResult
