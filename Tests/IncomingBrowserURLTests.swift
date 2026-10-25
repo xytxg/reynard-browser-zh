@@ -26,6 +26,7 @@ private struct IncomingBrowserURLTests {
         try testInvalidWebURLsAreRejected()
         try testMultipleContextsAreDeterministic()
         try testPermissionOriginIsolation()
+        try testTLDTypoCorrection()
         print("IncomingBrowserURLTests: all tests passed")
     }
 
@@ -119,6 +120,23 @@ private struct IncomingBrowserURLTests {
         try expect(
             IncomingBrowserURL.firstResolvedURL(in: [later, rejected, earlier]) == earlier,
             "Multiple incoming contexts did not resolve deterministically"
+        )
+    }
+    private static func testTLDTypoCorrection() throws {
+        try expect(URLUtils.fixTLDTypo(in: "example.con") == "example.com", "A .con typo was not corrected")
+        try expect(
+            URLUtils.fixTLDTypo(in: "https://Example.ORG/a?b=c") == "https://Example.ORG/a?b=c",
+            "A valid URL was changed"
+        )
+        try expect(
+            URLUtils.fixTLDTypo(in: "http://example.rog:8080/path") == "http://example.org:8080/path",
+            "Port and path were not kept when correcting a TLD"
+        )
+        try expect(URLUtils.fixTLDTypo(in: "ftp://example.con") == "ftp://example.con", "A non-web scheme was rewritten")
+        try expect(URLUtils.fixTLDTypo(in: "localhost:3000") == "localhost:3000", "A host without a TLD was rewritten")
+        try expect(
+            URLUtils.permissionOrigin(from: URLUtils.fixTLDTypo(in: "https://example.cpm")) == "https://example.com",
+            "A corrected URL does not map to the corrected permission origin"
         )
     }
 }
