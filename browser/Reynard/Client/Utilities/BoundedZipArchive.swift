@@ -13,7 +13,7 @@ import Foundation
 import ZIPFoundation
 
 nonisolated enum BoundedZipArchive {
-    struct Limits: Sendable {
+    nonisolated struct Limits: Sendable {
         /// Largest archive file accepted, in bytes.
         let maximumArchiveSize: UInt64
         /// Largest number of central directory entries accepted.
@@ -24,7 +24,7 @@ nonisolated enum BoundedZipArchive {
         let maximumTotalSize: UInt64
     }
 
-    enum Failure: Error, Sendable {
+    nonisolated enum Failure: Error, Sendable {
         case invalidArchive
         case limitExceeded
         case invalidEntry(String)
@@ -106,10 +106,11 @@ nonisolated enum BoundedZipArchive {
         from archive: Archive,
         limits: Limits,
         totalSize: inout UInt64,
+        validatePath: Bool = true,
         checkCancellation: () throws -> Void = {},
         consumer: (Data) throws -> Void
     ) throws -> UInt64 {
-        guard entry.type == .file, isSafeEntryPath(entry.path) else {
+        guard entry.type == .file, !validatePath || isSafeEntryPath(entry.path) else {
             throw Failure.invalidEntry(entry.path)
         }
         let declaredSize = entry.uncompressedSize

@@ -448,10 +448,63 @@ requireText(
 );
 requireText(imagePreviewLoader, "maximumPreviewPixelSize", "image previews are not downsampled");
 
-const zipArchiveReader = read("browser/Reynard/Client/Utilities/ZipArchiveReader.swift");
-requireText(zipArchiveReader, "maximumEntryCount", "add-on ZIP entry counts are not capped");
-requireText(zipArchiveReader, "maximumEntrySize", "add-on ZIP inflation output is not capped");
-requireText(zipArchiveReader, "containsBytes", "add-on ZIP offsets are not bounds checked");
+// Upstream replaced ZipArchiveReader with ZIPFoundation, which does not cap
+// entry counts or inflated output. Every untrusted archive read goes through
+// BoundedZipArchive instead.
+const boundedZip = read("browser/Reynard/Client/Utilities/BoundedZipArchive.swift");
+requireText(boundedZip, "maximumEntryCount", "ZIP entry counts are not capped");
+requireText(boundedZip, "maximumEntrySize", "ZIP inflation output is not capped per entry");
+requireText(boundedZip, "maximumTotalSize", "ZIP inflation output is not capped in total");
+requireText(boundedZip, "count <= declaredSize - produced", "deflate output beyond the declared size is not stopped");
+requireText(boundedZip, "checksum == entry.checksum", "ZIP entries are not CRC-32 verified");
+requireText(boundedZip, "isSafeEntryPath", "ZIP entry paths are not validated");
+const addonIconLoader = read("browser/Reynard/Client/Interface/Addons/AddonIconLoader.swift");
+requireText(addonIconLoader, "BoundedZipArchive.addonIconLimits", "add-on icons are read from XPI files without limits");
+rejectText(addonIconLoader, "Archive(url:", "add-on icons open XPI files without BoundedZipArchive limits");
+const userDataImporter = read("browser/Reynard/Client/UserData/UserDataImporter.swift");
+requireText(userDataImporter, "BoundedZipArchive.extract(", "imported ZIP entries are not size limited while extracting");
+rejectText(userDataImporter, "archive.extract(entry, to:", "imported ZIP entries are extracted without inflation limits");
+requireText(userDataImporter, "maximumImportableEntries", "imported ZIP files may contain unlimited importable entries");
+requireText(
+  read("browser/Reynard/Client/UserData/Bookmarks/BookmarkHTMLParser.swift"),
+  "maximumFileSize",
+  "imported bookmark HTML is parsed in memory without a size limit"
+);
+requireText(
+  read("browser/Reynard/Client/UserData/History/HistoryJSONReader.swift"),
+  "maximumValueSize",
+  "a single imported history JSON value can grow without limit"
+);
+requireText(
+  read("browser/Reynard/Client/UserData/Addons/AddonDataFile.swift"),
+  "maximumFileSize",
+  "imported add-on data is parsed in memory without a size limit"
+);
+requireText(
+  read("browser/Reynard/Client/UserData/Addons/AddonCatalog.swift"),
+  'url.host?.lowercased() == "addons.mozilla.org"',
+  "imported add-on data can install packages from hosts other than addons.mozilla.org"
+);
+const pbxproj = read("browser/Reynard.xcodeproj/project.pbxproj");
+requireText(
+  pbxproj,
+  'repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";\n\t\t\trequirement = {\n\t\t\t\tkind = exactVersion;\n\t\t\t\tversion = 0.9.20;',
+  "ZIPFoundation is not pinned to the audited exact version 0.9.20"
+);
+// Upstream dropped SWIFT_OBJC_BRIDGING_HEADER from Reynard.xcconfig; every
+// target still sets it in the project file, which the fork's private UIKit
+// declarations (Bridging/UIKit+Private.h) depend on.
+{
+  const bridging = pbxproj.match(/SWIFT_OBJC_BRIDGING_HEADER = "\$\(SRCROOT\)\/Reynard\/Bridging\/Reynard-Bridging-Header\.h";/g) || [];
+  if (bridging.length < 6) {
+    throw new Error(`expected the bridging header in the 6 app and extension configurations, found ${bridging.length}`);
+  }
+}
+requireText(
+  read("browser/Reynard/Bridging/Reynard-Bridging-Header.h"),
+  "UIKit+Private.h",
+  "the bridging header no longer imports the private UIKit declarations"
+);
 
 const addonPackageSafety = read(
   "browser/Reynard/Client/Interface/Addons/AddonPackageSafety.swift"
@@ -787,7 +840,7 @@ requireText(
   "failed add-on icon loads are retried in a refresh loop"
 );
 requireText(
-  read("browser/Reynard/Client/Interface/Library/Settings/Sections/Privacy/ClearBrowsingData/ClearBrowsingDataViewController.swift"),
+  read("browser/Reynard/Client/Interface/Library/Settings/Sections/DataManagement/ClearBrowsingData/ClearBrowsingDataViewController.swift"),
   "TabManagementStore.shared.clearPersistedSession()",
   "clearing opened tabs leaves restorable recently closed tabs and tab sessions"
 );

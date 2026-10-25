@@ -8,6 +8,11 @@
 import Foundation
 
 nonisolated final class HistoryJSONReader {
+    // reynard-browser-zh: records are streamed, but each single JSON value
+    // (one history entry, the metadata object or an unknown root value) is
+    // buffered and parsed in memory, so its size is capped.
+    static let maximumValueSize = 16 * 1024 * 1024
+
     private let stream: InputStream
     private var buffer = [UInt8](repeating: 0, count: 65_536)
     private var offset = 0
@@ -178,6 +183,9 @@ nonisolated final class HistoryJSONReader {
             }
             
             offset += 1
+            guard data.count < Self.maximumValueSize else {
+                throw HistoryDataError.invalidJSON
+            }
             data.append(byte)
             if inString {
                 if escaped {

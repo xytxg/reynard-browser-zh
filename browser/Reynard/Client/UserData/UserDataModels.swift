@@ -46,6 +46,7 @@ nonisolated enum UserDataError: LocalizedError {
     case noImportableFiles
     case invalidArchive
     case invalidArchiveEntry(String)
+    case fileTooLarge
     case unsupportedSafariExtensions
     case invalidExportSelection
     
@@ -59,6 +60,8 @@ nonisolated enum UserDataError: LocalizedError {
             return String.localizedStringWithFormat(
                 NSLocalizedString("The ZIP archive contains a damaged file: %@", comment: "File path in the archive"), path
             )
+        case .fileTooLarge:
+            return NSLocalizedString("The file is too large to import.", comment: "")
         case .unsupportedSafariExtensions:
             return "Safari extension information cannot be used to reinstall Firefox add-ons."
         case .invalidExportSelection:

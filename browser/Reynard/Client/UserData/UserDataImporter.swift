@@ -10,6 +10,18 @@ import Foundation
 import ZIPFoundation
 
 enum UserDataImporter {
+    // reynard-browser-zh: limits for untrusted ZIP imports. Entries are
+    // streamed to disk through BoundedZipArchive, which stops a deflate
+    // stream that expands beyond its declared size, the per-entry limit or
+    // the total budget, and verifies CRC-32.
+    nonisolated static let archiveLimits = BoundedZipArchive.Limits(
+        maximumArchiveSize: 1024 * 1024 * 1024,
+        maximumEntryCount: 10_000,
+        maximumEntrySize: 512 * 1024 * 1024,
+        maximumTotalSize: 1024 * 1024 * 1024
+    )
+    nonisolated static let maximumImportableEntries = 64
+
     static func importData(
         from fileURL: URL, onTypeDetected: ((UserDataType) async -> Void)? = nil
     ) async throws -> UserDataImportReport {
@@ -164,6 +176,10 @@ enum UserDataImporter {
         case "Browser History":
             return .chromeHistory
         case "extensions":
+            guard let fileSize = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+                  fileSize <= AddonDataFile.maximumFileSize else {
+                throw UserDataError.fileTooLarge
+            }
             let data = try Data(contentsOf: url, options: .mappedIfSafe)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                root["extensions"] is [Any] {
@@ -179,9 +195,26 @@ enum UserDataImporter {
         _ url: URL, into directory: URL, progress: Progress
     ) throws -> [Source] {
         let expectedEntryCount = try archiveEntryCount(at: url)
-        let archive = try Archive(url: url, accessMode: .read)
+        guard expectedEntryCount <= UInt64(archiveLimits.maximumEntryCount) else {
+            throw UserDataError.fileTooLarge
+        }
+        let archive: Archive
+        do {
+            archive = try BoundedZipArchive.open(url, limits: archiveLimits)
+        } catch BoundedZipArchive.Failure.limitExceeded {
+            throw UserDataError.fileTooLarge
+        } catch {
+            throw UserDataError.invalidArchive
+        }
         var sources: [Source] = []
         var entryCount: UInt64 = 0
+        var extractedSize: UInt64 = 0
+        let checkCancellation = {
+            if progress.isCancelled {
+                throw CancellationError()
+            }
+            try Task.checkCancellation()
+        }
         for entry in archive {
             try Task.checkCancellation()
             entryCount += 1
@@ -193,13 +226,30 @@ enum UserDataImporter {
                 continue
             }
             
+            guard sources.count < maximumImportableEntries else {
+                throw UserDataError.fileTooLarge
+            }
+            
             let destination = directory.appendingPathComponent(UUID().uuidString)
                 .appendingPathExtension(fileExtension)
-            let checksum = try archive.extract(entry, to: destination, progress: progress)
-            let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
-            guard let size = attributes[.size] as? NSNumber,
-                  size.uint64Value == entry.uncompressedSize,
-                  checksum == entry.checksum else {
+            let writer = try UserDataFileWriter(fileURL: destination)
+            do {
+                // The destination name is random, so the entry path is only
+                // used for display and does not need to be a safe path.
+                try BoundedZipArchive.extract(
+                    entry,
+                    from: archive,
+                    limits: archiveLimits,
+                    totalSize: &extractedSize,
+                    validatePath: false,
+                    checkCancellation: checkCancellation
+                ) { chunk in
+                    try writer.append(chunk)
+                }
+                try writer.finish()
+            } catch BoundedZipArchive.Failure.limitExceeded {
+                throw UserDataError.fileTooLarge
+            } catch BoundedZipArchive.Failure.invalidEntry, BoundedZipArchive.Failure.invalidArchive {
                 throw UserDataError.invalidArchiveEntry(path)
             }
             sources.append(Source(url: destination, name: path))

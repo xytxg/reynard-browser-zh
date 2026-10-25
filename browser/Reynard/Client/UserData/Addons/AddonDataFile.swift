@@ -8,6 +8,10 @@
 import Foundation
 
 nonisolated enum AddonDataFile {
+    // reynard-browser-zh: add-on data is parsed in memory several times
+    // (JSONSerialization, duplicate-key scan, per-record decoding).
+    static let maximumFileSize = 16 * 1024 * 1024
+
     struct Document: Sendable {
         var records: [String: AddonDataRecord] = [:]
         var issues: [AddonImportIssue] = []
@@ -30,7 +34,14 @@ nonisolated enum AddonDataFile {
         }
         
         try Task.checkCancellation()
+        guard let fileSize = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+              fileSize <= maximumFileSize else {
+            throw AddonDataError.invalidFile
+        }
         let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
+        guard data.count <= maximumFileSize else {
+            throw AddonDataError.invalidFile
+        }
         guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let metadata = root["metadata"] as? [String: Any],
               let extensions = root["extensions"] as? [String: Any] else {

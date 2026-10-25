@@ -14,8 +14,21 @@ nonisolated enum BookmarkHTMLParser {
         let isReadingList: Bool
     }
     
+    // reynard-browser-zh: the whole document is parsed in memory by libxml2,
+    // so untrusted bookmark files are capped before they are read.
+    static let maximumFileSize = 64 * 1024 * 1024
+
     static func parse(fileURL: URL, requiresExportMetadata: Bool = false) throws -> BookmarkHTMLDocument {
+        guard let fileSize = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize else {
+            throw BookmarkDataError.unrecognizedFormat
+        }
+        guard fileSize <= maximumFileSize else {
+            throw BookmarkDataError.fileTooLarge
+        }
         let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
+        guard data.count <= maximumFileSize else {
+            throw BookmarkDataError.fileTooLarge
+        }
         guard !data.isEmpty else {
             throw BookmarkDataError.unrecognizedFormat
         }

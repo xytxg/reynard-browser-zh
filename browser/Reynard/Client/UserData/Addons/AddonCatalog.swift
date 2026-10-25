@@ -70,7 +70,11 @@ nonisolated enum AddonCatalog {
         guard !location.contains("\0"),
               let url = URL(string: location),
               url.scheme?.lowercased() == "https",
-              url.host?.isEmpty == false,
+              // reynard-browser-zh: imported files are untrusted and the
+              // install prompt is accepted automatically during import, so
+              // only packages served by addons.mozilla.org are installed.
+              url.host?.lowercased() == "addons.mozilla.org",
+              url.port == nil || url.port == 443,
               url.user == nil, url.password == nil else {
             throw AddonDataError.catalog("Mozilla returned invalid add-on information.")
         }
