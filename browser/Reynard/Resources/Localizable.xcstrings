@@ -1060,6 +1060,41 @@
         }
       }
     },
+    "%d add-ons": {
+      "comment": "Add-on count",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%d add-on"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%d add-ons"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%d 个插件"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%d add-ons couldn’t be updated.": {
       "comment": "Add-on count",
       "localizations": {
@@ -1651,6 +1686,41 @@
         }
       }
     },
+    "%d bookmarks": {
+      "comment": "Bookmark count",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%d bookmark"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%d bookmarks"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%d 个书签"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%d domains": {
       "comment": "Domain count",
       "localizations": {
@@ -1844,6 +1914,40 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "%d imported": {
+      "comment": "Imported record count",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d imported"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已导入 %d 项"
+          }
+        }
+      }
+    },
+    "%d imported · %d skipped": {
+      "comment": "Imported and skipped record counts",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$d imported · %2$d skipped"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已导入 %1$d 项 · 已跳过 %2$d 项"
           }
         }
       }
@@ -2235,6 +2339,41 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "已封鎖 %d 個追蹤器"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%d websites": {
+      "comment": "Website count",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%d website"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%d websites"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%d 个网站"
                 }
               }
             }
@@ -3522,6 +3661,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "將發生登入失敗、真人驗證或其他問題的網站加入此清單，以改用 %@ 使用者代理程式。"
+          }
+        }
+      }
+    },
+    "Add-on schema version %ld is not supported.": {
+      "comment": "Schema version",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add-on schema version %ld is not supported."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不支持插件数据架构版本 %ld。"
           }
         }
       }
@@ -5332,6 +5488,22 @@
         }
       }
     },
+    "An add-on import is already in progress.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An add-on import is already in progress."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已有插件导入正在进行。"
+          }
+        }
+      }
+    },
     "Appearance": {
       "localizations": {
         "cs": {
@@ -7003,6 +7175,22 @@
         }
       }
     },
+    "Choose File…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose File…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选取文件…"
+          }
+        }
+      }
+    },
     "Choose Folder": {
       "localizations": {
         "cs": {
@@ -7063,6 +7251,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "選擇檔案夾"
+          }
+        }
+      }
+    },
+    "Choose Other…": {
+      "comment": "For choosing other file for import",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Other…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选取其他文件…"
           }
         }
       }
@@ -9444,6 +9649,22 @@
         }
       }
     },
+    "Count unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Count unavailable"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法统计数量"
+          }
+        }
+      }
+    },
     "Cross-Site Cookies": {
       "localizations": {
         "cs": {
@@ -9762,6 +9983,22 @@
           "stringUnit": {
             "state": "needs_review",
             "value": ""
+          }
+        }
+      }
+    },
+    "Data Management": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data Management"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数据管理"
           }
         }
       }
@@ -12463,6 +12700,118 @@
         }
       }
     },
+    "Export": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出"
+          }
+        }
+      }
+    },
+    "Export Browsing Data": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Browsing Data"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出浏览数据"
+          }
+        }
+      }
+    },
+    "Export Complete": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Complete"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出完成"
+          }
+        }
+      }
+    },
+    "Export Failed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Failed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出失败"
+          }
+        }
+      }
+    },
+    "Export your bookmarks, history, and other browser data to a file that can be imported into other browsers.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export your bookmarks, history, and other browser data to a file that can be imported into other browsers."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将你的书签、历史记录和其他浏览器数据导出为文件，以便导入到其他浏览器。"
+          }
+        }
+      }
+    },
+    "Export…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出…"
+          }
+        }
+      }
+    },
+    "Exporting in progress…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporting in progress…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在导出…"
+          }
+        }
+      }
+    },
     "Failed": {
       "comment": "Download state",
       "localizations": {
@@ -13745,6 +14094,70 @@
         }
       }
     },
+    "Import": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入"
+          }
+        }
+      }
+    },
+    "Import Browsing Data": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import Browsing Data"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入浏览数据"
+          }
+        }
+      }
+    },
+    "Import Complete": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import Complete"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入完成"
+          }
+        }
+      }
+    },
+    "Import failed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import failed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入失败"
+          }
+        }
+      }
+    },
     "Import Failed": {
       "localizations": {
         "cs": {
@@ -13869,6 +14282,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "匯入配對檔案…"
+          }
+        }
+      }
+    },
+    "Import your bookmarks, history, and other browser data into Reynard.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import your bookmarks, history, and other browser data into Reynard."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将你的书签、历史记录和其他浏览器数据导入 Reynard。"
+          }
+        }
+      }
+    },
+    "Importing in progress…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importing in progress…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在导入…"
           }
         }
       }
@@ -15415,6 +15860,22 @@
         }
       }
     },
+    "Loading…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在载入…"
+          }
+        }
+      }
+    },
     "Local Network": {
       "localizations": {
         "cs": {
@@ -16952,6 +17413,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "未安裝任何附加元件"
+          }
+        }
+      }
+    },
+    "No data was imported.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No data was imported."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未导入任何数据。"
           }
         }
       }
@@ -26099,6 +26576,38 @@
         }
       }
     },
+    "Some add-on settings couldn’t be restored.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some add-on settings couldn’t be restored."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分插件设置无法恢复。"
+          }
+        }
+      }
+    },
+    "Some data couldn’t be imported.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some data couldn’t be imported."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分数据无法导入。"
+          }
+        }
+      }
+    },
     "Some websites are available in multiple languages. Choose languages in the order you prefer.": {
       "localizations": {
         "cs": {
@@ -26868,6 +27377,23 @@
         }
       }
     },
+    "The add-on file contains a duplicate key: %@": {
+      "comment": "JSON key",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The add-on file contains a duplicate key: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "插件数据文件包含重复的键：%@"
+          }
+        }
+      }
+    },
     "The app will now close for the JIT setting to take effect.": {
       "localizations": {
         "cs": {
@@ -26928,6 +27454,210 @@
           "stringUnit": {
             "state": "translated",
             "value": "App 即將關閉，以套用 JIT 設定。"
+          }
+        }
+      }
+    },
+    "The bookmarks database contains an invalid bookmark or folder structure.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The bookmarks database contains an invalid bookmark or folder structure."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "书签数据库中包含无效的书签或文件夹结构。"
+          }
+        }
+      }
+    },
+    "The bookmarks database is unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The bookmarks database is unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "书签数据库不可用。"
+          }
+        }
+      }
+    },
+    "The bookmarks database reported an error: %@": {
+      "comment": "Database error message",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The bookmarks database reported an error: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "书签数据库报告了错误：%@"
+          }
+        }
+      }
+    },
+    "The bookmarks file is too large to parse.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The bookmarks file is too large to parse."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "书签文件过大，无法解析。"
+          }
+        }
+      }
+    },
+    "The export archive couldn’t be created. Try again or choose another location.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The export archive couldn’t be created. Try again or choose another location."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法创建导出压缩包。请重试或选取其他位置。"
+          }
+        }
+      }
+    },
+    "The export couldn’t be saved in the selected folder. Choose another location and try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The export couldn’t be saved in the selected folder. Choose another location and try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法将导出内容存储到所选文件夹。请选取其他位置后重试。"
+          }
+        }
+      }
+    },
+    "The file does not contain readable HTML bookmarks.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file does not contain readable HTML bookmarks."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该文件不包含可读取的 HTML 书签。"
+          }
+        }
+      }
+    },
+    "The file does not contain supported bookmarks, history, or add-on data.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file does not contain supported bookmarks, history, or add-on data."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该文件不包含受支持的书签、历史记录或插件数据。"
+          }
+        }
+      }
+    },
+    "The file does not contain valid add-on data.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file does not contain valid add-on data."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该文件不包含有效的插件数据。"
+          }
+        }
+      }
+    },
+    "The file is not a valid Reynard, Safari, or Chrome Takeout history.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file is not a valid Reynard, Safari, or Chrome Takeout history."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该文件不是有效的 Reynard、Safari 或 Chrome Takeout 历史记录。"
+          }
+        }
+      }
+    },
+    "The file is too large to import.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件过大，无法导入。"
+          }
+        }
+      }
+    },
+    "The history database operation failed: %@": {
+      "comment": "Database error message",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The history database operation failed: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史记录数据库操作失败：%@"
+          }
+        }
+      }
+    },
+    "The history file contains invalid or incomplete JSON.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The history file contains invalid or incomplete JSON."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史记录文件包含无效或不完整的 JSON。"
           }
         }
       }
@@ -27010,6 +27740,55 @@
           "stringUnit": {
             "state": "translated",
             "value": "找不到啟用 JIT 所需的開發者磁碟映像檔。\n\nJIT 已停用。請使用下方按鈕結束 App，然後從瀏覽器設定重新啟用 JIT。"
+          }
+        }
+      }
+    },
+    "The ZIP archive contains a damaged file: %@": {
+      "comment": "File path in the archive",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The ZIP archive contains a damaged file: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ZIP 压缩包中有已损坏的文件：%@"
+          }
+        }
+      }
+    },
+    "The ZIP archive is damaged or incomplete and couldn’t be read.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The ZIP archive is damaged or incomplete and couldn’t be read."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ZIP 压缩包已损坏或不完整，无法读取。"
+          }
+        }
+      }
+    },
+    "There isn’t enough space to export your data. Free up space and try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There isn’t enough space to export your data. Free up space and try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "存储空间不足，无法导出数据。请释放空间后重试。"
           }
         }
       }
@@ -28168,6 +28947,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "無法存取 App 的「Application Support」資料夾。"
+          }
+        }
+      }
+    },
+    "Unable to open database.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to open database."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法打开数据库。"
           }
         }
       }
@@ -30817,6 +31612,38 @@
         }
       }
     },
+    "Your add-ons couldn’t be exported. Try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your add-ons couldn’t be exported. Try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法导出你的插件。请重试。"
+          }
+        }
+      }
+    },
+    "Your bookmarks couldn’t be exported. Try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your bookmarks couldn’t be exported. Try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法导出你的书签。请重试。"
+          }
+        }
+      }
+    },
     "Your browsing history appears here": {
       "localizations": {
         "cs": {
@@ -30877,6 +31704,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "你的瀏覽記錄會顯示在這裡"
+          }
+        }
+      }
+    },
+    "Your data couldn’t be exported. Try again or choose another location.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your data couldn’t be exported. Try again or choose another location."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法导出你的数据。请重试或选取其他位置。"
+          }
+        }
+      }
+    },
+    "Your data has been exported.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your data has been exported."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的数据已导出。"
+          }
+        }
+      }
+    },
+    "Your data has been imported.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your data has been imported."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的数据已导入。"
+          }
+        }
+      }
+    },
+    "Your history couldn’t be exported. Try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your history couldn’t be exported. Try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法导出你的历史记录。请重试。"
           }
         }
       }

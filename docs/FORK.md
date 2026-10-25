@@ -33,30 +33,30 @@
 | 字段 | 值 |
 | --- | --- |
 | 上游仓库 | `https://github.com/minh-ton/reynard-browser` |
-| 已合并到的上游提交 | `6e84bfca9c16b2204dc64c93d2089b5410039897`（Reynard 0.18.0） |
-| 上一次基线 | `860bb6f4d0ff2b5d45f7dbe48eca8f39ee88a4fa` |
-| Gecko | `FIREFOX_158_0_RELEASE`，固定提交 `3c71aeacdb296402e41fb2084b13e797d1770642` |
-| 合并日期 | 2026-10-20（经 PR #13 合并） |
-| 方式 | `6114ed61..25aa6da1`、`25aa6da1..55919a66`、`55919a66..860bb6f4`、`860bb6f4..6e84bfca` 四段 `git format-patch` + `git am -3` |
+| 已合并到的上游提交 | `e52764023970c20d6a7e4d0c949a78ad1196f91e`（Reynard 0.18.0） |
+| 上一次基线 | `6e84bfca9c16b2204dc64c93d2089b5410039897` |
+| Gecko | `FIREFOX_158_0_1_RELEASE`，固定提交 `9378fbc58660847fbc02c3486a0ecd6049978e25` |
+| 合并日期 | 2026-10-25（同步分支 `sync/upstream-158.0.1`，经 PR #16 合并） |
+| 方式 | `6114ed61..25aa6da1`、`25aa6da1..55919a66`、`55919a66..860bb6f4`、`860bb6f4..6e84bfca`、`6e84bfca..e5276402` 五段 `git format-patch` + `git am -3` |
 
 各版本的同步内容见 [`CHANGELOG.md`](../CHANGELOG.md)。
 
 ### 2. 汉化
 
 当 iOS 首选语言为简体中文时自动使用中文，英文资源保留。数字由
-`node tools/tests/validate-localizations.js` 输出，并与上游同一基线（`6e84bfca`）的同名字符串表逐键比对得出
-（统计时本仓库为 `main` 提交 `34101800`）。校验脚本会检查每个键都有 `zh-Hans` 译文、占位符一致，
+`node tools/tests/validate-localizations.js` 输出，并与上游同一基线（`e5276402`）的同名字符串表逐键比对得出
+（统计时本仓库为同步分支提交 `28989203`；上游表中值为空的 `zh-Hans` 按“缺少中文”计）。校验脚本会检查每个键都有 `zh-Hans` 译文、占位符一致，
 以及源码中 `NSLocalizedString` 的键都已收录。
 
 | 范围 | 文件 | 条数 | 其中来自本分支 |
 | --- | --- | --- | --- |
-| 应用界面 | `browser/Reynard/Resources/Localizable.xcstrings` | 527（全部有中文） | 新增中文 90 条（56 条为上游目录中没有的键，34 条为上游缺少中文的键），并修订上游中文 15 条；其余 422 条沿用上游中文 |
+| 应用界面 | `browser/Reynard/Resources/Localizable.xcstrings` | 579（全部有中文） | 新增中文 142 条（57 条为上游目录中没有的键，85 条为上游缺少中文的键，其中 51 条是本次同步的数据管理等新文字），并修订上游中文 15 条；其余 422 条沿用上游中文 |
 | 附加组件 | `browser/Reynard/Client/Interface/Addons/AddonLocalizable.xcstrings` | 72 | 0（上游自带中文，本分支只做校验） |
 | 设置 | `browser/Reynard/Client/Interface/Library/Settings/SettingsLocalizable.xcstrings` | 50 | 9（均为上游目录中没有的键） |
 | 网页错误页 | `browser/Reynard/Client/Interface/ContentView/WebContentErrorLocalizable.xcstrings` | 69 | 0（上游 `6c8ca44d`，即本仓库 `de6f0ef1`，随错误页一同带来 Firefox 中文译文；本分支在 `e769b573` 中把该表纳入校验） |
 | 系统权限说明与显示名 | 3 个 `zh-Hans.lproj/InfoPlist.strings`（主应用 6 条、OpenIn 扩展 1 条、Helper 扩展 1 条） | 8 | 8（上游没有这些文件） |
 
-四个字符串表合计 718 条，`InfoPlist.strings` 另有 8 条。本分支的中文工作量以“来自本分支”一列为准，
+四个字符串表合计 770 条，`InfoPlist.strings` 另有 8 条。本分支的中文工作量以“来自本分支”一列为准，
 不应把上游已提供的中文计入。
 
 ### 3. 修复与加固
@@ -75,7 +75,8 @@
 3. 下载文件名清理（路径分隔符、控制字符、双向文本控制符、UTF-8 长度）、最终路径限制在 Downloads 目录内、
    不可信 `Content-Length` 不再导致进度溢出。
    文件：`browser/Reynard/Client/Stores/DownloadSafety.swift`；提交：`41c84d88`、`e58f70ee`；测试：`Tests/DownloadSafetyTests.swift`。
-4. 附加组件安装包限制 128 MiB 并校验 ZIP 文件头。文件：`browser/Reynard/Client/Interface/Addons/AddonPackageSafety.swift`；提交：`0fca4e07`。
+4. 附加组件安装包限制 128 MiB，并在交给 Gecko 前预检 ZIP 中央目录：条目数、解压后累计大小（≤512 MiB）、压缩方式、路径穿越与根目录 `manifest.json`（不替代 Gecko 的签名与权限检查）。
+   文件：`browser/Reynard/Client/Interface/Addons/AddonPackageSafety.swift`；提交：`0fca4e07`、`633c0cf8`；测试：`Tests/AddonPackageSafetyTests.swift`。
 5. 外部链接与 `reynard://` 包装链接只允许最终目标为 HTTP/HTTPS。
    文件：`browser/Reynard/Client/Shared/IncomingBrowserURL.swift`；提交：`0fca4e07`；测试：`Tests/IncomingBrowserURLTests.swift`。
 6. 上下文菜单图片在内容进程内限制为 20 MiB，避免超大图片耗尽内存。
@@ -87,7 +88,7 @@
    文件：`browser/Reynard/Client/Stores/TabManagementStore.swift`、`NavigationHistoryStore.swift`、
    `browser/Reynard/Client/SessionManagement/SessionManager.swift` 等；提交：`41c84d88`、`b29693c0`、`49fb7ef1`。
 8. 清除已打开标签页时一并清除最近关闭的标签与持久化会话/缩略图；`BoundedURLDataLoader` 加锁消除竞态；
-   附加组件图标加载失败不再循环刷新；`ZipArchiveReader` 修复悬空指针；后台音频保活失败后按指数退避重试。
+   附加组件图标加载失败不再循环刷新；`ZipArchiveReader` 修复悬空指针（该文件已随上游改用 ZIPFoundation 删除，限制见第 13 条）；后台音频保活失败后按指数退避重试。
    提交：`23abe1c2`。
 9. 系统代理 PAC 条目缺少 URL 或脚本时按直连处理，不再崩溃。
    文件：`patches/toolkit/system/iosproxy/nsIOSSystemProxySettings.mm.patch`；提交：`20d6979d`。
@@ -96,6 +97,15 @@
 11. 上游 `6e84bfca` 审查修复：`selectionView` 私有接口先检查再调用；错误页显示名不再强制转换，崩溃页链接文字缺失时不抛异常；
     HTTPS-Only 例外在调用前校验 URI 与顶层主体，避免 `IPC_FAIL` 强杀内容进程。
     文件：`SelectionActionMenuHostView.swift`、`WebContentErrorView.swift`、`patches/widget/uikit/nsWindow.mm.patch`；提交：`980335dc`。
+12. 网站权限按完整来源（`scheme://host[:port]`，默认端口规范化、IPv6 加方括号）保存，旧的仅域名记录备份到 `legacy_site_permissions` 并停用；
+    照片/视频上传优先使用文件型表示，图片数据回退限制 16 MiB。
+    文件：`browser/Reynard/Client/Stores/SitePermissionStore.swift`、`browser/Reynard/Client/Shared/URLUtils.swift`、`FilePickerStaging.swift` 等；提交：`e50e632c`；测试：`Tests/IncomingBrowserURLTests.swift`。
+13. 上游改用 ZIPFoundation 0.9.20 后，`BoundedZipArchive` 在其上限制条目数、单项与累计解压大小，解压超过声明大小立即中止，并校验 CRC-32 与条目路径；
+    附加组件图标（XPI）沿用原 `ZipArchiveReader` 的限制（≤128 MiB、≤4096 条目、单项 ≤8 MiB）。
+    文件：`browser/Reynard/Client/Utilities/BoundedZipArchive.swift`、`AddonIconLoader.swift`；提交：`d4831742`；测试：`Tests/BoundedZipArchiveTests/`（`d342c6ca`）。
+14. 数据导入（上游 `2e504a80`）按不可信输入处理：ZIP 流式解压（单项 ≤512 MiB、累计 ≤1 GiB、可导入文件 ≤64 个）、书签 HTML ≤64 MiB、
+    单条历史 JSON 值 ≤16 MiB、插件数据 ≤16 MiB；导入时会自动接受插件安装提示，因此只从 `addons.mozilla.org` 下载安装包。
+    文件：`browser/Reynard/Client/UserData/` 下的 `UserDataImporter.swift`、`BookmarkHTMLParser.swift`、`HistoryJSONReader.swift`、`AddonDataFile.swift`、`AddonCatalog.swift`；提交：`e3c210d2`。
 
 所有上述约束由 `tools/tests/validate-project-safety.js` 做静态断言，PR 与 `main` 推送时运行。
 
@@ -107,6 +117,7 @@
 | iOS 27 SDK 检查 | 发布包保持 iOS 13 目标，另用 Xcode 27 单独编译并检查 iOS 27 SDK 加载命令；打包时把无扩展名的 `XUL` 规范化为 `XUL.dylib`。 | `06d0c4ed`、`74e4a986`；`tools/release/create-unsigned-ipa.sh`、`tools/release/verify-unsigned-ipa.py` |
 | AppleVT（VideoToolbox） | 把 iOS 17 解码器键与 iOS 17.4 编码器键的引用放进对应的运行时可用性分支，不再在 iOS 13 上引用。 | `patches/dom/media/platforms/apple/AppleVTDecoder.cpp.patch`、`AppleVTEncoder.cpp.patch`（`bba67053`） |
 | JIT 开发者磁盘映像（DDI） | 上游从 `github.com/doronz88/DeveloperDiskImage/raw/refs/heads/main` 下载且不校验哈希；本分支固定到 `doronz88/DeveloperDiskImage` 修订 `6eae353ae694bda1c421d4a3eee5459ae59c99a1`，只允许 `raw.githubusercontent.com`，Cryptex（iOS 26.4+，5 个文件）与 Personalized（iOS 26.4 以下，3 个文件）均校验大小与 SHA-256，失败即清理。 | `browser/Reynard/JIT/RPPairing/DDIManager.swift`（`e967e530`、`23abe1c2`、`3b69b2eb`） |
+| ZIP 读取 | 上游用 ZIPFoundation（`exactVersion` 0.9.20）读取附加组件图标与导入文件；本分支所有不可信 ZIP 都经 `BoundedZipArchive` 读取（见第 3 节第 13、14 条），项目安全检查断言 ZIPFoundation 固定版本。上游从 `Reynard.xcconfig` 删除 `SWIFT_OBJC_BRIDGING_HEADER` 不影响本分支：6 个 Swift 目标配置在工程文件中仍各自设置桥接头（含 `UIKit+Private.h`），并由安全检查断言。 | `BoundedZipArchive.swift`（`d4831742`、`e3c210d2`）、`tools/tests/validate-project-safety.js` |
 | 越狱包依赖 | 打包时下载的上游 0.10.0 IPA 及从中取出的 `libswift_Concurrency.dylib` 均固定 SHA-256。 | `tools/release/create-ipa.sh`（`3a9aa1c2`） |
 | 更新 / 下载 | 见第 3 节 1–6 条。 | 同上 |
 | CI：Gecko 分段续编 | 冷编译的 Gecko 每种变体最多 4 段（`p1`–`p4`）；每段在作业开始 320 分钟后停止，把整个对象目录、`~/.mozbuild` 引导工具链与 sccache 上传为 artifact，下一段在相同路径与相同 Rust/Xcode/sccache 版本下续编，续编前校验 configure 记录的工具路径。 | `.github/workflows/build-gecko.yml`、`tools/development/build-gecko-pass.sh`（`a101aa5a`、`5125b199`、`3b92b753`、`6f968111`） |
@@ -156,11 +167,11 @@ The current baseline is recorded in [`.github/upstream-sync.json`](../.github/up
 | Field | Value |
 | --- | --- |
 | Upstream repository | `https://github.com/minh-ton/reynard-browser` |
-| Upstream commit merged up to | `6e84bfca9c16b2204dc64c93d2089b5410039897` (Reynard 0.18.0) |
-| Previous baseline | `860bb6f4d0ff2b5d45f7dbe48eca8f39ee88a4fa` |
-| Gecko | `FIREFOX_158_0_RELEASE`, pinned commit `3c71aeacdb296402e41fb2084b13e797d1770642` |
-| Integration date | 2026-10-20 (merged in PR #13) |
-| Method | `git format-patch` + `git am -3` in four ranges: `6114ed61..25aa6da1`, `25aa6da1..55919a66`, `55919a66..860bb6f4`, `860bb6f4..6e84bfca` |
+| Upstream commit merged up to | `e52764023970c20d6a7e4d0c949a78ad1196f91e` (Reynard 0.18.0) |
+| Previous baseline | `6e84bfca9c16b2204dc64c93d2089b5410039897` |
+| Gecko | `FIREFOX_158_0_1_RELEASE`, pinned commit `9378fbc58660847fbc02c3486a0ecd6049978e25` |
+| Integration date | 2026-10-25 (sync branch `sync/upstream-158.0.1`, merged in PR #16) |
+| Method | `git format-patch` + `git am -3` in five ranges: `6114ed61..25aa6da1`, `25aa6da1..55919a66`, `55919a66..860bb6f4`, `860bb6f4..6e84bfca`, `6e84bfca..e5276402` |
 
 What each sync brought in is listed in [`CHANGELOG.md`](../CHANGELOG.md) (in Chinese).
 
@@ -168,18 +179,18 @@ What each sync brought in is listed in [`CHANGELOG.md`](../CHANGELOG.md) (in Chi
 
 The app switches to Simplified Chinese when it is the preferred iOS language; English resources are kept. The numbers
 come from `node tools/tests/validate-localizations.js` and from a key-by-key comparison with the same string tables at the
-upstream baseline (`6e84bfca`), counted on this repository's `main` at `34101800`. The script checks that every key has a
+upstream baseline (`e5276402`), counted on this repository's sync branch at `28989203` (an empty upstream `zh-Hans` value counts as missing). The script checks that every key has a
 `zh-Hans` value with matching placeholders and that every `NSLocalizedString` key used in the source is in a table.
 
 | Scope | File | Entries | Contributed by this fork |
 | --- | --- | --- | --- |
-| App UI | `browser/Reynard/Resources/Localizable.xcstrings` | 527 (all translated) | 90 new Chinese entries (56 keys not in the upstream table, 34 upstream keys without Chinese) and 15 revised upstream translations; the other 422 use upstream's Chinese |
+| App UI | `browser/Reynard/Resources/Localizable.xcstrings` | 579 (all translated) | 142 new Chinese entries (57 keys not in the upstream table, 85 upstream keys without Chinese, 51 of them the new data-management strings of this sync) and 15 revised upstream translations; the other 422 use upstream's Chinese |
 | Add-ons | `browser/Reynard/Client/Interface/Addons/AddonLocalizable.xcstrings` | 72 | 0 (upstream ships Chinese; the fork only validates it) |
 | Settings | `browser/Reynard/Client/Interface/Library/Settings/SettingsLocalizable.xcstrings` | 50 | 9 (all keys not in the upstream table) |
 | Web error pages | `browser/Reynard/Client/Interface/ContentView/WebContentErrorLocalizable.xcstrings` | 69 | 0 (upstream `6c8ca44d`, `de6f0ef1` in this repository, brought Firefox's Chinese with the error pages; the fork added the table to validation in `e769b573`) |
 | Permission prompts and display names | three `zh-Hans.lproj/InfoPlist.strings` (app 6, OpenIn extension 1, Helper extension 1) | 8 | 8 (upstream has no such files) |
 
-The four string tables hold 718 entries, plus 8 in `InfoPlist.strings`. The fork's own translation work is the
+The four string tables hold 770 entries, plus 8 in `InfoPlist.strings`. The fork's own translation work is the
 "Contributed by this fork" column; Chinese already provided upstream should not be counted as the fork's.
 
 ### 3. Fixes and hardening
@@ -200,8 +211,10 @@ Changes this fork adds on top of upstream (paths are relative to the repository 
 3. Download file names are sanitized (path separators, control and bidi characters, UTF-8 length), the final path is kept
    inside Downloads, and an untrusted `Content-Length` can no longer overflow progress.
    File: `browser/Reynard/Client/Stores/DownloadSafety.swift`; commits `41c84d88`, `e58f70ee`; tests: `Tests/DownloadSafetyTests.swift`.
-4. Add-on packages are limited to 128 MiB and must start with a ZIP signature.
-   File: `browser/Reynard/Client/Interface/Addons/AddonPackageSafety.swift`; commit `0fca4e07`.
+4. Add-on packages are limited to 128 MiB, and their ZIP central directory is checked before Gecko sees them: entry count,
+   total expanded size (≤512 MiB), compression methods, path traversal and a root `manifest.json` (this does not replace
+   Gecko's signature and permission checks).
+   File: `browser/Reynard/Client/Interface/Addons/AddonPackageSafety.swift`; commits `0fca4e07`, `633c0cf8`; tests: `Tests/AddonPackageSafetyTests.swift`.
 5. External links and `reynard://` wrapper links must resolve to HTTP/HTTPS.
    File: `browser/Reynard/Client/Shared/IncomingBrowserURL.swift`; commit `0fca4e07`; tests: `Tests/IncomingBrowserURLTests.swift`.
 6. Context-menu image fetches are capped at 20 MiB in the content process so a huge image cannot exhaust memory.
@@ -215,7 +228,7 @@ Changes this fork adds on top of upstream (paths are relative to the repository 
    `browser/Reynard/Client/SessionManagement/SessionManager.swift` and others; commits `41c84d88`, `b29693c0`, `49fb7ef1`.
 8. Clearing open tabs also clears recently closed tabs and persisted sessions/thumbnails; `BoundedURLDataLoader` is locked
    against a cancel/finish race; failed add-on icon loads no longer cause a refresh loop; a dangling pointer in
-   `ZipArchiveReader` is fixed; background-audio keep-alive retries with exponential backoff. Commit `23abe1c2`.
+   `ZipArchiveReader` is fixed (the file was removed when upstream moved to ZIPFoundation; see item 13); background-audio keep-alive retries with exponential backoff. Commit `23abe1c2`.
 9. PAC entries without a URL or script resolve to no proxy instead of crashing.
    File: `patches/toolkit/system/iosproxy/nsIOSSystemProxySettings.mm.patch`; commit `20d6979d`.
 10. Fixes a RemoteIO audio thread self-join crash on iOS 27.
@@ -224,6 +237,18 @@ Changes this fork adds on top of upstream (paths are relative to the repository 
     force-casts the display name or throws when the crash-page link text is missing; the HTTPS-Only exception checks the URI
     and top-level principal first, so `IPC_FAIL` cannot kill the content process.
     Files: `SelectionActionMenuHostView.swift`, `WebContentErrorView.swift`, `patches/widget/uikit/nsWindow.mm.patch`; commit `980335dc`.
+12. Site permissions are stored per full origin (`scheme://host[:port]`, default ports canonicalized, IPv6 bracketed); old
+    host-only rows are copied to `legacy_site_permissions` and deactivated. Photo/video uploads prefer file-backed
+    representations, and the image data fallback is capped at 16 MiB.
+    Files: `browser/Reynard/Client/Stores/SitePermissionStore.swift`, `browser/Reynard/Client/Shared/URLUtils.swift`, `FilePickerStaging.swift` and others; commit `e50e632c`; tests: `Tests/IncomingBrowserURLTests.swift`.
+13. Upstream switched to ZIPFoundation 0.9.20; `BoundedZipArchive` adds entry-count, per-entry and total expanded-size limits on
+    top of it, stops a deflate stream that grows beyond its declared size, and checks CRC-32 and entry paths. Add-on icons
+    (XPI) keep the former `ZipArchiveReader` limits (≤128 MiB, ≤4096 entries, ≤8 MiB per entry).
+    Files: `browser/Reynard/Client/Utilities/BoundedZipArchive.swift`, `AddonIconLoader.swift`; commit `d4831742`; tests: `Tests/BoundedZipArchiveTests/` (`d342c6ca`).
+14. Data import (upstream `2e504a80`) treats files as untrusted: ZIP entries are streamed (≤512 MiB each, ≤1 GiB total, ≤64
+    importable files), bookmark HTML ≤64 MiB, a single history JSON value ≤16 MiB, add-on data ≤16 MiB; because the import
+    accepts the add-on install prompt automatically, packages are only downloaded from `addons.mozilla.org`.
+    Files under `browser/Reynard/Client/UserData/`: `UserDataImporter.swift`, `BookmarkHTMLParser.swift`, `HistoryJSONReader.swift`, `AddonDataFile.swift`, `AddonCatalog.swift`; commit `e3c210d2`.
 
 These constraints are asserted statically by `tools/tests/validate-project-safety.js`, which runs on pull requests and
 pushes to `main`.
@@ -236,6 +261,7 @@ pushes to `main`.
 | iOS 27 SDK checks | Packages keep the iOS 13 target; a separate Xcode 27 build checks the iOS 27 SDK load commands; packaging renames the extensionless `XUL` to `XUL.dylib`. | `06d0c4ed`, `74e4a986`; `tools/release/create-unsigned-ipa.sh`, `tools/release/verify-unsigned-ipa.py` |
 | AppleVT (VideoToolbox) | References to the iOS 17 decoder key and iOS 17.4 encoder keys are moved inside their runtime-availability branches, so iOS 13 never touches them. | `patches/dom/media/platforms/apple/AppleVTDecoder.cpp.patch`, `AppleVTEncoder.cpp.patch` (`bba67053`) |
 | JIT Developer Disk Image (DDI) | Upstream downloads from `github.com/doronz88/DeveloperDiskImage/raw/refs/heads/main` without hash checks; this fork pins `doronz88/DeveloperDiskImage` at revision `6eae353ae694bda1c421d4a3eee5459ae59c99a1`, allows only `raw.githubusercontent.com`, and verifies size and SHA-256 of both the Cryptex set (iOS 26.4+, 5 files) and the Personalized set (below iOS 26.4, 3 files), deleting them on failure. | `browser/Reynard/JIT/RPPairing/DDIManager.swift` (`e967e530`, `23abe1c2`, `3b69b2eb`) |
+| ZIP reading | Upstream reads add-on icons and imported files with ZIPFoundation (`exactVersion` 0.9.20); in this fork every untrusted ZIP goes through `BoundedZipArchive` (items 13 and 14 in section 3), and the project safety check asserts the pinned version. Upstream removing `SWIFT_OBJC_BRIDGING_HEADER` from `Reynard.xcconfig` does not affect the fork: the 6 Swift target configurations still set the bridging header (which imports `UIKit+Private.h`) in the project file, which the safety check asserts. | `BoundedZipArchive.swift` (`d4831742`, `e3c210d2`), `tools/tests/validate-project-safety.js` |
 | Jailbroken package dependency | The upstream 0.10.0 IPA downloaded at packaging time and the `libswift_Concurrency.dylib` extracted from it are pinned by SHA-256. | `tools/release/create-ipa.sh` (`3a9aa1c2`) |
 | Updates / downloads | See items 1–6 in section 3. | As above |
 | CI: multi-pass Gecko | A cold Gecko build runs in up to 4 passes per flavor (`p1`–`p4`). Each pass stops 320 minutes after its job starts and uploads the whole object directory, the `~/.mozbuild` bootstrap toolchain and sccache as an artifact; the next pass resumes at the same paths with the same Rust/Xcode/sccache versions and first verifies the tool paths recorded by configure. | `.github/workflows/build-gecko.yml`, `tools/development/build-gecko-pass.sh` (`a101aa5a`, `5125b199`, `3b92b753`, `6f968111`) |

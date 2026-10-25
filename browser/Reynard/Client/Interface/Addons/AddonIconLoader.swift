@@ -7,11 +7,11 @@
 
 import ImageIO
 import UIKit
+import ZIPFoundation
 
 enum AddonIconLoader {
     private static let maximumIconDataSize = 8 * 1024 * 1024
     private static let maximumSVGDataSize = 2 * 1024 * 1024
-    private static let maximumArchiveSize = 128 * 1024 * 1024
 
     static func loadImage(from iconURLString: String?, targetSize: CGSize) -> UIImage? {
         guard targetSize.width > 0,
@@ -71,14 +71,24 @@ enum AddonIconLoader {
         guard components.count == 2,
               let archiveURL = URL(string: components[0]),
               archiveURL.isFileURL,
-              let archiveData = localFileData(
-                from: archiveURL,
-                maximumSize: maximumArchiveSize
+              let archive = try? BoundedZipArchive.open(
+                archiveURL,
+                limits: BoundedZipArchive.addonIconLimits
+              ),
+              let entry = try? BoundedZipArchive.fileEntry(
+                at: components[1],
+                in: archive,
+                limits: BoundedZipArchive.addonIconLimits
               ) else {
             return nil
         }
 
-        return ZipArchiveReader.entryData(in: archiveData, path: components[1])
+        // Size, inflation and CRC-32 limits are enforced while streaming.
+        return try? BoundedZipArchive.data(
+            of: entry,
+            from: archive,
+            limits: BoundedZipArchive.addonIconLimits
+        )
     }
 
     private static func localFileData(from url: URL, maximumSize: Int) -> Data? {

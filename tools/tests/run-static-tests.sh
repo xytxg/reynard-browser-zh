@@ -52,3 +52,21 @@ trap 'rm -rf "$TEST_DIR"' EXIT
 "$TEST_DIR/AddonPackageSafetyTests"
 
 "$TEST_DIR/BrowserUpdatePolicyTests"
+
+# ZIP limits on top of ZIPFoundation (reynard-browser-zh). SwiftPM resolves the
+# same exact ZIPFoundation version as the Xcode project, which also verifies
+# that CI can fetch it.
+if command -v xcrun >/dev/null 2>&1; then
+    SWIFT=(xcrun swift)
+else
+    SWIFT=(swift)
+fi
+ZIP_TEST_DIR="$TEST_DIR/BoundedZipArchiveTests"
+mkdir -p "$ZIP_TEST_DIR/Sources/BoundedZipArchiveTests"
+cp "$ROOT_DIR/Tests/BoundedZipArchiveTests/Package.swift" "$ZIP_TEST_DIR/Package.swift"
+cp "$ROOT_DIR/browser/Reynard/Client/Utilities/BoundedZipArchive.swift" \
+    "$ROOT_DIR/Tests/BoundedZipArchiveTests/main.swift" \
+    "$ZIP_TEST_DIR/Sources/BoundedZipArchiveTests/"
+python3 "$ROOT_DIR/Tests/BoundedZipArchiveTests/make_fixtures.py" "$ZIP_TEST_DIR/fixtures"
+"${SWIFT[@]}" build --package-path "$ZIP_TEST_DIR" --configuration debug
+"$ZIP_TEST_DIR/.build/debug/BoundedZipArchiveTests" "$ZIP_TEST_DIR/fixtures"
