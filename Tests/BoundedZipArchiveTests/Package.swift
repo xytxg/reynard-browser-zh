@@ -5,6 +5,9 @@ import PackageDescription
 
 let package = Package(
     name: "BoundedZipArchiveTests",
+    // CancellationError (Swift concurrency) needs macOS 10.15 on the host;
+    // the app itself targets iOS 13, where it is available.
+    platforms: [.macOS(.v10_15)],
     dependencies: [
         // Same exact version as browser/Reynard.xcodeproj.
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", exact: "0.9.20")
