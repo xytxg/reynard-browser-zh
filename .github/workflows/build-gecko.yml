@@ -314,6 +314,10 @@ jobs:
           CC: clang
           CXX: clang++
           LD: ld64.lld
+          # mach otherwise calls terminal-notifier when a build starts or
+          # ends; on newer macOS runner images that call never returns and the
+          # job sits silent until its time budget (upstream 9b1a8f57).
+          MOZ_NOSPAM: "1"
           BUILD_ARGS: ${{ inputs.build_args }}
         run: |
           set -uo pipefail
