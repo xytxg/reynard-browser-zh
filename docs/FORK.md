@@ -33,10 +33,10 @@
 | 字段 | 值 |
 | --- | --- |
 | 上游仓库 | `https://github.com/minh-ton/reynard-browser` |
-| 已合并到的上游提交 | `e52764023970c20d6a7e4d0c949a78ad1196f91e`（Reynard 0.18.0） |
+| 已合并到的上游提交 | `072dc3a5eb10b70d844285ae84c7c4bdc437a979`（Reynard 0.19.0） |
 | 上一次基线 | `6e84bfca9c16b2204dc64c93d2089b5410039897` |
-| Gecko | `FIREFOX_158_0_1_RELEASE`，固定提交 `9378fbc58660847fbc02c3486a0ecd6049978e25` |
-| 合并日期 | 2026-10-25（同步分支 `sync/upstream-158.0.1`，经 PR #16 合并） |
+| Gecko | `FIREFOX_159_0_RELEASE`，固定提交 `9a2dc53c369c7ae5172018b35988e1d2ffeff402` |
+| 合并日期 | 2026-10-29（同步分支 `sync/upstream-159.0`） |
 | 方式 | `6114ed61..25aa6da1`、`25aa6da1..55919a66`、`55919a66..860bb6f4`、`860bb6f4..6e84bfca`、`6e84bfca..e5276402` 五段 `git format-patch` + `git am -3` |
 
 各版本的同步内容见 [`CHANGELOG.md`](../CHANGELOG.md)。
@@ -120,7 +120,7 @@
 | ZIP 读取 | 上游用 ZIPFoundation（`exactVersion` 0.9.20）读取附加组件图标与导入文件；本分支所有不可信 ZIP 都经 `BoundedZipArchive` 读取（见第 3 节第 13、14 条），项目安全检查断言 ZIPFoundation 固定版本。上游从 `Reynard.xcconfig` 删除 `SWIFT_OBJC_BRIDGING_HEADER` 不影响本分支：6 个 Swift 目标配置在工程文件中仍各自设置桥接头（含 `UIKit+Private.h`），并由安全检查断言。 | `BoundedZipArchive.swift`（`d4831742`、`e3c210d2`）、`tools/tests/validate-project-safety.js` |
 | 越狱包依赖 | 打包时下载的上游 0.10.0 IPA 及从中取出的 `libswift_Concurrency.dylib` 均固定 SHA-256。 | `tools/release/create-ipa.sh`（`3a9aa1c2`） |
 | 更新 / 下载 | 见第 3 节 1–6 条。 | 同上 |
-| CI：Gecko 分段续编 | 冷编译的 Gecko 每种变体最多 4 段（`p1`–`p4`）；每段在作业开始 320 分钟后停止，把整个对象目录、`~/.mozbuild` 引导工具链与 sccache 上传为 artifact，下一段在相同路径与相同 Rust/Xcode/sccache 版本下续编，续编前校验 configure 记录的工具路径。 | `.github/workflows/build-gecko.yml`、`tools/development/build-gecko-pass.sh`（`a101aa5a`、`5125b199`、`3b92b753`、`6f968111`） |
+| CI：Gecko 分段续编 | 冷编译的 Gecko 每种变体最多 4 段（`p1`–`p4`）；每段在作业开始 320 分钟后停止，把整个对象目录、`~/.mozbuild` 引导工具链与 sccache 上传为 artifact，下一段在相同路径与相同 Rust/Xcode/sccache 版本下续编，续编前校验 configure 记录的工具路径。构建设置 `MOZ_NOSPAM=1`（不调用 terminal-notifier）；启动 20 分钟无输出即打印进程并以状态 70 失败，不进入续编。 | `.github/workflows/build-gecko.yml`、`tools/development/build-gecko-pass.sh`（`a101aa5a`、`5125b199`、`3b92b753`、`6f968111`） |
 | CI：三种 IPA 变体 | 与上游相同的三个包：`Reynard.ipa`、`Reynard-TrollStore.tipa`（共用 standard Gecko）与 `Reynard-Jailbroken.ipa`（关闭 jemalloc 的独立 Gecko）。全部未签名，打包后检查架构、残留签名、构建号、中文资源与 ZIP 完整性。 | `.github/workflows/build.yml`、`build-three-ipa.yml`、`tools/release/verify-unsigned-ipa.py` |
 | CI：发布 | `build-release.yml` 是唯一的正式发布流水线：只响应 `v*` 标签、`main` 上带 `[release]` 的提交或手动重建；构建前校验标签格式、版本号与 `CURRENT_VERSION` 一致、已存在的标签必须指向同一提交；发布三个包及各自 `.sha256`。上游的官方 AltStore 源（`.github/source.json`）及其更新工作流（`update_source.yml`、`update_source.py`）已删除。 | `.github/workflows/build-release.yml`（`3a9aa1c2`） |
 | 版本号 | 标签格式 `vX.Y.Z-zh.N`：`X.Y.Z` 必须等于 `browser/Configuration/Reynard.xcconfig` 的 `CURRENT_VERSION`，同一上游版本重新发布时 `N` 递增（如 `v0.18.0-zh.1` → `v0.18.0-zh.2`）。安装包 `CFBundleVersion` 为发布运行号，Release 正文带 `<!-- reynard-update-build: N -->`，应用内更新据此比较同版本的新旧。 | `build-release.yml`、`BrowserUpdatePolicy.swift`、`tools/tests/validate-project-safety.js`（`980335dc`） |
@@ -167,10 +167,10 @@ The current baseline is recorded in [`.github/upstream-sync.json`](../.github/up
 | Field | Value |
 | --- | --- |
 | Upstream repository | `https://github.com/minh-ton/reynard-browser` |
-| Upstream commit merged up to | `e52764023970c20d6a7e4d0c949a78ad1196f91e` (Reynard 0.18.0) |
+| Upstream commit merged up to | `072dc3a5eb10b70d844285ae84c7c4bdc437a979` (Reynard 0.19.0) |
 | Previous baseline | `6e84bfca9c16b2204dc64c93d2089b5410039897` |
-| Gecko | `FIREFOX_158_0_1_RELEASE`, pinned commit `9378fbc58660847fbc02c3486a0ecd6049978e25` |
-| Integration date | 2026-10-25 (sync branch `sync/upstream-158.0.1`, merged in PR #16) |
+| Gecko | `FIREFOX_159_0_RELEASE`, pinned commit `9a2dc53c369c7ae5172018b35988e1d2ffeff402` |
+| Integration date | 2026-10-29 (sync branch `sync/upstream-159.0`) |
 | Method | `git format-patch` + `git am -3` in five ranges: `6114ed61..25aa6da1`, `25aa6da1..55919a66`, `55919a66..860bb6f4`, `860bb6f4..6e84bfca`, `6e84bfca..e5276402` |
 
 What each sync brought in is listed in [`CHANGELOG.md`](../CHANGELOG.md) (in Chinese).
@@ -264,7 +264,7 @@ pushes to `main`.
 | ZIP reading | Upstream reads add-on icons and imported files with ZIPFoundation (`exactVersion` 0.9.20); in this fork every untrusted ZIP goes through `BoundedZipArchive` (items 13 and 14 in section 3), and the project safety check asserts the pinned version. Upstream removing `SWIFT_OBJC_BRIDGING_HEADER` from `Reynard.xcconfig` does not affect the fork: the 6 Swift target configurations still set the bridging header (which imports `UIKit+Private.h`) in the project file, which the safety check asserts. | `BoundedZipArchive.swift` (`d4831742`, `e3c210d2`), `tools/tests/validate-project-safety.js` |
 | Jailbroken package dependency | The upstream 0.10.0 IPA downloaded at packaging time and the `libswift_Concurrency.dylib` extracted from it are pinned by SHA-256. | `tools/release/create-ipa.sh` (`3a9aa1c2`) |
 | Updates / downloads | See items 1–6 in section 3. | As above |
-| CI: multi-pass Gecko | A cold Gecko build runs in up to 4 passes per flavor (`p1`–`p4`). Each pass stops 320 minutes after its job starts and uploads the whole object directory, the `~/.mozbuild` bootstrap toolchain and sccache as an artifact; the next pass resumes at the same paths with the same Rust/Xcode/sccache versions and first verifies the tool paths recorded by configure. | `.github/workflows/build-gecko.yml`, `tools/development/build-gecko-pass.sh` (`a101aa5a`, `5125b199`, `3b92b753`, `6f968111`) |
+| CI: multi-pass Gecko | A cold Gecko build runs in up to 4 passes per flavor (`p1`–`p4`). Each pass stops 320 minutes after its job starts and uploads the whole object directory, the `~/.mozbuild` bootstrap toolchain and sccache as an artifact; the next pass resumes at the same paths with the same Rust/Xcode/sccache versions and first verifies the tool paths recorded by configure. Builds set `MOZ_NOSPAM=1` (no terminal-notifier), and a build with no output 20 minutes after starting prints its processes and fails with status 70 instead of resuming. | `.github/workflows/build-gecko.yml`, `tools/development/build-gecko-pass.sh` (`a101aa5a`, `5125b199`, `3b92b753`, `6f968111`) |
 | CI: three IPA variants | The same three packages as upstream: `Reynard.ipa` and `Reynard-TrollStore.tipa` (sharing the standard Gecko) and `Reynard-Jailbroken.ipa` (a separate Gecko with jemalloc disabled). All are unsigned; packaging checks architecture, leftover signatures, build numbers, Chinese resources and ZIP integrity. | `.github/workflows/build.yml`, `build-three-ipa.yml`, `tools/release/verify-unsigned-ipa.py` |
 | CI: releases | `build-release.yml` is the only formal release pipeline: it runs for `v*` tags, `[release]` commits on `main`, or manual rebuilds; before building it checks the tag format, that the version equals `CURRENT_VERSION`, and that an existing tag points at the same commit; it publishes the three packages and a `.sha256` for each. Upstream's official AltStore source (`.github/source.json`) and its update workflow (`update_source.yml`, `update_source.py`) are removed. | `.github/workflows/build-release.yml` (`3a9aa1c2`) |
 | Version numbers | Tags are `vX.Y.Z-zh.N`: `X.Y.Z` must equal `CURRENT_VERSION` in `browser/Configuration/Reynard.xcconfig`, and `N` increases when the same upstream version is released again (e.g. `v0.18.0-zh.1` → `v0.18.0-zh.2`). `CFBundleVersion` is the release run number, and the release notes carry `<!-- reynard-update-build: N -->`, which the updater uses to order releases of the same version. | `build-release.yml`, `BrowserUpdatePolicy.swift`, `tools/tests/validate-project-safety.js` (`980335dc`) |
