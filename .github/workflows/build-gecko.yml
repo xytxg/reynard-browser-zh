@@ -344,11 +344,14 @@ jobs:
       # Saved as soon as configure has bootstrapped the toolchains, whether or
       # not this pass finished the build: a pass that stops at its time budget
       # (or a flavor that fails) must not leave later runs without them.
+      # Not after a start that hung (status 70): that job never ran configure,
+      # so its ~/.mozbuild is still the older release's restored state and
+      # would be saved under this release's key.
       # Either flavor may save it; both bootstrap the same toolchains, and a
       # second save of the same key is skipped.
       - name: Check bootstrapped toolchains
         id: bootstrap
-        if: ${{ !cancelled() && steps.dist.outputs.cache-hit != 'true' && steps.deps.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && steps.dist.outputs.cache-hit != 'true' && steps.deps.outputs.cache-hit != 'true' && steps.gecko.outputs.status != '70' }}
         run: |
           set -euo pipefail
           ready=false
@@ -498,7 +501,7 @@ jobs:
           fi
           echo "resume=false" >> "$GITHUB_OUTPUT"
           if [[ "$GECKO_STATUS" == "70" ]]; then
-            echo "Gecko $FLAVOR printed nothing after starting and was stopped as stuck; the Build Gecko log lists the processes it was waiting on." >&2
+            echo "Gecko $FLAVOR printed nothing after starting, on every attempt, and was stopped as stuck; the Build Gecko log has the process list and the Python and native stacks of mach." >&2
           fi
           echo "Gecko $FLAVOR failed in pass $PASS (outcome: $GECKO_OUTCOME, status: ${GECKO_STATUS:-none})." >&2
           exit 1
