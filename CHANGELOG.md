@@ -1,6 +1,29 @@
 # Reynard Browser 中文版更新日志
 
-## 0.18.0 · 2026-10-25（zh.4）
+## 0.19.0 · 2026-10-29（zh.1）
+
+> 同步上游 `072dc3a5` 共 3 个提交：版本号升至 0.19.0、Firefox 159.0 与构建卡死修复，保留上游作者与提交信息。`v0.18.0-zh.4` 标签因正式构建卡死未生成 Release，其全部内容（数据导入导出、游戏手柄、屏幕常亮等，见下方 zh.4 条目）并入本版首次发布。安装包以对应 GitHub Release 的实际产物和 SHA-256 为准。
+
+### 上游更新
+
+- Gecko 升级至 Firefox 159.0（`FIREFOX_159_0_RELEASE`），全部补丁随之同步。
+- 构建时设置 `MOZ_NOSPAM=1`，避免 mach 在构建开始/结束时调用 terminal-notifier 桌面通知而卡住。
+
+### 本分支修复与优化
+
+- **修复正式构建卡死：** 自 GitHub macOS 26 构建镜像 20261021 版起，`v0.18.0-zh.4` 的 Build Release 与 10-27、10-28 两次 Nightly 中 Gecko 在开始编译前无输出地等满 320 分钟，随后归档步骤无提示失败、Release 被跳过。本分支的分段续编流程同样设置 `MOZ_NOSPAM=1`，`build-gecko.sh` 在 CI 中也默认开启该变量。
+- **卡死自愈：** 仅设 `MOZ_NOSPAM=1` 不够——PR #17 首轮 CI 中 mach 仍有 2/3 次在打印第一行前无子进程地睡死（10-29 run 40877628550）。现在 Gecko 启动 10 分钟（`GECKO_STARTUP_MINUTES`）无输出即判定卡住：先打印进程树、mach 全部 Python 线程栈（faulthandler）与原生栈（`sample`），再在同一轮内清理状态后重启，最多重试 2 次（`GECKO_STARTUP_RETRIES`），仍失败才以状态 70 结束。
+- **清理跨机器残留状态：** 每次启动前删除 `~/.mozbuild/glean`（Glean 遥测库与待发 ping）和 mach 虚拟环境的残留文件锁，续编归档也不再带上它们；CI 中设置 `DISABLE_TELEMETRY=1`、`PYTHONUNBUFFERED=1`。
+- **缓存不再被卡死作业污染：** 卡死（状态 70）的作业不再以新 Firefox 版本的键保存 `gecko-deps` 缓存——此前卡住的作业把 158.0.1 的旧 `~/.mozbuild` 存成了 159 的缓存（已删除该条目）。
+- **诊断更清楚：** 到达时间预算停止前打印构建进程组及残留的 terminal-notifier；对象目录不存在时归档步骤给出明确原因；续编判断步骤区分“卡住”与普通编译失败。停止时日志输出经由忽略 SIGTERM 的 tee，make 的清理信息不再丢失。
+
+### 构建与验证
+
+- 全部 454 个 Gecko 补丁已在 Firefox 159.0 源码（固定提交 `9a2dc53c`）上与 iOS 13 / AppleVT 兼容补丁一起按顺序干净应用；`ScreenHelperUIKit.mm` 仍保留 iOS 16 EDR 可用性保护。Firefox 升级会触发 Gecko 冷编译。
+- 卡住重试（含 faulthandler 栈输出与锁清理）、预算停止与正常结束路径已用模拟构建在本地验证。
+- **尚待真机验证：** 同 zh.4 所列项目。
+
+## 0.18.0 · 2026-10-25（zh.4，未发布，并入 0.19.0-zh.1）
 
 > 同步上游 `e5276402` 共 11 个提交与 Firefox 158.0.1（版本号仍为 0.18.0，发布为 `v0.18.0-zh.4`），保留上游作者与提交信息。安装包以对应 GitHub Release 的实际产物和 SHA-256 为准；新功能尚待真机回归验证。
 

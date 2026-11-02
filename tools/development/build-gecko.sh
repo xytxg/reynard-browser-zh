@@ -38,6 +38,13 @@ for arg in "$@"; do
 	esac
 done
 
+# mach shows a desktop notification through terminal-notifier when a build
+# starts or ends. On CI runners that call can block forever, so CI never asks
+# for one; local builds keep the notification unless MOZ_NOSPAM is set.
+if [ "${CI:-}" = "true" ]; then
+	export MOZ_NOSPAM="${MOZ_NOSPAM:-1}"
+fi
+
 if [ "$USE_SCCACHE" = true ]; then
 	SCCACHE_BIN="${SCCACHE_PATH:-$(command -v sccache)}"
 fi

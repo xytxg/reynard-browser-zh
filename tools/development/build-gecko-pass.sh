@@ -24,7 +24,13 @@
 #                      in the same checkout and home directory
 #
 # `run` exits 0 when Gecko is built, 75 when it stopped at the deadline and can
-# resume, and with the build's own status for a real build failure.
+# resume, 70 when every attempt printed nothing within GECKO_STARTUP_MINUTES
+# (a hang before any work, which a later pass would only repeat), and with the
+# build's own status for a real build failure.
+#
+# A start that hangs is retried GECKO_STARTUP_RETRIES times in the same pass,
+# after dumping every Python thread's stack (faulthandler) and a native
+# `sample` of mach, so the job log shows where it waited.
 
 set -euo pipefail
 
@@ -39,6 +45,16 @@ OBJDIR="$FIREFOX_DIR/$OBJDIR_NAME"
 MOZBUILD_DIR="${MOZBUILD_STATE_PATH:-$HOME/.mozbuild}"
 SOURCE_MTIME="${GECKO_SOURCE_MTIME:-202001010000}"
 RESUMABLE=75
+STALLED=70
+# mach prints its first line within seconds. A build that has printed nothing
+# after this long is stuck before compiling anything (in v0.18.0-zh.4 mach
+# waited on terminal-notifier for a whole 320-minute pass).
+# On macos-26 images from 20261021 on, mach sometimes sleeps forever right
+# after starting, before its first line, with no child process; terminal-
+# notifier (MOZ_NOSPAM) was only part of it. The same command started again
+# on the same runner goes through, so a hung start is retried.
+STARTUP_MINUTES="${GECKO_STARTUP_MINUTES:-10}"
+STARTUP_RETRIES="${GECKO_STARTUP_RETRIES:-2}"
 
 log() {
 	echo "[gecko-pass] $*"
@@ -60,6 +76,21 @@ build_pids() {
 	pgrep -f "$FIREFOX_DIR" 2>/dev/null | grep -vx -e "$$" -e "$PPID" || true
 }
 
+# Prints what the build's process group and anything else touching the Gecko
+# tree is doing, so a stop or a hang leaves evidence in the job log.
+dump_processes() {
+	local group="$1"
+	echo "[gecko-pass] processes of the build (process group $group):"
+	ps -axo pid,ppid,pgid,etime,stat,command 2>/dev/null |
+		awk -v g="$group" 'NR == 1 || $3 == g' | cut -c1-300 || true
+	local notifier
+	notifier="$(pgrep -fl terminal-notifier 2>/dev/null || true)"
+	if [ -n "$notifier" ]; then
+		echo "[gecko-pass] terminal-notifier is running (set MOZ_NOSPAM=1):"
+		echo "$notifier"
+	fi
+}
+
 stop_build() {
 	local group="$1" waited
 
@@ -76,6 +107,7 @@ PY
 	# with SIGINT ignored. make deletes the targets it was building, and
 	# clang/rustc remove their partial outputs, on SIGTERM as well.
 	log "time budget reached; stopping the build"
+	dump_processes "$group"
 	kill -TERM -- "-$group" 2>/dev/null || true
 	waited=0
 	while kill -0 "$group" 2>/dev/null && [ "$waited" -lt 120 ]; do
@@ -200,6 +232,41 @@ check_toolchain() {
 	rm -f "$OBJDIR/config.status"
 }
 
+# Drops per-machine mach state that a cache or an earlier pass may have
+# carried over from a job that was killed: Glean's telemetry database and
+# pending pings, and the file locks of mach's virtualenvs. None of it is
+# needed to build, and a stale copy is the first suspect for a start that
+# waits forever.
+reset_mach_runtime_state() {
+	[ -d "$MOZBUILD_DIR" ] || return 0
+	rm -rf "$MOZBUILD_DIR/glean"
+	find "$MOZBUILD_DIR" -maxdepth 4 -path '*/_virtualenvs/*.lock' -type f -print -delete 2>/dev/null |
+		sed 's/^/[gecko-pass] removed stale lock /' || true
+}
+
+# Shows where a hung mach is waiting: faulthandler prints every Python
+# thread's stack on SIGABRT (PYTHONFAULTHANDLER is set for the build), and
+# macOS `sample` adds the native stacks (Glean and other Rust code).
+dump_stacks() {
+	local group="$1" p
+	for p in $(ps -axo pid=,pgid=,command= 2>/dev/null | awk -v g="$group" '$2 == g && /[Pp]ython/ {print $1}'); do
+		if command -v sample >/dev/null 2>&1; then
+			echo "[gecko-pass] native stacks of pid $p:"
+			sample "$p" 3 -mayDie 2>/dev/null | sed -n '1,200p' || true
+		fi
+		echo "[gecko-pass] Python stacks of pid $p:"
+		kill -ABRT "$p" 2>/dev/null || true
+	done
+	sleep 5
+}
+
+kill_group() {
+	local group="$1"
+	kill -TERM -- "-$group" 2>/dev/null || true
+	sleep 10
+	kill -KILL -- "-$group" 2>/dev/null || true
+}
+
 run_pass() {
 	local deadline="$1" pid rc
 	shift
@@ -212,21 +279,73 @@ run_pass() {
 
 	check_toolchain
 
-	# Job control puts the build into its own process group, so the whole
-	# mach/make/cargo tree can be signalled at once.
-	set -m
-	GECKO_SOURCE_MTIME="$SOURCE_MTIME" "$SCRIPT_DIR/build-gecko.sh" "$@" &
-	pid=$!
-	set +m
-	log "build started (pid $pid), deadline $(date -r "$deadline" 2>/dev/null || date -d "@$deadline")"
+	case "$STARTUP_MINUTES" in
+		'' | *[!0-9]*)
+			echo "GECKO_STARTUP_MINUTES must be a number of minutes" >&2
+			exit 2
+			;;
+	esac
+	case "$STARTUP_RETRIES" in
+		'' | *[!0-9]*)
+			echo "GECKO_STARTUP_RETRIES must be a number" >&2
+			exit 2
+			;;
+	esac
+	local build_log="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/gecko-pass-build.log"
+	local started attempt=0
 
-	while kill -0 "$pid" 2>/dev/null; do
-		if [ "$(date +%s)" -ge "$deadline" ]; then
-			stop_build "$pid"
-			wait "$pid" 2>/dev/null || true
-			exit "$RESUMABLE"
+	# Unbuffered output, so "printed nothing" really means nothing was
+	# printed; stack dumps on SIGABRT; no Glean upload or terminal-notifier.
+	export PYTHONUNBUFFERED=1 PYTHONFAULTHANDLER=1
+	export DISABLE_TELEMETRY="${DISABLE_TELEMETRY:-1}" MOZ_NOSPAM="${MOZ_NOSPAM:-1}"
+
+	while :; do
+		attempt=$((attempt + 1))
+		reset_mach_runtime_state
+		started="$(date +%s)"
+		: > "$build_log"
+
+		# Job control puts the build into its own process group, so the whole
+		# mach/make/cargo tree can be signalled at once. Its output reaches the
+		# job log through tee, which ignores SIGTERM so make's cleanup messages
+		# after a stop are still shown.
+		set -m
+		GECKO_SOURCE_MTIME="$SOURCE_MTIME" "$SCRIPT_DIR/build-gecko.sh" "$@" > >(trap '' TERM; exec tee -a "$build_log") 2>&1 &
+		pid=$!
+		set +m
+		log "build started (attempt $attempt, pid $pid), deadline $(date -r "$deadline" 2>/dev/null || date -d "@$deadline")"
+
+		local stalled=false
+		while kill -0 "$pid" 2>/dev/null; do
+			if [ "$(date +%s)" -ge "$deadline" ]; then
+				stop_build "$pid"
+				wait "$pid" 2>/dev/null || true
+				exit "$RESUMABLE"
+			fi
+			if [ "$STARTUP_MINUTES" -gt 0 ] && [ ! -s "$build_log" ] &&
+				[ $(( $(date +%s) - started )) -ge $(( STARTUP_MINUTES * 60 )) ]; then
+				stalled=true
+				break
+			fi
+			sleep 15
+		done
+
+		if [ "$stalled" = false ]; then
+			break
 		fi
-		sleep 15
+		echo "Gecko build printed nothing in $STARTUP_MINUTES min (attempt $attempt); it is stuck before compiling." >&2
+		dump_processes "$pid" >&2
+		dump_stacks "$pid" >&2
+		kill_group "$pid"
+		wait "$pid" 2>/dev/null || true
+		if [ "$attempt" -gt "$STARTUP_RETRIES" ]; then
+			exit "$STALLED"
+		fi
+		if [ $(( $(date +%s) + STARTUP_MINUTES * 60 )) -ge "$deadline" ]; then
+			log "not enough time left in this pass to start again"
+			exit "$STALLED"
+		fi
+		log "starting the build again"
 	done
 
 	set +e
@@ -254,8 +373,11 @@ save_state() {
 	local out="$1" fingerprint="$2"
 	local zstd_bin
 	zstd_bin="$(compressor)"
+	if [ ! -d "$OBJDIR" ]; then
+		echo "No object directory at $OBJDIR: this pass never started compiling, so there is nothing to continue." >&2
+		exit 1
+	fi
 	mkdir -p "$out"
-	test -d "$OBJDIR"
 	printf '%s\n' "$fingerprint" > "$out/fingerprint"
 	location_file > "$out/location"
 	# pax keeps sub-second timestamps, which make and cargo compare.
@@ -266,6 +388,7 @@ save_state() {
 	# toolchains/ only holds the downloaded archives and is left out.
 	if [ -d "$MOZBUILD_DIR" ]; then
 		tar --format pax -C "$(dirname "$MOZBUILD_DIR")" --exclude "$(basename "$MOZBUILD_DIR")/toolchains" \
+			--exclude "$(basename "$MOZBUILD_DIR")/glean" --exclude '*/_virtualenvs/*.lock' \
 			-cf - "$(basename "$MOZBUILD_DIR")" | "$zstd_bin" -T0 -3 -q -o "$out/mozbuild.tar.zst"
 	fi
 	if [ -n "${SCCACHE_DIR:-}" ] && [ -d "$SCCACHE_DIR" ]; then

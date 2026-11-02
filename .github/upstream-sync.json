@@ -1,11 +1,11 @@
 {
   "repository": "https://github.com/minh-ton/reynard-browser",
-  "previous_commit": "6e84bfca9c16b2204dc64c93d2089b5410039897",
-  "commit": "e52764023970c20d6a7e4d0c949a78ad1196f91e",
-  "gecko_release": "FIREFOX_158_0_1_RELEASE",
-  "gecko_commit": "9378fbc58660847fbc02c3486a0ecd6049978e25",
-  "integration_date": "2026-10-25",
-  "previous_fork_head": "ad2520683373822ac3ac4be4db104d64276f6fee",
+  "previous_commit": "e52764023970c20d6a7e4d0c949a78ad1196f91e",
+  "commit": "072dc3a5eb10b70d844285ae84c7c4bdc437a979",
+  "gecko_release": "FIREFOX_159_0_RELEASE",
+  "gecko_commit": "9a2dc53c369c7ae5172018b35988e1d2ffeff402",
+  "integration_date": "2026-10-29",
+  "previous_fork_head": "ab6eed690cf6909bbdc3d2f8fafd38a299d57f65",
   "integration_base": "6114ed61",
-  "integration_method": "git format-patch 6114ed61..25aa6da1 (2026-10-15), 25aa6da1..55919a66 (2026-10-17), 55919a66..860bb6f4 (2026-10-18), 860bb6f4..6e84bfca (2026-10-20) and 6e84bfca..e5276402 (2026-10-25) + git am -3 (upstream authorship preserved); independent repository histories"
+  "integration_method": "git format-patch 6114ed61..25aa6da1 (2026-10-15), 25aa6da1..55919a66 (2026-10-17), 55919a66..860bb6f4 (2026-10-18), 860bb6f4..6e84bfca (2026-10-20), 6e84bfca..e5276402 (2026-10-25) and e5276402..072dc3a5 (2026-10-29) + git am -3 (upstream authorship preserved); independent repository histories"
 }
