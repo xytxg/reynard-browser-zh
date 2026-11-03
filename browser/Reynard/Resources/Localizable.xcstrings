@@ -7111,6 +7111,16 @@
         }
       }
     },
+    "Changes you made may not be saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changes you made may not be saved."
+          }
+        }
+      }
+    },
     "Choose File": {
       "localizations": {
         "cs": {
@@ -15682,6 +15692,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "進一步瞭解「%@」保護…"
+          }
+        }
+      }
+    },
+    "Leave": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave"
+          }
+        }
+      }
+    },
+    "Leave Page?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave Page?"
           }
         }
       }
@@ -26762,6 +26792,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "排序方式"
+          }
+        }
+      }
+    },
+    "Stay": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stay"
           }
         }
       }
