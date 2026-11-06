@@ -4518,6 +4518,17 @@
         }
       }
     },
+    "Allow %@ to access your MIDI devices?": {
+      "comment": "Website host",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow %@ to access your MIDI devices?"
+          }
+        }
+      }
+    },
     "Allow %@ to play DRM-controlled content?": {
       "comment": "Website host",
       "localizations": {
@@ -6271,6 +6282,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "已封鎖的追蹤器"
+          }
+        }
+      }
+    },
+    "Bluetooth MIDI Devices": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth MIDI Devices"
           }
         }
       }
@@ -8501,6 +8522,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "確認上傳"
+          }
+        }
+      }
+    },
+    "Connect a Bluetooth MIDI keyboard or controller to use it with websites.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect a Bluetooth MIDI keyboard or controller to use it with websites."
           }
         }
       }
@@ -16371,6 +16402,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "麥克風"
+          }
+        }
+      }
+    },
+    "MIDI Devices": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MIDI Devices"
           }
         }
       }
