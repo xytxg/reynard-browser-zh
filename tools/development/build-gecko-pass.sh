@@ -260,6 +260,17 @@ dump_stacks() {
 	sleep 5
 }
 
+# macOS 26 can leave a freshly exec'd Python waiting on syspolicyd
+# (Gatekeeper/provenance checks, see astral-sh/uv#22915). Print what
+# syspolicyd and the kernel's exec policy logged while the build was quiet.
+dump_policy_log() {
+	command -v log >/dev/null 2>&1 || return 0
+	echo "[gecko-pass] syspolicyd / exec policy log (last $STARTUP_MINUTES min):"
+	log show --style compact --last "${STARTUP_MINUTES}m" \
+		--predicate 'process == "syspolicyd" OR sender == "AppleSystemPolicy" OR subsystem == "com.apple.syspolicy.exec"' \
+		2>/dev/null | tail -n 120 || true
+}
+
 kill_group() {
 	local group="$1"
 	kill -TERM -- "-$group" 2>/dev/null || true
@@ -336,6 +347,7 @@ run_pass() {
 		echo "Gecko build printed nothing in $STARTUP_MINUTES min (attempt $attempt); it is stuck before compiling." >&2
 		dump_processes "$pid" >&2
 		dump_stacks "$pid" >&2
+		dump_policy_log >&2
 		kill_group "$pid"
 		wait "$pid" 2>/dev/null || true
 		if [ "$attempt" -gt "$STARTUP_RETRIES" ]; then

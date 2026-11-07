@@ -4518,6 +4518,23 @@
         }
       }
     },
+    "Allow %@ to access your MIDI devices?": {
+      "comment": "Website host",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow %@ to access your MIDI devices?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允许“%@”访问你的 MIDI 设备吗？"
+          }
+        }
+      }
+    },
     "Allow %@ to play DRM-controlled content?": {
       "comment": "Website host",
       "localizations": {
@@ -6275,6 +6292,22 @@
         }
       }
     },
+    "Bluetooth MIDI Devices": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth MIDI Devices"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "蓝牙 MIDI 设备"
+          }
+        }
+      }
+    },
     "Bookmarks": {
       "localizations": {
         "cs": {
@@ -7107,6 +7140,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "已於 %@ 變更"
+          }
+        }
+      }
+    },
+    "Changes you made may not be saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changes you made may not be saved."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你所做的更改可能不会被保存。"
           }
         }
       }
@@ -8495,6 +8544,22 @@
         }
       }
     },
+    "Connect a Bluetooth MIDI keyboard or controller to use it with websites.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect a Bluetooth MIDI keyboard or controller to use it with websites."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接蓝牙 MIDI 键盘或控制器后，即可在网站中使用。"
+          }
+        }
+      }
+    },
     "Content": {
       "comment": "Browsing settings section title\nWebsite settings section title",
       "localizations": {
@@ -8620,6 +8685,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cookie 與網站資料"
+          }
+        }
+      }
+    },
+    "Copy": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拷贝"
+          }
+        }
+      }
+    },
+    "Copy Contents": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Contents"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拷贝全部链接"
           }
         }
       }
@@ -15666,6 +15763,38 @@
         }
       }
     },
+    "Leave": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "离开"
+          }
+        }
+      }
+    },
+    "Leave Page?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave Page?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要离开此页面吗？"
+          }
+        }
+      }
+    },
     "Light": {
       "comment": "Reader mode background color",
       "localizations": {
@@ -16321,6 +16450,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "麥克風"
+          }
+        }
+      }
+    },
+    "MIDI Devices": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MIDI Devices"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MIDI 设备"
           }
         }
       }
@@ -19166,6 +19311,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "在新標籤頁中開啟"
+          }
+        }
+      }
+    },
+    "Open in New Tabs": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in New Tabs"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在新标签页中全部打开"
           }
         }
       }
@@ -26732,6 +26893,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "排序方式"
+          }
+        }
+      }
+    },
+    "Stay": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stay"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "留下"
           }
         }
       }
