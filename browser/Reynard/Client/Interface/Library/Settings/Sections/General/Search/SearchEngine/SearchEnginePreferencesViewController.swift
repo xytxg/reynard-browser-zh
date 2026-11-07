@@ -91,12 +91,6 @@ final class SearchEnginePreferencesViewController: SettingsTableViewController, 
         }
         
         Prefs.SearchSettings.searchEngine = selectedEngine
-        // Google suggestions are unreachable where these engines are used;
-        // follow the engine unless the user already chose another provider.
-        if [.baidu, .sogou, .so360].contains(selectedEngine),
-           Prefs.SearchSettings.searchSuggestionProvider == .google {
-            Prefs.SearchSettings.searchSuggestionProvider = .baidu
-        }
         tableView.reloadSections(IndexSet(integer: indexPath.section), with: .none)
     }
     

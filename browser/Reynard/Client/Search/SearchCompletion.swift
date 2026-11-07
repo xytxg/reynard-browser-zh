@@ -20,7 +20,6 @@ final class SearchCompletion {
         case duckduckgo
         case ecosia
         case startpage
-        case baidu
     }
     
     let provider: Provider
@@ -85,7 +84,6 @@ extension SearchCompletion.Provider {
         case .duckduckgo: return "DuckDuckGo"
         case .ecosia: return "Ecosia"
         case .startpage: return "Startpage"
-        case .baidu: return NSLocalizedString("Baidu", comment: "Search engine name")
         }
     }
 }
@@ -125,13 +123,6 @@ private extension SearchCompletion.Provider {
         case .startpage:
             endpoint = "https://www.startpage.com/osuggestions"
             queryItems = [URLQueryItem(name: "q", value: query)]
-        case .baidu:
-            endpoint = "https://www.baidu.com/su"
-            queryItems = [
-                URLQueryItem(name: "wd", value: query),
-                URLQueryItem(name: "action", value: "opensearch"),
-                URLQueryItem(name: "ie", value: "utf-8"),
-            ]
         }
         
         var components = URLComponents(string: endpoint)

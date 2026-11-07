@@ -50,13 +50,13 @@
 
 | 范围 | 文件 | 条数 | 其中来自本分支 |
 | --- | --- | --- | --- |
-| 应用界面 | `browser/Reynard/Resources/Localizable.xcstrings` | 593（全部有中文） | 新增中文 153 条（60 条为上游目录中没有的键，93 条为上游缺少中文的键，其中 11 条是本次同步的 MIDI、离开页面确认与书签菜单等新文字），并修订上游中文 15 条；其余 425 条沿用上游中文 |
+| 应用界面 | `browser/Reynard/Resources/Localizable.xcstrings` | 590（全部有中文） | 新增中文 150 条（57 条为上游目录中没有的键，93 条为上游缺少中文的键，其中 11 条是本次同步的 MIDI、离开页面确认与书签菜单等新文字），并修订上游中文 15 条；其余 425 条沿用上游中文 |
 | 附加组件 | `browser/Reynard/Client/Interface/Addons/AddonLocalizable.xcstrings` | 72 | 0（上游自带中文，本分支只做校验） |
 | 设置 | `browser/Reynard/Client/Interface/Library/Settings/SettingsLocalizable.xcstrings` | 50 | 9（均为上游目录中没有的键） |
 | 网页错误页 | `browser/Reynard/Client/Interface/ContentView/WebContentErrorLocalizable.xcstrings` | 69 | 0（上游 `6c8ca44d`，即本仓库 `de6f0ef1`，随错误页一同带来 Firefox 中文译文；本分支在 `e769b573` 中把该表纳入校验） |
 | 系统权限说明与显示名 | 3 个 `zh-Hans.lproj/InfoPlist.strings`（主应用 7 条、OpenIn 扩展 1 条、Helper 扩展 1 条） | 9 | 9（上游没有这些文件） |
 
-四个字符串表合计 784 条，`InfoPlist.strings` 另有 9 条。本分支的中文工作量以“来自本分支”一列为准，
+四个字符串表合计 781 条，`InfoPlist.strings` 另有 9 条。本分支的中文工作量以“来自本分支”一列为准，
 不应把上游已提供的中文计入。
 
 ### 3. 修复与加固
@@ -120,7 +120,6 @@
 | ZIP 读取 | 上游用 ZIPFoundation（`exactVersion` 0.9.20）读取附加组件图标与导入文件；本分支所有不可信 ZIP 都经 `BoundedZipArchive` 读取（见第 3 节第 13、14 条），项目安全检查断言 ZIPFoundation 固定版本。上游从 `Reynard.xcconfig` 删除 `SWIFT_OBJC_BRIDGING_HEADER` 不影响本分支：6 个 Swift 目标配置在工程文件中仍各自设置桥接头（含 `UIKit+Private.h`），并由安全检查断言。 | `BoundedZipArchive.swift`（`d4831742`、`e3c210d2`）、`tools/tests/validate-project-safety.js` |
 | 越狱包依赖 | 打包时下载的上游 0.10.0 IPA 及从中取出的 `libswift_Concurrency.dylib` 均固定 SHA-256。 | `tools/release/create-ipa.sh`（`3a9aa1c2`） |
 | 更新 / 下载 | 见第 3 节 1–6 条。 | 同上 |
-| 中文搜索 | 搜索引擎增加百度、搜狗、360 搜索，搜索建议增加百度（`www.baidu.com/su` 的 OpenSearch 接口，沿用上游的响应大小与主机校验）；选择这三个引擎且搜索建议仍为默认 Google 时自动改用百度建议。地址栏补全在上游 Firefox 常用域名表之后追加 38 个常用中文网站。 | `SearchEngines.swift`、`SearchCompletion.swift`、`SearchEnginePreferencesViewController.swift`、`TopDomains.plist` |
 | CI：Gecko 分段续编 | 冷编译的 Gecko 每种变体最多 4 段（`p1`–`p4`）；每段在作业开始 320 分钟后停止，把整个对象目录、`~/.mozbuild` 引导工具链与 sccache 上传为 artifact，下一段在相同路径与相同 Rust/Xcode/sccache 版本下续编，续编前校验 configure 记录的工具路径。构建设置 `MOZ_NOSPAM=1`（不调用 terminal-notifier）；启动 10 分钟无输出即打印进程树、mach 的 Python/原生栈与 syspolicyd 日志，清理 `~/.mozbuild/glean` 与虚拟环境锁后在同一轮重启，最多重试 2 次，仍卡住才以状态 70 失败；状态 70 的作业不保存依赖缓存。 | `.github/workflows/build-gecko.yml`、`tools/development/build-gecko-pass.sh`（`a101aa5a`、`5125b199`、`3b92b753`、`6f968111`） |
 | CI：三种 IPA 变体 | 与上游相同的三个包：`Reynard.ipa`、`Reynard-TrollStore.tipa`（共用 standard Gecko）与 `Reynard-Jailbroken.ipa`（关闭 jemalloc 的独立 Gecko）。全部未签名，打包后检查架构、残留签名、构建号、中文资源与 ZIP 完整性。 | `.github/workflows/build.yml`、`build-three-ipa.yml`、`tools/release/verify-unsigned-ipa.py` |
 | CI：发布 | `build-release.yml` 是唯一的正式发布流水线：只响应 `v*` 标签、`main` 上带 `[release]` 的提交或手动重建；构建前校验标签格式、版本号与 `CURRENT_VERSION` 一致、已存在的标签必须指向同一提交；发布三个包及各自 `.sha256`。上游的官方 AltStore 源（`.github/source.json`）及其更新工作流（`update_source.yml`、`update_source.py`）已删除。 | `.github/workflows/build-release.yml`（`3a9aa1c2`） |
@@ -185,13 +184,13 @@ upstream baseline (`8ded3486`), counted on this repository's sync branch `sync/u
 
 | Scope | File | Entries | Contributed by this fork |
 | --- | --- | --- | --- |
-| App UI | `browser/Reynard/Resources/Localizable.xcstrings` | 593 (all translated) | 153 new Chinese entries (60 keys not in the upstream table, 93 upstream keys without Chinese, 11 of them this sync's new MIDI, leave-page and bookmark-menu strings) and 15 revised upstream translations; the other 425 use upstream's Chinese |
+| App UI | `browser/Reynard/Resources/Localizable.xcstrings` | 590 (all translated) | 150 new Chinese entries (57 keys not in the upstream table, 93 upstream keys without Chinese, 11 of them this sync's new MIDI, leave-page and bookmark-menu strings) and 15 revised upstream translations; the other 425 use upstream's Chinese |
 | Add-ons | `browser/Reynard/Client/Interface/Addons/AddonLocalizable.xcstrings` | 72 | 0 (upstream ships Chinese; the fork only validates it) |
 | Settings | `browser/Reynard/Client/Interface/Library/Settings/SettingsLocalizable.xcstrings` | 50 | 9 (all keys not in the upstream table) |
 | Web error pages | `browser/Reynard/Client/Interface/ContentView/WebContentErrorLocalizable.xcstrings` | 69 | 0 (upstream `6c8ca44d`, `de6f0ef1` in this repository, brought Firefox's Chinese with the error pages; the fork added the table to validation in `e769b573`) |
 | Permission prompts and display names | three `zh-Hans.lproj/InfoPlist.strings` (app 7, OpenIn extension 1, Helper extension 1) | 9 | 9 (upstream has no such files) |
 
-The four string tables hold 784 entries, plus 9 in `InfoPlist.strings`. The fork's own translation work is the
+The four string tables hold 781 entries, plus 9 in `InfoPlist.strings`. The fork's own translation work is the
 "Contributed by this fork" column; Chinese already provided upstream should not be counted as the fork's.
 
 ### 3. Fixes and hardening
@@ -265,7 +264,6 @@ pushes to `main`.
 | ZIP reading | Upstream reads add-on icons and imported files with ZIPFoundation (`exactVersion` 0.9.20); in this fork every untrusted ZIP goes through `BoundedZipArchive` (items 13 and 14 in section 3), and the project safety check asserts the pinned version. Upstream removing `SWIFT_OBJC_BRIDGING_HEADER` from `Reynard.xcconfig` does not affect the fork: the 6 Swift target configurations still set the bridging header (which imports `UIKit+Private.h`) in the project file, which the safety check asserts. | `BoundedZipArchive.swift` (`d4831742`, `e3c210d2`), `tools/tests/validate-project-safety.js` |
 | Jailbroken package dependency | The upstream 0.10.0 IPA downloaded at packaging time and the `libswift_Concurrency.dylib` extracted from it are pinned by SHA-256. | `tools/release/create-ipa.sh` (`3a9aa1c2`) |
 | Updates / downloads | See items 1–6 in section 3. | As above |
-| Chinese search | Adds Baidu, Sogou and 360 Search as search engines and Baidu as a suggestion provider (the OpenSearch endpoint at `www.baidu.com/su`, with upstream's response-size and host checks); picking one of these engines while suggestions are still on the default Google switches suggestions to Baidu. Address-bar completion appends 38 common Chinese sites after upstream's Firefox top-domains list. | `SearchEngines.swift`, `SearchCompletion.swift`, `SearchEnginePreferencesViewController.swift`, `TopDomains.plist` |
 | CI: multi-pass Gecko | A cold Gecko build runs in up to 4 passes per flavor (`p1`–`p4`). Each pass stops 320 minutes after its job starts and uploads the whole object directory, the `~/.mozbuild` bootstrap toolchain and sccache as an artifact; the next pass resumes at the same paths with the same Rust/Xcode/sccache versions and first verifies the tool paths recorded by configure. Builds set `MOZ_NOSPAM=1` (no terminal-notifier), and a build with no output 10 minutes after starting prints its processes, mach's Python and native stacks and the syspolicyd log, clears `~/.mozbuild/glean` and virtualenv locks and starts again in the same pass (up to 2 retries); only then does it fail with status 70, and such a job does not save the dependency cache. | `.github/workflows/build-gecko.yml`, `tools/development/build-gecko-pass.sh` (`a101aa5a`, `5125b199`, `3b92b753`, `6f968111`) |
 | CI: three IPA variants | The same three packages as upstream: `Reynard.ipa` and `Reynard-TrollStore.tipa` (sharing the standard Gecko) and `Reynard-Jailbroken.ipa` (a separate Gecko with jemalloc disabled). All are unsigned; packaging checks architecture, leftover signatures, build numbers, Chinese resources and ZIP integrity. | `.github/workflows/build.yml`, `build-three-ipa.yml`, `tools/release/verify-unsigned-ipa.py` |
 | CI: releases | `build-release.yml` is the only formal release pipeline: it runs for `v*` tags, `[release]` commits on `main`, or manual rebuilds; before building it checks the tag format, that the version equals `CURRENT_VERSION`, and that an existing tag points at the same commit; it publishes the three packages and a `.sha256` for each. Upstream's official AltStore source (`.github/source.json`) and its update workflow (`update_source.yml`, `update_source.py`) are removed. | `.github/workflows/build-release.yml` (`3a9aa1c2`) |

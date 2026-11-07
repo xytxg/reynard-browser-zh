@@ -2381,57 +2381,6 @@
         }
       }
     },
-    "360 Search": {
-      "comment": "Search engine name",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "360 Search"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "360 搜索"
-          }
-        }
-      }
-    },
-    "Baidu": {
-      "comment": "Search engine name",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Baidu"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "百度"
-          }
-        }
-      }
-    },
-    "Sogou": {
-      "comment": "Search engine name",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sogou"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "搜狗"
-          }
-        }
-      }
-    },
     "▲ JIT-Less Mode is Currently Active": {
       "localizations": {
         "cs": {
