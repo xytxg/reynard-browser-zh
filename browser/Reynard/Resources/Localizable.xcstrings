@@ -4526,6 +4526,12 @@
             "state": "translated",
             "value": "Allow %@ to access your MIDI devices?"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允许“%@”访问你的 MIDI 设备吗？"
+          }
         }
       }
     },
@@ -6293,6 +6299,12 @@
             "state": "translated",
             "value": "Bluetooth MIDI Devices"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "蓝牙 MIDI 设备"
+          }
         }
       }
     },
@@ -7138,6 +7150,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Changes you made may not be saved."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你所做的更改可能不会被保存。"
           }
         }
       }
@@ -8533,6 +8551,12 @@
             "state": "translated",
             "value": "Connect a Bluetooth MIDI keyboard or controller to use it with websites."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接蓝牙 MIDI 键盘或控制器后，即可在网站中使用。"
+          }
         }
       }
     },
@@ -8672,6 +8696,12 @@
             "state": "translated",
             "value": "Copy"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拷贝"
+          }
         }
       }
     },
@@ -8681,6 +8711,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copy Contents"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拷贝全部链接"
           }
         }
       }
@@ -15734,6 +15770,12 @@
             "state": "translated",
             "value": "Leave"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "离开"
+          }
         }
       }
     },
@@ -15743,6 +15785,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Leave Page?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要离开此页面吗？"
           }
         }
       }
@@ -16412,6 +16460,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "MIDI Devices"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MIDI 设备"
           }
         }
       }
@@ -19267,6 +19321,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open in New Tabs"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在新标签页中全部打开"
           }
         }
       }
@@ -26843,6 +26903,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stay"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "留下"
           }
         }
       }
