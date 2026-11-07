@@ -15,6 +15,9 @@ enum SearchEngine: String, CaseIterable {
     case duckDuckGo
     case ecosia
     case startpage
+    case baidu
+    case sogou
+    case so360
     case custom
     
     var displayName: String {
@@ -33,6 +36,12 @@ enum SearchEngine: String, CaseIterable {
             return "Ecosia"
         case .startpage:
             return "Startpage"
+        case .baidu:
+            return NSLocalizedString("Baidu", comment: "Search engine name")
+        case .sogou:
+            return NSLocalizedString("Sogou", comment: "Search engine name")
+        case .so360:
+            return NSLocalizedString("360 Search", comment: "Search engine name")
         case .custom:
             return NSLocalizedString("Custom", comment: "Search engine option")
         }
@@ -69,6 +78,12 @@ enum SearchEngine: String, CaseIterable {
             return "https://www.ecosia.org/search?q=%s"
         case .startpage:
             return "https://www.startpage.com/sp/search?query=%s"
+        case .baidu:
+            return "https://www.baidu.com/s?ie=utf-8&wd=%s"
+        case .sogou:
+            return "https://www.sogou.com/web?ie=utf8&query=%s"
+        case .so360:
+            return "https://www.so.com/s?ie=utf-8&q=%s"
         case .custom:
             return nil
         }
