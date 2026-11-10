@@ -28,7 +28,7 @@ This project is mainly for users on older iOS versions who are stuck with an out
 
 ## Installation
 
-The latest Simplified Chinese source builds are available on this repository's [Releases](https://github.com/xytxg/reynard-browser-zh/releases) page. These IPA files are unsigned and must be signed with a compatible sideloading method before installation. iOS 27 validates engine libraries before `main()` runs, so packaging normalizes the extensionless upstream `XUL` binary to `XUL.dylib` and rewrites its load commands for recursive signing tools. Please note that this project is still in an early experimental state, so expect bugs and missing features.
+The latest Simplified Chinese source builds are available on this repository's [Releases](https://github.com/xytxg/reynard-browser-zh/releases) page. These IPA files are unsigned and must be signed with a compatible sideloading method before installation. iOS 27 validates engine libraries before `main()` runs, so packaging normalizes the extensionless upstream `XUL` binary to `XUL.dylib` and rewrites its load commands for recursive signing tools. Please note that this project is still in beta, so expect bugs and missing features.
 
 ### Available builds
 
