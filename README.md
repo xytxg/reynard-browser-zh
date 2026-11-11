@@ -38,7 +38,7 @@ Every three-variant build produces the same package set as upstream:
 | --- | --- |
 | `Reynard.ipa` | Standard unsigned build for a compatible signer such as AltStore or SideStore |
 | `Reynard-TrollStore.tipa` | TrollStore / TrollStore Lite build with automatic JIT support |
-| `Reynard-Jailbroken.ipa` | Jailbroken build, including the iOS 13 AppSync installation path |
+| `Reynard-Jailbroken.ipa` | Jailbroken build, including the iOS 13 AppSync installation path; some components are switched off for libhooker-based jailbreaks |
 
 The app and required native libraries are built with a minimum deployment target of iOS 13.0. CI also compiles the app with Xcode 27 and verifies the iOS 27 SDK load commands. Actual installation and JIT support still depend on the iOS version and signing method.
 
