@@ -1,9 +1,9 @@
 diff --git a/toolkit/system/iosproxy/nsIOSSystemProxySettings.mm b/toolkit/system/iosproxy/nsIOSSystemProxySettings.mm
 new file mode 100644
-index 000000000000..5ea069565cd3
+index 000000000000..ca32dae53764
 --- /dev/null
 +++ b/toolkit/system/iosproxy/nsIOSSystemProxySettings.mm
-@@ -0,0 +1,181 @@
+@@ -0,0 +1,378 @@
 +/* This Source Code Form is subject to the terms of the Mozilla Public
 + * License, v. 2.0. If a copy of the MPL was not distributed with this
 + * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -16,8 +16,231 @@ index 000000000000..5ea069565cd3
 +
 +#include "CFTypeRefPtr.h"
 +#include "mozilla/Components.h"
++#include "mozilla/StaticMutex.h"
 +#include "nsISystemProxySettings.h"
 +#include "nsString.h"
++
++// [reynard-browser-zh] Proxy resolution notes
++//
++// This file is built without ARC, like the rest of Gecko.
++//
++// Gecko asks this component for every request on the PAC thread, so the work
++// here sits on the critical path of every page load:
++//  - A configuration with no proxy at all answers DIRECT without asking
++//    CFNetwork for a per-URL proxy list.
++//  - A PAC file is downloaded once (directly, never through the proxy it
++//    describes) and kept for a short time, instead of being fetched again by
++//    CFNetwork for every request. Its script then runs locally.
++//  - A PAC file that cannot be loaded, an entry CFNetwork reports without a
++//    host or port, or a proxy type Gecko does not understand no longer fails
++//    the whole lookup; the remaining entries are used, and DIRECT is the last
++//    resort, as Safari does.
++
++namespace {
++
++constexpr NSTimeInterval kPACScriptLifetime = 60;
++constexpr NSTimeInterval kPACFailureRetryDelay = 15;
++constexpr NSTimeInterval kPACFetchTimeout = 10;
++constexpr CFTimeInterval kPACRunTimeout = 15;
++
++mozilla::StaticMutex sPACCacheMutex MOZ_UNANNOTATED;
++NSString* sPACCacheURL = nil;
++NSString* sPACCacheScript = nil;
++NSDate* sPACCacheExpiry = nil;
++
++bool IsEnabled(NSDictionary* aSettings, CFStringRef aKey) {
++  id value = aSettings[(__bridge NSString*)aKey];
++  return [value isKindOfClass:[NSNumber class]] && [value boolValue];
++}
++
++// True when the system configuration names no proxy server, PAC file or PAC
++// script, so every request goes out directly.
++bool SettingsAreDirect(NSDictionary* aSettings) {
++  if (!aSettings) {
++    return true;
++  }
++  if (IsEnabled(aSettings, kCFNetworkProxiesHTTPEnable) ||
++      IsEnabled(aSettings, kCFNetworkProxiesProxyAutoConfigEnable)) {
++    return false;
++  }
++  // Keys iOS does not export as constants but can report for VPN and
++  // configuration-profile proxies.
++  for (NSString* key in @[ @"HTTPSEnable", @"SOCKSEnable",
++                           @"ProxyAutoConfigJavaScript" ]) {
++    id value = aSettings[key];
++    if ([value isKindOfClass:[NSNumber class]] && [value boolValue]) {
++      return false;
++    }
++    if ([value isKindOfClass:[NSString class]] && [value length] > 0) {
++      return false;
++    }
++  }
++  // Per-interface settings, such as those a VPN app installs for its tunnel.
++  id scoped = aSettings[@"__SCOPED__"];
++  if ([scoped isKindOfClass:[NSDictionary class]]) {
++    for (id interface in (NSDictionary*)scoped) {
++      id interfaceSettings = ((NSDictionary*)scoped)[interface];
++      if ([interfaceSettings isKindOfClass:[NSDictionary class]] &&
++          !SettingsAreDirect(interfaceSettings)) {
++        return false;
++      }
++    }
++  }
++  return true;
++}
++
++NSURLSession* PACSession() {
++  static NSURLSession* session = nil;
++  static dispatch_once_t once;
++  dispatch_once(&once, ^{
++    NSURLSessionConfiguration* config =
++        [NSURLSessionConfiguration ephemeralSessionConfiguration];
++    // The PAC file has to be reachable without the proxy it configures.
++    config.connectionProxyDictionary = @{};
++    config.requestCachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
++    config.timeoutIntervalForRequest = kPACFetchTimeout;
++    config.timeoutIntervalForResource = kPACFetchTimeout;
++    session = [[NSURLSession sessionWithConfiguration:config] retain];
++  });
++  return session;
++}
++
++NSString* DownloadPACScript(NSURL* aURL) {
++  __block NSString* script = nil;
++  dispatch_semaphore_t done = dispatch_semaphore_create(0);
++  NSURLSessionDataTask* task = [PACSession()
++        dataTaskWithURL:aURL
++      completionHandler:^(NSData* data, NSURLResponse* response,
++                          NSError* error) {
++        NSInteger status = 200;
++        if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
++          status = ((NSHTTPURLResponse*)response).statusCode;
++        }
++        if (!error && data.length > 0 && status >= 200 && status < 300) {
++          script = [[NSString alloc] initWithData:data
++                                         encoding:NSUTF8StringEncoding];
++          if (!script) {
++            script = [[NSString alloc] initWithData:data
++                                           encoding:NSISOLatin1StringEncoding];
++          }
++        }
++        dispatch_semaphore_signal(done);
++      }];
++  [task resume];
++  dispatch_time_t deadline = dispatch_time(
++      DISPATCH_TIME_NOW, (int64_t)((kPACFetchTimeout + 2) * NSEC_PER_SEC));
++  bool finished = dispatch_semaphore_wait(done, deadline) == 0;
++  dispatch_release(done);
++  if (!finished) {
++    // The handler may still run later; it then owns and leaks one string.
++    [task cancel];
++    return nil;
++  }
++  return [script autorelease];
++}
++
++// Returns the PAC script behind aURL, from the cache while it is fresh. A
++// failed download is remembered briefly so a dead PAC server does not stall
++// every request for the full fetch timeout.
++NSString* CachedPACScript(NSURL* aURL) {
++  NSString* key = aURL.absoluteString;
++  {
++    mozilla::StaticMutexAutoLock lock(sPACCacheMutex);
++    if ([sPACCacheURL isEqualToString:key] && sPACCacheExpiry &&
++        [sPACCacheExpiry timeIntervalSinceNow] > 0) {
++      return [[sPACCacheScript retain] autorelease];
++    }
++  }
++
++  NSString* script = DownloadPACScript(aURL);
++
++  mozilla::StaticMutexAutoLock lock(sPACCacheMutex);
++  [sPACCacheURL release];
++  sPACCacheURL = [key copy];
++  [sPACCacheScript release];
++  sPACCacheScript = [script retain];
++  [sPACCacheExpiry release];
++  sPACCacheExpiry = [[NSDate alloc]
++      initWithTimeIntervalSinceNow:script ? kPACScriptLifetime
++                                          : kPACFailureRetryDelay];
++  return script;
++}
++
++CFTypeRefPtr<CFArrayRef> RunPACScript(NSString* aScript, NSURL* aURL) {
++  CFTypeRefPtr<CFArrayRef> result;
++  if (!aScript.length) {
++    return result;
++  }
++
++  CFStreamClientContext context = {0, &result, nullptr, nullptr, nullptr};
++  auto callback = [](void* aContext, CFArrayRef aProxies, CFErrorRef aError) {
++    if (aProxies && !aError) {
++      static_cast<CFTypeRefPtr<CFArrayRef>*>(aContext)->AssignUnderGetRule(
++          aProxies);
++    }
++
++    CFRunLoopStop(CFRunLoopGetCurrent());
++  };
++
++  CFRunLoopSourceRef source = CFNetworkExecuteProxyAutoConfigurationScript(
++      (__bridge CFStringRef)aScript, (__bridge CFURLRef)aURL, callback,
++      &context);
++  if (!source) {
++    return result;
++  }
++
++  auto runLoopSource =
++      CFTypeRefPtr<CFRunLoopSourceRef>::WrapUnderCreateRule(source);
++  CFStringRef mode = CFSTR("ReynardProxyResolution");
++  CFRunLoopAddSource(CFRunLoopGetCurrent(), source, mode);
++
++  CFRunLoopRunInMode(mode, kPACRunTimeout, false);
++  CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, mode);
++  CFRunLoopSourceInvalidate(source);
++  return result;
++}
++
++CFTypeRefPtr<CFArrayRef> ResolveAutoConfigProxy(NSDictionary* aProxy,
++                                                NSURL* aURL) {
++  NSString* script = nil;
++  if ([aProxy[(__bridge NSString*)kCFProxyTypeKey]
++          isEqual:(__bridge NSString*)kCFProxyTypeAutoConfigurationURL]) {
++    id pacURL = aProxy[(__bridge NSString*)kCFProxyAutoConfigurationURLKey];
++    if ([pacURL isKindOfClass:[NSString class]]) {
++      pacURL = [NSURL URLWithString:pacURL];
++    }
++    if ([pacURL isKindOfClass:[NSURL class]]) {
++      script = CachedPACScript(pacURL);
++    }
++  } else {
++    id value =
++        aProxy[(__bridge NSString*)kCFProxyAutoConfigurationJavaScriptKey];
++    if ([value isKindOfClass:[NSString class]]) {
++      script = value;
++    }
++  }
++  return RunPACScript(script, aURL);
++}
++
++// CFNetwork only knows proxies for the schemes it fetches itself.
++NSString* SchemeForProxyLookup(const nsACString& aScheme) {
++  if (aScheme.EqualsLiteral("ws")) {
++    return @"http";
++  }
++  if (aScheme.EqualsLiteral("wss")) {
++    return @"https";
++  }
++  return [NSString stringWithUTF8String:PromiseFlatCString(aScheme).get()];
++}
++
++void AppendEntry(nsACString& aResult, const char* aEntry) {
++  if (!aResult.IsEmpty()) {
++    aResult.AppendLiteral("; ");
++  }
++  aResult.Append(aEntry);
++}
++
++}  // namespace
 +
 +class nsIOSSystemProxySettings final : public nsISystemProxySettings {
 + public:
@@ -42,51 +265,6 @@ index 000000000000..5ea069565cd3
 +  return NS_OK;
 +}
 +
-+static CFTypeRefPtr<CFArrayRef> ResolveAutoConfigProxy(NSDictionary* aProxy,
-+                                                       NSURL* aURL) {
-+  CFTypeRefPtr<CFArrayRef> result;
-+  CFStreamClientContext context = {0, &result, nullptr, nullptr, nullptr};
-+  auto callback = [](void* aContext, CFArrayRef aProxies, CFErrorRef aError) {
-+    if (aProxies && !aError) {
-+      static_cast<CFTypeRefPtr<CFArrayRef>*>(aContext)->AssignUnderGetRule(
-+          aProxies);
-+    }
-+
-+    CFRunLoopStop(CFRunLoopGetCurrent());
-+  };
-+
-+  // A PAC entry without its URL or script, or a PAC run CFNetwork could not
-+  // start, resolves to no proxies instead of crashing the PAC thread.
-+  // [reynard-browser-zh]
-+  CFRunLoopSourceRef source = nullptr;
-+  if ([aProxy[(NSString*)kCFProxyTypeKey]
-+          isEqual:(NSString*)kCFProxyTypeAutoConfigurationURL]) {
-+    id pacURL = aProxy[(NSString*)kCFProxyAutoConfigurationURLKey];
-+    if ([pacURL isKindOfClass:[NSURL class]]) {
-+      source = CFNetworkExecuteProxyAutoConfigurationURL(
-+          (CFURLRef)pacURL, (CFURLRef)aURL, callback, &context);
-+    }
-+  } else {
-+    id script = aProxy[(NSString*)kCFProxyAutoConfigurationJavaScriptKey];
-+    if ([script isKindOfClass:[NSString class]]) {
-+      source = CFNetworkExecuteProxyAutoConfigurationScript(
-+          (CFStringRef)script, (CFURLRef)aURL, callback, &context);
-+    }
-+  }
-+  if (!source) {
-+    return result;
-+  }
-+
-+  auto runLoopSource =
-+      CFTypeRefPtr<CFRunLoopSourceRef>::WrapUnderCreateRule(source);
-+  CFStringRef mode = CFSTR("ReynardProxyResolution");
-+  CFRunLoopAddSource(CFRunLoopGetCurrent(), source, mode);
-+
-+  CFRunLoopRunInMode(mode, 60, false);
-+  CFRunLoopSourceInvalidate(source);
-+  return result;
-+}
-+
 +NS_IMETHODIMP
 +nsIOSSystemProxySettings::GetProxyForURI(const nsACString& aSpec,
 +                                         const nsACString& aScheme,
@@ -97,31 +275,34 @@ index 000000000000..5ea069565cd3
 +  @autoreleasepool {
 +    auto settings = CFTypeRefPtr<CFDictionaryRef>::WrapUnderCreateRule(
 +        CFNetworkCopySystemProxySettings());
-+    if (!settings) {
++    if (SettingsAreDirect((__bridge NSDictionary*)settings.get())) {
 +      aResult.AssignLiteral("DIRECT");
 +      return NS_OK;
 +    }
 +
 +    NSString* spec =
 +        [NSString stringWithUTF8String:PromiseFlatCString(aSpec).get()];
-+    NSURLComponents* components = [NSURLComponents componentsWithString:spec];
-+    components.scheme =
-+        [NSString stringWithUTF8String:PromiseFlatCString(aScheme).get()];
++    NSURLComponents* components = spec
++                                      ? [NSURLComponents componentsWithString:spec]
++                                      : nil;
++    components.scheme = SchemeForProxyLookup(aScheme);
 +    NSURL* url = components.URL;
 +    if (!url) {
-+      return NS_ERROR_FAILURE;
++      aResult.AssignLiteral("DIRECT");
++      return NS_OK;
 +    }
 +
 +    auto systemProxies = CFTypeRefPtr<CFArrayRef>::WrapUnderCreateRule(
-+        CFNetworkCopyProxiesForURL((CFURLRef)url, settings.get()));
++        CFNetworkCopyProxiesForURL((__bridge CFURLRef)url, settings.get()));
 +    NSMutableArray* proxies = [NSMutableArray array];
-+    for (NSDictionary* proxy in (NSArray*)systemProxies.get()) {
-+      NSString* type = proxy[(NSString*)kCFProxyTypeKey];
-+      if ([type isEqual:(NSString*)kCFProxyTypeAutoConfigurationURL] ||
-+          [type isEqual:(NSString*)kCFProxyTypeAutoConfigurationJavaScript]) {
++    for (NSDictionary* proxy in (__bridge NSArray*)systemProxies.get()) {
++      NSString* type = proxy[(__bridge NSString*)kCFProxyTypeKey];
++      if ([type isEqual:(__bridge NSString*)kCFProxyTypeAutoConfigurationURL] ||
++          [type isEqual:(__bridge NSString*)
++                            kCFProxyTypeAutoConfigurationJavaScript]) {
 +        auto resolved = ResolveAutoConfigProxy(proxy, url);
 +        if (resolved) {
-+          [proxies addObjectsFromArray:(NSArray*)resolved.get()];
++          [proxies addObjectsFromArray:(__bridge NSArray*)resolved.get()];
 +        }
 +      } else {
 +        [proxies addObject:proxy];
@@ -129,37 +310,49 @@ index 000000000000..5ea069565cd3
 +    }
 +
 +    for (NSDictionary* proxy in proxies) {
-+      NSString* type = proxy[(NSString*)kCFProxyTypeKey];
-+      const char* proxyType;
-+      if ([type isEqual:(NSString*)kCFProxyTypeNone]) {
-+        if (!aResult.IsEmpty()) {
-+          aResult.AppendLiteral("; ");
-+        }
-+        aResult.AppendLiteral("DIRECT");
++      if (![proxy isKindOfClass:[NSDictionary class]]) {
++        continue;
++      }
++      NSString* type = proxy[(__bridge NSString*)kCFProxyTypeKey];
++      if ([type isEqual:(__bridge NSString*)kCFProxyTypeNone]) {
++        AppendEntry(aResult, "DIRECT");
 +        continue;
 +      }
 +
-+      if ([type isEqual:(NSString*)kCFProxyTypeHTTP] ||
-+          [type isEqual:(NSString*)kCFProxyTypeHTTPS]) {
++      const char* proxyType;
++      if ([type isEqual:(__bridge NSString*)kCFProxyTypeHTTP] ||
++          [type isEqual:(__bridge NSString*)kCFProxyTypeHTTPS]) {
 +        proxyType = "PROXY";
-+      } else if ([type isEqual:(NSString*)kCFProxyTypeSOCKS]) {
++      } else if ([type isEqual:(__bridge NSString*)kCFProxyTypeSOCKS]) {
 +        proxyType = "SOCKS5";
 +      } else {
-+        return NS_ERROR_FAILURE;
++        continue;
 +      }
 +
-+      NSString* host = proxy[(NSString*)kCFProxyHostNameKey];
-+      NSNumber* port = proxy[(NSString*)kCFProxyPortNumberKey];
-+      bool ipv6 = [host rangeOfString:@":"].location != NSNotFound;
-+      if (!aResult.IsEmpty()) {
-+        aResult.AppendLiteral("; ");
++      id host = proxy[(__bridge NSString*)kCFProxyHostNameKey];
++      id port = proxy[(__bridge NSString*)kCFProxyPortNumberKey];
++      if (![host isKindOfClass:[NSString class]] || ![host length] ||
++          ![port isKindOfClass:[NSNumber class]]) {
++        continue;
 +      }
-+      aResult.AppendPrintf("%s %s%s%s:%d", proxyType, ipv6 ? "[" : "",
-+                           host.UTF8String, ipv6 ? "]" : "", port.intValue);
++      int portValue = [port intValue];
++      if (portValue <= 0 || portValue > 65535) {
++        continue;
++      }
++
++      bool ipv6 = [host rangeOfString:@":"].location != NSNotFound &&
++                  ![host hasPrefix:@"["];
++      nsAutoCString entry;
++      entry.AppendPrintf("%s %s%s%s:%d", proxyType, ipv6 ? "[" : "",
++                         [host UTF8String], ipv6 ? "]" : "", portValue);
++      AppendEntry(aResult, entry.get());
 +    }
 +  }
 +
-+  return aResult.IsEmpty() ? NS_ERROR_FAILURE : NS_OK;
++  if (aResult.IsEmpty()) {
++    aResult.AssignLiteral("DIRECT");
++  }
++  return NS_OK;
 +}
 +
 +NS_IMETHODIMP
@@ -170,7 +363,11 @@ index 000000000000..5ea069565cd3
 +
 +NS_IMETHODIMP
 +nsIOSSystemProxySettings::GetSystemProxyDirect(bool* aResult) {
-+  *aResult = false;
++  @autoreleasepool {
++    auto settings = CFTypeRefPtr<CFDictionaryRef>::WrapUnderCreateRule(
++        CFNetworkCopySystemProxySettings());
++    *aResult = SettingsAreDirect((__bridge NSDictionary*)settings.get());
++  }
 +  return NS_OK;
 +}
 +
