@@ -33,30 +33,30 @@
 | 字段 | 值 |
 | --- | --- |
 | 上游仓库 | `https://github.com/minh-ton/reynard-browser` |
-| 已合并到的上游提交 | `8ded3486821e6c922b5f2985274aefdc86752344`（Reynard 0.20.1） |
-| 上一次基线 | `072dc3a5eb10b70d844285ae84c7c4bdc437a979` |
-| Gecko | `FIREFOX_159_0_1_RELEASE`，固定提交 `6181e6b5f28a8fbae1d5c3ef6f6626b5a2180213` |
-| 合并日期 | 2026-11-07（同步分支 `sync/upstream-159.0.1`） |
-| 方式 | `6114ed61..25aa6da1`、`25aa6da1..55919a66`、`55919a66..860bb6f4`、`860bb6f4..6e84bfca`、`6e84bfca..e5276402`、`e5276402..072dc3a5`、`072dc3a5..8ded3486` 七段 `git format-patch` + `git am -3` |
+| 已合并到的上游提交 | `bade4045b23905e2b378f34abcd6ef2bf8fc4be0`（Reynard 0.21.0） |
+| 上一次基线 | `8ded3486821e6c922b5f2985274aefdc86752344` |
+| Gecko | `FIREFOX_160_0_RELEASE`，固定提交 `2887d9de1f69c0e9776413da80e7ba0d1225dd9b` |
+| 合并日期 | 2026-11-13（同步分支 `sync/upstream-160.0`） |
+| 方式 | `6114ed61..25aa6da1`、`25aa6da1..55919a66`、`55919a66..860bb6f4`、`860bb6f4..6e84bfca`、`6e84bfca..e5276402`、`e5276402..072dc3a5`、`072dc3a5..8ded3486`、`8ded3486..bade4045` 八段 `git format-patch` + `git am -3` |
 
 各版本的同步内容见 [`CHANGELOG.md`](../CHANGELOG.md)。
 
 ### 2. 汉化
 
 当 iOS 首选语言为简体中文时自动使用中文，英文资源保留。数字由
-`node tools/tests/validate-localizations.js` 输出，并与上游同一基线（`8ded3486`）的同名字符串表逐键比对得出
-（统计时本仓库为同步分支 `sync/upstream-159.0.1`；上游表中值为空的 `zh-Hans` 按“缺少中文”计）。校验脚本会检查每个键都有 `zh-Hans` 译文、占位符一致，
+`node tools/tests/validate-localizations.js` 输出，并与上游同一基线（`bade4045`）的同名字符串表逐键比对得出
+（统计时本仓库为同步分支 `sync/upstream-160.0`；上游表中值为空的 `zh-Hans` 按“缺少中文”计）。校验脚本会检查每个键都有 `zh-Hans` 译文、占位符一致，
 以及源码中 `NSLocalizedString` 的键都已收录。
 
 | 范围 | 文件 | 条数 | 其中来自本分支 |
 | --- | --- | --- | --- |
-| 应用界面 | `browser/Reynard/Resources/Localizable.xcstrings` | 590（全部有中文） | 新增中文 150 条（57 条为上游目录中没有的键，93 条为上游缺少中文的键，其中 11 条是本次同步的 MIDI、离开页面确认与书签菜单等新文字），并修订上游中文 15 条；其余 425 条沿用上游中文 |
+| 应用界面 | `browser/Reynard/Resources/Localizable.xcstrings` | 592（全部有中文） | 新增中文 164 条（57 条为上游目录中没有的键，107 条为上游缺少中文的键，其中 2 条是本次同步的外部应用打开提示），并修订上游中文 15 条；其余 413 条沿用上游中文 |
 | 附加组件 | `browser/Reynard/Client/Interface/Addons/AddonLocalizable.xcstrings` | 72 | 0（上游自带中文，本分支只做校验） |
 | 设置 | `browser/Reynard/Client/Interface/Library/Settings/SettingsLocalizable.xcstrings` | 50 | 9（均为上游目录中没有的键） |
 | 网页错误页 | `browser/Reynard/Client/Interface/ContentView/WebContentErrorLocalizable.xcstrings` | 69 | 0（上游 `6c8ca44d`，即本仓库 `de6f0ef1`，随错误页一同带来 Firefox 中文译文；本分支在 `e769b573` 中把该表纳入校验） |
 | 系统权限说明与显示名 | 3 个 `zh-Hans.lproj/InfoPlist.strings`（主应用 7 条、OpenIn 扩展 1 条、Helper 扩展 1 条） | 9 | 9（上游没有这些文件） |
 
-四个字符串表合计 781 条，`InfoPlist.strings` 另有 9 条。本分支的中文工作量以“来自本分支”一列为准，
+四个字符串表合计 783 条，`InfoPlist.strings` 另有 9 条。本分支的中文工作量以“来自本分支”一列为准，
 不应把上游已提供的中文计入。
 
 ### 3. 修复与加固
@@ -90,8 +90,10 @@
 8. 清除已打开标签页时一并清除最近关闭的标签与持久化会话/缩略图；`BoundedURLDataLoader` 加锁消除竞态；
    附加组件图标加载失败不再循环刷新；`ZipArchiveReader` 修复悬空指针（该文件已随上游改用 ZIPFoundation 删除，限制见第 13 条）；后台音频保活失败后按指数退避重试。
    提交：`23abe1c2`。
-9. 系统代理 PAC 条目缺少 URL 或脚本时按直连处理，不再崩溃。
-   文件：`patches/toolkit/system/iosproxy/nsIOSSystemProxySettings.mm.patch`；提交：`20d6979d`。
+9. 系统代理：PAC 条目缺少 URL 或脚本时按直连处理，不再崩溃；未配置代理时直接返回 DIRECT；PAC 文件直连下载并缓存 60 秒（失败 15 秒内不重试），
+   脚本本地执行，超时 15 秒；识别 VPN 按网络接口下发的代理（`__SCOPED__`）；跳过缺少主机/端口或类型不支持的条目，无可用条目时回退直连；
+   `ws`/`wss` 按 `http`/`https` 查询。
+   文件：`patches/toolkit/system/iosproxy/nsIOSSystemProxySettings.mm.patch`；提交：`20d6979d`、`8b0f99b8`。
 10. 修复 iOS 27 上 RemoteIO 音频线程自我 join 导致的崩溃。
     文件：`patches/media/libcubeb/src/cubeb_audiounit.cpp.patch`；提交：`4be69e0f`。
 11. 上游 `6e84bfca` 审查修复：`selectionView` 私有接口先检查再调用；错误页显示名不再强制转换，崩溃页链接文字缺失时不抛异常；
@@ -106,6 +108,8 @@
 14. 数据导入（上游 `2e504a80`）按不可信输入处理：ZIP 流式解压（单项 ≤512 MiB、累计 ≤1 GiB、可导入文件 ≤64 个）、书签 HTML ≤64 MiB、
     单条历史 JSON 值 ≤16 MiB、插件数据 ≤16 MiB；导入时会自动接受插件安装提示，因此只从 `addons.mozilla.org` 下载安装包。
     文件：`browser/Reynard/Client/UserData/` 下的 `UserDataImporter.swift`、`BookmarkHTMLParser.swift`、`HistoryJSONReader.swift`、`AddonDataFile.swift`、`AddonCatalog.swift`；提交：`e3c210d2`。
+15. 在其他应用中打开链接（上游 `bade4045`）：同一链接的加载与预导航回调共用一次确认；用户取消后，下一次页面导航前不再询问同一链接。
+    文件：`browser/Reynard/Client/SessionManagement/Navigation/UniversalLinkManager.swift`；提交：`bc713714`。
 
 所有上述约束由 `tools/tests/validate-project-safety.js` 做静态断言，PR 与 `main` 推送时运行。
 
@@ -167,11 +171,11 @@ The current baseline is recorded in [`.github/upstream-sync.json`](../.github/up
 | Field | Value |
 | --- | --- |
 | Upstream repository | `https://github.com/minh-ton/reynard-browser` |
-| Upstream commit merged up to | `8ded3486821e6c922b5f2985274aefdc86752344` (Reynard 0.20.1) |
-| Previous baseline | `072dc3a5eb10b70d844285ae84c7c4bdc437a979` |
-| Gecko | `FIREFOX_159_0_1_RELEASE`, pinned commit `6181e6b5f28a8fbae1d5c3ef6f6626b5a2180213` |
-| Integration date | 2026-11-07 (sync branch `sync/upstream-159.0.1`) |
-| Method | `git format-patch` + `git am -3` in seven ranges: `6114ed61..25aa6da1`, `25aa6da1..55919a66`, `55919a66..860bb6f4`, `860bb6f4..6e84bfca`, `6e84bfca..e5276402`, `e5276402..072dc3a5`, `072dc3a5..8ded3486` |
+| Upstream commit merged up to | `bade4045b23905e2b378f34abcd6ef2bf8fc4be0` (Reynard 0.21.0) |
+| Previous baseline | `8ded3486821e6c922b5f2985274aefdc86752344` |
+| Gecko | `FIREFOX_160_0_RELEASE`, pinned commit `2887d9de1f69c0e9776413da80e7ba0d1225dd9b` |
+| Integration date | 2026-11-13 (sync branch `sync/upstream-160.0`) |
+| Method | `git format-patch` + `git am -3` in eight ranges: `6114ed61..25aa6da1`, `25aa6da1..55919a66`, `55919a66..860bb6f4`, `860bb6f4..6e84bfca`, `6e84bfca..e5276402`, `e5276402..072dc3a5`, `072dc3a5..8ded3486`, `8ded3486..bade4045` |
 
 What each sync brought in is listed in [`CHANGELOG.md`](../CHANGELOG.md) (in Chinese).
 
@@ -179,18 +183,18 @@ What each sync brought in is listed in [`CHANGELOG.md`](../CHANGELOG.md) (in Chi
 
 The app switches to Simplified Chinese when it is the preferred iOS language; English resources are kept. The numbers
 come from `node tools/tests/validate-localizations.js` and from a key-by-key comparison with the same string tables at the
-upstream baseline (`8ded3486`), counted on this repository's sync branch `sync/upstream-159.0.1` (an empty upstream `zh-Hans` value counts as missing). The script checks that every key has a
+upstream baseline (`bade4045`), counted on this repository's sync branch `sync/upstream-160.0` (an empty upstream `zh-Hans` value counts as missing). The script checks that every key has a
 `zh-Hans` value with matching placeholders and that every `NSLocalizedString` key used in the source is in a table.
 
 | Scope | File | Entries | Contributed by this fork |
 | --- | --- | --- | --- |
-| App UI | `browser/Reynard/Resources/Localizable.xcstrings` | 590 (all translated) | 150 new Chinese entries (57 keys not in the upstream table, 93 upstream keys without Chinese, 11 of them this sync's new MIDI, leave-page and bookmark-menu strings) and 15 revised upstream translations; the other 425 use upstream's Chinese |
+| App UI | `browser/Reynard/Resources/Localizable.xcstrings` | 592 (all translated) | 164 new Chinese entries (57 keys not in the upstream table, 107 upstream keys without Chinese, 2 of them this sync's open-in-another-app prompt) and 15 revised upstream translations; the other 413 use upstream's Chinese |
 | Add-ons | `browser/Reynard/Client/Interface/Addons/AddonLocalizable.xcstrings` | 72 | 0 (upstream ships Chinese; the fork only validates it) |
 | Settings | `browser/Reynard/Client/Interface/Library/Settings/SettingsLocalizable.xcstrings` | 50 | 9 (all keys not in the upstream table) |
 | Web error pages | `browser/Reynard/Client/Interface/ContentView/WebContentErrorLocalizable.xcstrings` | 69 | 0 (upstream `6c8ca44d`, `de6f0ef1` in this repository, brought Firefox's Chinese with the error pages; the fork added the table to validation in `e769b573`) |
 | Permission prompts and display names | three `zh-Hans.lproj/InfoPlist.strings` (app 7, OpenIn extension 1, Helper extension 1) | 9 | 9 (upstream has no such files) |
 
-The four string tables hold 781 entries, plus 9 in `InfoPlist.strings`. The fork's own translation work is the
+The four string tables hold 783 entries, plus 9 in `InfoPlist.strings`. The fork's own translation work is the
 "Contributed by this fork" column; Chinese already provided upstream should not be counted as the fork's.
 
 ### 3. Fixes and hardening
@@ -229,8 +233,11 @@ Changes this fork adds on top of upstream (paths are relative to the repository 
 8. Clearing open tabs also clears recently closed tabs and persisted sessions/thumbnails; `BoundedURLDataLoader` is locked
    against a cancel/finish race; failed add-on icon loads no longer cause a refresh loop; a dangling pointer in
    `ZipArchiveReader` is fixed (the file was removed when upstream moved to ZIPFoundation; see item 13); background-audio keep-alive retries with exponential backoff. Commit `23abe1c2`.
-9. PAC entries without a URL or script resolve to no proxy instead of crashing.
-   File: `patches/toolkit/system/iosproxy/nsIOSSystemProxySettings.mm.patch`; commit `20d6979d`.
+9. System proxy: PAC entries without a URL or script resolve to no proxy instead of crashing; with no proxy configured the
+   lookup answers DIRECT at once; the PAC file is fetched directly and cached for 60 s (a failed fetch is not retried for
+   15 s), its script runs locally with a 15 s timeout; per-interface VPN proxies (`__SCOPED__`) are recognized; entries
+   without a host/port or of an unsupported type are skipped, falling back to DIRECT; `ws`/`wss` look up as `http`/`https`.
+   File: `patches/toolkit/system/iosproxy/nsIOSSystemProxySettings.mm.patch`; commits `20d6979d`, `8b0f99b8`.
 10. Fixes a RemoteIO audio thread self-join crash on iOS 27.
     File: `patches/media/libcubeb/src/cubeb_audiounit.cpp.patch`; commit `4be69e0f`.
 11. Review fixes for upstream `6e84bfca`: the private `selectionView` call is checked first; the error page no longer
@@ -249,6 +256,9 @@ Changes this fork adds on top of upstream (paths are relative to the repository 
     importable files), bookmark HTML ≤64 MiB, a single history JSON value ≤16 MiB, add-on data ≤16 MiB; because the import
     accepts the add-on install prompt automatically, packages are only downloaded from `addons.mozilla.org`.
     Files under `browser/Reynard/Client/UserData/`: `UserDataImporter.swift`, `BookmarkHTMLParser.swift`, `HistoryJSONReader.swift`, `AddonDataFile.swift`, `AddonCatalog.swift`; commit `e3c210d2`.
+15. Opening links in other apps (upstream `bade4045`): the load and pre-navigation callbacks for one link share a single
+    confirmation, and a declined link is not asked about again until the page navigates.
+    File: `browser/Reynard/Client/SessionManagement/Navigation/UniversalLinkManager.swift`; commit `bc713714`.
 
 These constraints are asserted statically by `tools/tests/validate-project-safety.js`, which runs on pull requests and
 pushes to `main`.
