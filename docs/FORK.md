@@ -33,30 +33,30 @@
 | 字段 | 值 |
 | --- | --- |
 | 上游仓库 | `https://github.com/minh-ton/reynard-browser` |
-| 已合并到的上游提交 | `bade4045b23905e2b378f34abcd6ef2bf8fc4be0`（Reynard 0.21.0） |
-| 上一次基线 | `8ded3486821e6c922b5f2985274aefdc86752344` |
+| 已合并到的上游提交 | `fde6cbfe292adc98e4de417e6381e41481780779`（Reynard 0.22.0） |
+| 上一次基线 | `bade4045b23905e2b378f34abcd6ef2bf8fc4be0` |
 | Gecko | `FIREFOX_160_0_RELEASE`，固定提交 `2887d9de1f69c0e9776413da80e7ba0d1225dd9b` |
-| 合并日期 | 2026-11-13（同步分支 `sync/upstream-160.0`） |
-| 方式 | `6114ed61..25aa6da1`、`25aa6da1..55919a66`、`55919a66..860bb6f4`、`860bb6f4..6e84bfca`、`6e84bfca..e5276402`、`e5276402..072dc3a5`、`072dc3a5..8ded3486`、`8ded3486..bade4045` 八段 `git format-patch` + `git am -3` |
+| 合并日期 | 2026-11-17（同步分支 `sync/upstream-0.22.0`） |
+| 方式 | `6114ed61..25aa6da1`、`25aa6da1..55919a66`、`55919a66..860bb6f4`、`860bb6f4..6e84bfca`、`6e84bfca..e5276402`、`e5276402..072dc3a5`、`072dc3a5..8ded3486`、`8ded3486..bade4045`、`bade4045..fde6cbfe` 九段 `git format-patch` + `git am -3` |
 
 各版本的同步内容见 [`CHANGELOG.md`](../CHANGELOG.md)。
 
 ### 2. 汉化
 
 当 iOS 首选语言为简体中文时自动使用中文，英文资源保留。数字由
-`node tools/tests/validate-localizations.js` 输出，并与上游同一基线（`bade4045`）的同名字符串表逐键比对得出
-（统计时本仓库为同步分支 `sync/upstream-160.0`；上游表中值为空的 `zh-Hans` 按“缺少中文”计）。校验脚本会检查每个键都有 `zh-Hans` 译文、占位符一致，
+`node tools/tests/validate-localizations.js` 输出，并与上游同一基线（`fde6cbfe`）的同名字符串表逐键比对得出
+（统计时本仓库为同步分支 `sync/upstream-0.22.0`；上游表中值为空的 `zh-Hans` 按“缺少中文”计）。校验脚本会检查每个键都有 `zh-Hans` 译文、占位符一致，
 以及源码中 `NSLocalizedString` 的键都已收录。
 
 | 范围 | 文件 | 条数 | 其中来自本分支 |
 | --- | --- | --- | --- |
-| 应用界面 | `browser/Reynard/Resources/Localizable.xcstrings` | 592（全部有中文） | 新增中文 164 条（57 条为上游目录中没有的键，107 条为上游缺少中文的键，其中 2 条是本次同步的外部应用打开提示），并修订上游中文 15 条；其余 413 条沿用上游中文 |
+| 应用界面 | `browser/Reynard/Resources/Localizable.xcstrings` | 593（全部有中文） | 新增中文 165 条（57 条为上游目录中没有的键，108 条为上游缺少中文的键，其中 1 条是本次同步的插件更新状态），并修订上游中文 15 条；其余 413 条沿用上游中文 |
 | 附加组件 | `browser/Reynard/Client/Interface/Addons/AddonLocalizable.xcstrings` | 72 | 0（上游自带中文，本分支只做校验） |
 | 设置 | `browser/Reynard/Client/Interface/Library/Settings/SettingsLocalizable.xcstrings` | 50 | 9（均为上游目录中没有的键） |
 | 网页错误页 | `browser/Reynard/Client/Interface/ContentView/WebContentErrorLocalizable.xcstrings` | 69 | 0（上游 `6c8ca44d`，即本仓库 `de6f0ef1`，随错误页一同带来 Firefox 中文译文；本分支在 `e769b573` 中把该表纳入校验） |
 | 系统权限说明与显示名 | 3 个 `zh-Hans.lproj/InfoPlist.strings`（主应用 7 条、OpenIn 扩展 1 条、Helper 扩展 1 条） | 9 | 9（上游没有这些文件） |
 
-四个字符串表合计 783 条，`InfoPlist.strings` 另有 9 条。本分支的中文工作量以“来自本分支”一列为准，
+四个字符串表合计 784 条，`InfoPlist.strings` 另有 9 条。本分支的中文工作量以“来自本分支”一列为准，
 不应把上游已提供的中文计入。
 
 ### 3. 修复与加固
@@ -171,11 +171,11 @@ The current baseline is recorded in [`.github/upstream-sync.json`](../.github/up
 | Field | Value |
 | --- | --- |
 | Upstream repository | `https://github.com/minh-ton/reynard-browser` |
-| Upstream commit merged up to | `bade4045b23905e2b378f34abcd6ef2bf8fc4be0` (Reynard 0.21.0) |
-| Previous baseline | `8ded3486821e6c922b5f2985274aefdc86752344` |
+| Upstream commit merged up to | `fde6cbfe292adc98e4de417e6381e41481780779` (Reynard 0.22.0) |
+| Previous baseline | `bade4045b23905e2b378f34abcd6ef2bf8fc4be0` |
 | Gecko | `FIREFOX_160_0_RELEASE`, pinned commit `2887d9de1f69c0e9776413da80e7ba0d1225dd9b` |
-| Integration date | 2026-11-13 (sync branch `sync/upstream-160.0`) |
-| Method | `git format-patch` + `git am -3` in eight ranges: `6114ed61..25aa6da1`, `25aa6da1..55919a66`, `55919a66..860bb6f4`, `860bb6f4..6e84bfca`, `6e84bfca..e5276402`, `e5276402..072dc3a5`, `072dc3a5..8ded3486`, `8ded3486..bade4045` |
+| Integration date | 2026-11-17 (sync branch `sync/upstream-0.22.0`) |
+| Method | `git format-patch` + `git am -3` in nine ranges: `6114ed61..25aa6da1`, `25aa6da1..55919a66`, `55919a66..860bb6f4`, `860bb6f4..6e84bfca`, `6e84bfca..e5276402`, `e5276402..072dc3a5`, `072dc3a5..8ded3486`, `8ded3486..bade4045`, `bade4045..fde6cbfe` |
 
 What each sync brought in is listed in [`CHANGELOG.md`](../CHANGELOG.md) (in Chinese).
 
@@ -183,18 +183,18 @@ What each sync brought in is listed in [`CHANGELOG.md`](../CHANGELOG.md) (in Chi
 
 The app switches to Simplified Chinese when it is the preferred iOS language; English resources are kept. The numbers
 come from `node tools/tests/validate-localizations.js` and from a key-by-key comparison with the same string tables at the
-upstream baseline (`bade4045`), counted on this repository's sync branch `sync/upstream-160.0` (an empty upstream `zh-Hans` value counts as missing). The script checks that every key has a
+upstream baseline (`fde6cbfe`), counted on this repository's sync branch `sync/upstream-0.22.0` (an empty upstream `zh-Hans` value counts as missing). The script checks that every key has a
 `zh-Hans` value with matching placeholders and that every `NSLocalizedString` key used in the source is in a table.
 
 | Scope | File | Entries | Contributed by this fork |
 | --- | --- | --- | --- |
-| App UI | `browser/Reynard/Resources/Localizable.xcstrings` | 592 (all translated) | 164 new Chinese entries (57 keys not in the upstream table, 107 upstream keys without Chinese, 2 of them this sync's open-in-another-app prompt) and 15 revised upstream translations; the other 413 use upstream's Chinese |
+| App UI | `browser/Reynard/Resources/Localizable.xcstrings` | 593 (all translated) | 165 new Chinese entries (57 keys not in the upstream table, 108 upstream keys without Chinese, 1 of them this sync's add-on update status) and 15 revised upstream translations; the other 413 use upstream's Chinese |
 | Add-ons | `browser/Reynard/Client/Interface/Addons/AddonLocalizable.xcstrings` | 72 | 0 (upstream ships Chinese; the fork only validates it) |
 | Settings | `browser/Reynard/Client/Interface/Library/Settings/SettingsLocalizable.xcstrings` | 50 | 9 (all keys not in the upstream table) |
 | Web error pages | `browser/Reynard/Client/Interface/ContentView/WebContentErrorLocalizable.xcstrings` | 69 | 0 (upstream `6c8ca44d`, `de6f0ef1` in this repository, brought Firefox's Chinese with the error pages; the fork added the table to validation in `e769b573`) |
 | Permission prompts and display names | three `zh-Hans.lproj/InfoPlist.strings` (app 7, OpenIn extension 1, Helper extension 1) | 9 | 9 (upstream has no such files) |
 
-The four string tables hold 783 entries, plus 9 in `InfoPlist.strings`. The fork's own translation work is the
+The four string tables hold 784 entries, plus 9 in `InfoPlist.strings`. The fork's own translation work is the
 "Contributed by this fork" column; Chinese already provided upstream should not be counted as the fork's.
 
 ### 3. Fixes and hardening
