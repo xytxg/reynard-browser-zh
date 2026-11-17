@@ -25528,6 +25528,12 @@
             "state": "translated",
             "value": "Restart to Finish Updating"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新启动以完成更新"
+          }
         }
       }
     },
